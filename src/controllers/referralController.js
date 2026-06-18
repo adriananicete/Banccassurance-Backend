@@ -34,7 +34,7 @@ export const getReferrerByCode = async (req, res) => {
     })
   }
 }
-//GET ALL PLANS
+// GET ALL PLANS
 export const getPlans = async (req, res) => {
   try {
     const result = await new sql.Request().execute('[banc].[usp_sel_plans]')
@@ -89,9 +89,9 @@ export const createReferral = async (req, res) => {
     request.input('PlanId', sql.Int, planId)
     request.input('ReferrerCode', sql.NVarChar, referrerCode)
     request.input('ReferrerName', sql.NVarChar, referrerName)
-    request.input('BranchCode', sql.NVarChar, branchCode)
+    request.input('BranchCode', sql.Int, branchCode)
     request.input('BranchName', sql.NVarChar, branchName)
-    request.input('AreaCode', sql.NVarChar, areaCode)
+    request.input('AreaCode', sql.Int, areaCode)
     request.input('AreaName', sql.NVarChar, areaName)
     request.input('Status', sql.NVarChar, status)
     request.input('StatusDate', sql.Date, statusDate)
@@ -349,8 +349,8 @@ export const getReferrals = async (req, res) => {
 
     request.input('Role', sql.NVarChar, user.Role)
     request.input('UserCode', sql.NVarChar, user.UserCode)
-    request.input('BranchCode', sql.Int, user.BranchCode)
-    request.input('AreaCode', sql.Int, user.AreaCode)
+    request.input('BranchCode', sql.Int, user.BranchCode || 0)
+    request.input('AreaCode', sql.Int, user.AreaCode || 0)
 
     const result = await request.execute('[banc].[usp_sel_referrals_by_role]')
 
@@ -361,7 +361,6 @@ export const getReferrals = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Get Referrals Error:', error)
-
     res.status(500).json({
       success: false,
       message: 'Failed to fetch referrals'
