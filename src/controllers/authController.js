@@ -4,10 +4,7 @@ import { sendOtpEmail } from '../services/emailService.js'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
-
-/* =========================================================
-   ✅ MULTER CONFIG (UPLOAD)
-========================================================= */
+import jwt from 'jsonwebtoken'
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -36,15 +33,7 @@ export const upload = multer({
   }
 })
 
-/* =========================================================
-   ✅ OTP STORE
-========================================================= */
-
 const otpStore = {}
-
-/* =========================================================
-   ✅ SEND OTP
-========================================================= */
 
 export const sendOtp = async (req, res) => {
   try {
@@ -81,43 +70,62 @@ export const sendOtp = async (req, res) => {
   }
 }
 
-/* =========================================================
-   ✅ VERIFY OTP
-========================================================= */
-
 export const verifyOtp = async (req, res) => {
   try {
-    const identifier = req.body.identifier?.trim()
-    const { otp } = req.body
+    const identifier = req.body.identifier?.trim();
+    const { otp } = req.body;
 
-    const request = new sql.Request()
-    request.input('Identifier', sql.NVarChar, identifier)
+    const request = new sql.Request();
+    request.input('Identifier', sql.NVarChar, identifier);
 
-    const result = await request.execute('[banc].[usp_ValidateUser]')
+    const result = await request.execute('[banc].[usp_ValidateUser]');
 
     if (result.recordset.length === 0) {
-      return res.json({ success: false })
+      return res.json({ success: false });
     }
 
-    const user = result.recordset[0]
-    const email = user.Email
-
-    const record = otpStore[email]
+    const user = result.recordset[0];
+    const email = user.Email;
+    const record = otpStore[email];
 
     if (!record) {
-      return res.json({ success: false, message: 'No OTP found' })
+      return res.json({ success: false, message: 'No OTP found' });
     }
 
     if (record.expires < Date.now()) {
-      return res.json({ success: false, message: 'OTP expired' })
+      return res.json({ success: false, message: 'OTP expired' });
     }
 
     if (record.otp !== otp) {
-      return res.json({ success: false, message: 'Invalid OTP' })
+      return res.json({ success: false, message: 'Invalid OTP' });
     }
 
-    delete otpStore[email]
+    // ✅ Clear OTP immediately on successful use to prevent reuse replay attacks
+    delete otpStore[email];
 
+    // ✅ 1. Generate a secure JWT payload
+    const tokenPayload = {
+      UserId: user.UserId,
+      UserCode: user.UserCode,
+      Role: user.Role
+    };
+
+    // ✅ 2. Sign the token (Use a long random string in your backend .env file)
+    const token = jwt.sign(
+      tokenPayload, 
+      process.env.JWT_SECRET || 'fallback_secret_key_change_me_in_production', 
+      { expiresIn: '8h' } // Token expires in 8 hours
+    );
+
+    // ✅ 3. Send token via secure, HTTP-Only Cookie
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // Use true in production (requires HTTPS)
+      sameSite: 'Strict',                     // Mitigates CSRF attacks
+      maxAge: 8 * 60 * 60 * 1000              // Matches token expiration (8 hours)
+    });
+
+    // Send only public non-sensitive details back in JSON
     res.json({
       success: true,
       user: {
@@ -125,18 +133,17 @@ export const verifyOtp = async (req, res) => {
         UserCode: user.UserCode,
         FullName: user.FullName,
         Role: user.Role,
-        Photo: user.Photo
+        Photo: user.Photo,
+        BranchCode: user.BranchCode, 
+        AreaCode: user.AreaCode,
+        AOCode: user.AOCode
       }
-    })
+    });
   } catch (error) {
-    console.error('Verify OTP Error:', error)
-    res.status(500).json({ success: false })
+    console.error('Verify OTP Error:', error);
+    res.status(500).json({ success: false });
   }
-}
-
-/* =========================================================
-   ✅ LOGIN STEP 1 (PASSWORD + OTP)
-========================================================= */
+};
 
 export const loginStep1 = async (req, res) => {
   try {
@@ -158,7 +165,13 @@ export const loginStep1 = async (req, res) => {
       return res.json({ success: false, message: 'No password set' })
     }
 
+    console.log('Password received:', password);
+    console.log('Hash from DB:', user.PasswordHash);
+    
+
     const isMatch = await bcrypt.compare(password, user.PasswordHash)
+
+    console.log('Match Result:', isMatch);
 
     if (!isMatch) {
       return res.json({ success: false, message: 'Invalid credentials' })
@@ -183,10 +196,6 @@ export const loginStep1 = async (req, res) => {
     res.status(500).json({ success: false })
   }
 }
-
-/* =========================================================
-   ✅ CHANGE PASSWORD
-========================================================= */
 
 export const changePassword = async (req, res) => {
   try {
@@ -240,10 +249,6 @@ export const changePassword = async (req, res) => {
   }
 }
 
-/* =========================================================
-   ✅ UPLOAD PROFILE PHOTO
-========================================================= */
-
 export const uploadProfilePhoto = async (req, res) => {
   try {
     const { userCode } = req.body
@@ -252,7 +257,6 @@ export const uploadProfilePhoto = async (req, res) => {
       return res.status(400).json({ message: 'No file uploaded' })
     }
 
-    // ✅ GET OLD PHOTO FIRST
     const getRequest = new sql.Request()
     getRequest.input('UserCode', sql.NVarChar, userCode)
 
@@ -266,7 +270,6 @@ export const uploadProfilePhoto = async (req, res) => {
 
     const newFileName = req.file.filename
 
-    // ✅ UPDATE DB WITH NEW PHOTO
     const updateRequest = new sql.Request()
     updateRequest.input('UserCode', sql.NVarChar, userCode)
     updateRequest.input('Photo', sql.NVarChar, newFileName)
@@ -299,5 +302,51 @@ export const uploadProfilePhoto = async (req, res) => {
   } catch (error) {
     console.error('❌ Upload Error:', error)
     res.status(500).json({ message: 'Upload failed' })
+  }
+}
+
+
+// Adding the get group area names and branches
+
+export const getGroups = async (req, res) => {
+  try {
+    const request = new sql.Request()
+    const result = await request.query(`
+      SELECT AreaCode, AreaName
+      FROM banc.group_areas
+      ORDER BY AreaName
+    `)
+    res.json({ success: true, data: result.recordset })
+  } catch (error) {
+    console.error('❌ Get Groups Error:', error)
+    res.status(500).json({ success: false, message: 'Server error' })
+  }
+}
+
+export const getBranches = async (req, res) => {
+  try {
+    const { areaCode } = req.query
+    const request = new sql.Request()
+
+    if (areaCode) {
+      request.input('AreaCode', sql.Int, areaCode)
+      const result = await request.query(`
+        SELECT BranchCode, BranchName, AreaCode
+        FROM banc.branches
+        WHERE AreaCode = @AreaCode
+        ORDER BY BranchName
+      `)
+      return res.json({ success: true, data: result.recordset })
+    }
+
+    const result = await request.query(`
+      SELECT BranchCode, BranchName, AreaCode
+      FROM banc.branches
+      ORDER BY BranchName
+    `)
+    res.json({ success: true, data: result.recordset })
+  } catch (error) {
+    console.error('❌ Get Branches Error:', error)
+    res.status(500).json({ success: false, message: 'Server error' })
   }
 }
