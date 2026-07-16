@@ -2,6 +2,8 @@ import { v4 as uuidv4 } from 'uuid'
 import * as notificationService from '../services/notificationService.js'
 import * as referralService from '../services/referralService.js'
 import { isValidGuid } from '../utils/validators.js'
+import { consentConfirmedTemplate } from '../templates/consentConfirmedTemplate.js'
+import { consentInvalidTemplate } from '../templates/consentInvalidTemplate.js'
 
 // GET REFERRER INFO BY CODE (AUTO-FILL)
 export const getReferrerByCode = async (req, res) => {
@@ -139,120 +141,12 @@ export const confirmConsent = async (req, res) => {
 
     await referralService.confirmConsentRequest(token)
 
-    res.send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Consent Confirmation</title>
-          <link rel="icon" type="image/x-icon" href="/favicon.ico">
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f9;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-          }
-
-          .card {
-            background: #ffffff;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            text-align: center;
-            max-width: 500px;
-          }
-
-          .icon {
-            font-size: 60px;
-            color: #28a745;
-            margin-bottom: 15px;
-          }
-
-          h2 {
-            color: #333;
-            margin-bottom: 10px;
-          }
-
-          p {
-            color: #666;
-            line-height: 1.5;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <div class="icon">✅</div>
-          <h2>Consent Successfully Confirmed</h2>
-          <p>
-            Thank you for providing your consent.
-            Your confirmation has been recorded successfully.
-          </p>
-          <p>
-            You may now proceed with your application process.
-          </p>
-        </div>
-      </body>
-      </html>`)
+    res.send(consentConfirmedTemplate())
 
   } catch (error) {
     console.error('❌ Confirm Consent Error:', error)
 
-  res.status(400).send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Consent Confirmation</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f6f9;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-          }
-
-          .card {
-            background: #ffffff;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            text-align: center;
-            max-width: 500px;
-          }
-
-          .icon {
-            font-size: 60px;
-            color: #dc3545;
-            margin-bottom: 15px;
-          }
-
-          h2 {
-            color: #333;
-          }
-
-          p {
-            color: #666;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <div class="icon">❌</div>
-          <h2>Invalid or Expired Link</h2>
-          <p>
-            The consent confirmation link is no longer valid or has already been used.
-          </p>
-          <p>
-            Please contact your branch representative for assistance.
-          </p>
-        </div>
-      </body>
-      </html>`)
+    res.status(400).send(consentInvalidTemplate())
   }
 }
 // CHECK CONSENT STATUS
