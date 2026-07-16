@@ -1,6 +1,7 @@
 import sql from '../config/db.js'
 import { sendConsentEmail } from '../services/emailService.js'
 import { v4 as uuidv4 } from 'uuid'
+import * as notificationService from '../services/notificationService.js'
 
 
 // GET REFERRER INFO BY CODE (AUTO-FILL)
@@ -435,34 +436,14 @@ export const updateReferralStatus = async (req, res) => {
 export const getUserNotifications = async (req, res) => {
   try {
     const { userCode } = req.query;
-    
-    if (!userCode || userCode === 'undefined' || userCode === 'null') {
-      return res.json({ success: true, notifications: [] });
-    }
-
-    const request = new sql.Request();
-    request.input('CleanUserCode', sql.NVarChar, String(userCode).trim());
-    
-    const queryStr = `
-      SELECT [Id], [UserCode], [Message], [IsRead], [CreatedAt]
-      FROM [banc].[Notifications]
-      WHERE [UserCode] = @CleanUserCode
-      ORDER BY [CreatedAt] DESC
-    `;
-    
-    const result = await request.query(queryStr);
-    
-    return res.json({
-      success: true,
-      notifications: result.recordset
-    });
-    
+    const result = await notificationService.getUserNotifications(userCode);
+    return res.json(result);
   } catch (error) {
     console.error('❌ SQL Query Crash Details:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Server database error fetching notifications.', 
-      error: error.message 
+    return res.status(500).json({
+      success: false,
+      message: 'Server database error fetching notifications.',
+      error: error.message
     });
   }
 };
@@ -473,28 +454,13 @@ export const getUserNotifications = async (req, res) => {
 export const clearUserNotifications = async (req, res) => {
   try {
     const { userCode } = req.body;
-
-    if (!userCode || userCode === 'undefined') {
-      return res.status(400).json({ success: false, message: 'UserCode is required' });
-    }
-
-    const request = new sql.Request();
-    request.input('CleanUserCode', sql.NVarChar, String(userCode).trim());
-
-    await request.query(`
-      DELETE FROM [banc].[Notifications]
-      WHERE [UserCode] = @CleanUserCode
-    `);
-
-    return res.json({
-      success: true,
-      message: 'Notifications cleared successfully.'
-    });
+    const result = await notificationService.clearUserNotifications(userCode);
+    return res.json(result);
   } catch (error) {
     console.error('❌ Clear notifications failed:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Server error trying to clear notifications.' 
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.statusCode ? error.message : 'Server error trying to clear notifications.'
     });
   }
 };
@@ -505,24 +471,14 @@ export const clearUserNotifications = async (req, res) => {
 export const markNotificationAsRead = async (req, res) => {
   try {
     const { id } = req.params; // Expects Notification ID
-
-    if (!id) {
-      return res.status(400).json({ success: false, message: 'Notification ID is required' });
-    }
-
-    const request = new sql.Request();
-    request.input('Id', sql.Int, parseInt(id, 10));
-
-    await request.query(`
-      UPDATE [banc].[Notifications]
-      SET [IsRead] = 1
-      WHERE [Id] = @Id
-    `);
-
-    return res.json({ success: true, message: 'Notification marked as read.' });
+    const result = await notificationService.markNotificationAsRead(id);
+    return res.json(result);
   } catch (error) {
     console.error('❌ Mark notification read failed:', error);
-    return res.status(500).json({ success: false, message: 'Server database update error.' });
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.statusCode ? error.message : 'Server database update error.'
+    });
   }
 };
 
@@ -532,24 +488,14 @@ export const markNotificationAsRead = async (req, res) => {
 export const markAllNotificationsAsRead = async (req, res) => {
   try {
     const { userCode } = req.body;
-
-    if (!userCode || userCode === 'undefined') {
-      return res.status(400).json({ success: false, message: 'UserCode is required' });
-    }
-
-    const request = new sql.Request();
-    request.input('CleanUserCode', sql.NVarChar, String(userCode).trim());
-
-    await request.query(`
-      UPDATE [banc].[Notifications]
-      SET [IsRead] = 1
-      WHERE [UserCode] = @CleanUserCode AND [IsRead] = 0
-    `);
-
-    return res.json({ success: true, message: 'All notifications marked as read.' });
+    const result = await notificationService.markAllNotificationsAsRead(userCode);
+    return res.json(result);
   } catch (error) {
     console.error('❌ Mark all notifications read failed:', error);
-    return res.status(500).json({ success: false, message: 'Server error marking all as read.' });
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.statusCode ? error.message : 'Server error marking all as read.'
+    });
   }
 };
 
