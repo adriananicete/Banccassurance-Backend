@@ -1,47 +1,36 @@
-import sql from '../config/db.js'
-import { sendConsentEmail } from '../services/emailService.js'
 import { v4 as uuidv4 } from 'uuid'
-
+import * as notificationService from '../services/notificationService.js'
+import * as referralService from '../services/referralService.js'
+import { isValidGuid } from '../utils/validators.js'
 
 // GET REFERRER INFO BY CODE (AUTO-FILL)
 export const getReferrerByCode = async (req, res) => {
   try {
     const { code } = req.params
-
-    const request = new sql.Request()
-    request.input('UserCode', sql.NVarChar, code)
-
-    const result = await request.execute('[banc].[usp_sel_referrer_by_code]')
-
-    if (result.recordset.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Referrer not found'
-      })
-    }
+    const data = await referralService.getReferrerByCode(code)
 
     res.status(200).json({
       success: true,
-      data: result.recordset[0]
+      data
     })
 
   } catch (error) {
     console.error('❌ Get Referrer Error:', error)
 
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
-      message: 'Server error'
+      message: error.statusCode ? error.message : 'Server error'
     })
   }
 }
 // GET ALL PLANS
 export const getPlans = async (req, res) => {
   try {
-    const result = await new sql.Request().execute('[banc].[usp_sel_plans]')
+    const data = await referralService.getPlans()
 
     res.status(200).json({
       success: true,
-      data: result.recordset
+      data
     })
 
   } catch (error) {
@@ -69,7 +58,7 @@ export const createReferral = async (req, res) => {
         referrerName,
         branchCode,
         branchName,
-        areaCode, 
+        areaCode,
         areaName,
         status,
         statusDate,
@@ -77,33 +66,15 @@ export const createReferral = async (req, res) => {
         aoCode
     } = req.body
 
-    const request = new sql.Request()
-
-    request.input('FirstName', sql.NVarChar, firstName)
-    request.input('LastName', sql.NVarChar, lastName)
-    request.input('MiddleName', sql.NVarChar, middleName)
-    request.input('Suffix', sql.NVarChar, suffix)
-    request.input('Birthdate', sql.Date, birthdate)
-    request.input('Occupation', sql.NVarChar, occupation)
-    request.input('Email', sql.NVarChar, email)
-    request.input('PlanId', sql.Int, planId)
-    request.input('ReferrerCode', sql.NVarChar, referrerCode)
-    request.input('ReferrerName', sql.NVarChar, referrerName)
-    request.input('BranchCode', sql.Int, parseInt(branchCode || 0, 10))
-    request.input('AreaCode', sql.Int, parseInt(areaCode || 0, 10))
-    request.input('BranchName', sql.NVarChar, branchName)
-    request.input('AreaName', sql.NVarChar, areaName)
-    request.input('Status', sql.NVarChar, status)
-    request.input('StatusDate', sql.Date, statusDate)
-    request.input('AOName', sql.NVarChar, aoName)
-    request.input('AOCode', sql.NVarChar, aoCode)
-
-
-    const result = await request.execute('[banc].[usp_ins_referrals]')
+    const id = await referralService.createReferral({
+      firstName, lastName, middleName, suffix, birthdate, occupation, email,
+      planId, referrerCode, referrerName, branchCode, branchName, areaCode,
+      areaName, status, statusDate, aoName, aoCode
+    })
 
     res.status(201).json({
       success: true,
-      id: result.recordset[0].Id
+      id
     })
 
   } catch (error) {
@@ -115,26 +86,21 @@ export const createReferral = async (req, res) => {
     })
   }
 }
-// SEND CONSENT  
+// SEND CONSENT
 export const sendConsent = async (req, res) => {
     try {
           const { email } = req.body
           const token = uuidv4()
 
-          const request = new sql.Request()
-          request.input('Email', sql.NVarChar, email)
-          request.input('Token', sql.NVarChar, token)
-
-          await request.execute('[banc].[usp_insert_consent_request]')
-          await sendConsentEmail(email, token)
+          await referralService.sendConsent(email, token)
 
           res.status(200).json({
             success: true,
             message: 'Consent email sent',
             token
           })
-        } 
-          catch (error) 
+        }
+          catch (error)
             {
           console.error('❌ Send Consent Error:', error)
 
@@ -150,31 +116,8 @@ export const updateReferralProfiling = async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
-    const request = new sql.Request();
 
-    request.input('Id', sql.UniqueIdentifier, id);
-
-    const formatArray = (arr) => {
-      const parsed = typeof arr === 'string' ? JSON.parse(arr) : arr;
-      return Array.isArray(parsed) ? parsed.join(', ') : parsed;
-    };
-
-    request.input('CivilStatus', sql.NVarChar, data.civilStatus);
-    request.input('Nationality', sql.NVarChar, data.nationality);
-    request.input('MobileNumber', sql.NVarChar, data.mobileNumber);
-    request.input('HomeAddress', sql.NVarChar, data.homeAddress);
-    request.input('MessengerName', sql.NVarChar, data.messengerName);
-    request.input('CompanyName', sql.NVarChar, data.companyName);
-    request.input('Position', sql.NVarChar, data.position);
-    request.input('LengthOfService', sql.NVarChar, data.lengthOfService);
-    request.input('MonthlyIncomeRange', sql.NVarChar, data.monthlyIncomeRange);
-    request.input('ExistingProducts', sql.NVarChar, formatArray(data.existingProducts));
-    request.input('MonthlySavingsCapacity', sql.NVarChar, data.monthlySavingsCapacity);
-    request.input('InterestedProducts', sql.NVarChar, formatArray(data.interestedProducts));
-    request.input('PreferredCommunication', sql.NVarChar, formatArray(data.preferredCommunication));
-    request.input('PreferredSchedule', sql.NVarChar, data.preferredSchedule);
-
-    await request.execute('[banc].[usp_upd_referrals_profiling]');
+    await referralService.updateReferralProfiling(id, data);
 
     res.status(200).json({
       success: true,
@@ -194,10 +137,7 @@ export const confirmConsent = async (req, res) => {
   try {
     const { token } = req.query
 
-    const request = new sql.Request()
-    request.input('Token', sql.NVarChar, token)
-
-    await request.execute('[banc].[usp_confirm_consent_request]')
+    await referralService.confirmConsentRequest(token)
 
     res.send(`
       <!DOCTYPE html>
@@ -320,15 +260,7 @@ export const checkConsent = async (req, res) => {
   try {
     const { email } = req.query
 
-    const request = new sql.Request()
-    request.input('Email', sql.NVarChar, email)
-
-    const result = await request.execute('[banc].[usp_check_consent]')
-
-    const status =
-      result.recordset.length > 0
-        ? result.recordset[0].Status
-        : 'PENDING'
+    const status = await referralService.checkConsent(email)
 
     res.json({ status })
 
@@ -344,19 +276,12 @@ export const checkConsent = async (req, res) => {
 export const getReferrals = async (req, res) => {
   try {
     const { user } = req.body;
-    
-    const request = new sql.Request();
-    request.input('Role', sql.NVarChar, user.Role);
-    request.input('UserCode', sql.NVarChar, user.UserCode);
-    request.input('BranchCode', sql.Int, user.BranchCode || 0);
-    request.input('AreaCode', sql.NVarChar, user.AreaCode || '0');
-    const result = await request.execute('[banc].[usp_sel_referrals_by_role]');
 
-    // console.log('First record:', JSON.stringify(result.recordset[0], null, 2));
+    const data = await referralService.getReferralsByRole(user);
 
     res.json({
       success: true,
-      data: result.recordset
+      data
     });
   } catch (error) {
     console.error('❌ Get Referrals Error:', error);
@@ -371,61 +296,32 @@ export const updateReferralStatus = async (req, res) => {
     const { status } = req.body;
 
     // ✅ Validate that the incoming id parameter is structurally a valid 36-character GUID
-    const isValidGUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
-    
-    if (!id || !isValidGUID) {
+    if (!id || !isValidGuid(id)) {
       console.warn(`⚠️ Blocked status update attempt due to invalid GUID format: "${id}"`);
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid referral ID format supplied.' 
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid referral ID format supplied.'
       });
     }
 
-    // 1. Fetch current info to map the creator profile code and target client name
-    const infoRequest = new sql.Request();
-    infoRequest.input('Id', sql.UniqueIdentifier, id.trim()); // Safe trimmed string
-    
-    const refCheck = await infoRequest.query(`
-      SELECT [ReferrerCode], [FirstName], [LastName] 
-      FROM [banc].[Referrals] 
-      WHERE [Id] = @Id
-    `);
+    await referralService.updateReferralStatus(id.trim(), status);
 
-    if (refCheck.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Referral tracking record not found.' });
-    }
-
-    const referral = refCheck.recordset[0];
-
-    // 2. Perform the actual database status configuration update
-    const updateRequest = new sql.Request();
-    updateRequest.input('Id', sql.UniqueIdentifier, id.trim());
-    updateRequest.input('Status', sql.NVarChar, status);
-    await updateRequest.execute('[banc].[usp_upd_referral_status]');
-
-    // 3. Inject an alert row targeting the individual referrer staff code
-    const notifyRequest = new sql.Request();
-    const alertMsg = `Your referral for ${referral.FirstName} ${referral.LastName} has been updated to "${status}".`;
-    
-    notifyRequest.input('UserCode', sql.NVarChar, referral.ReferrerCode);
-    notifyRequest.input('Message', sql.NVarChar, alertMsg);
-    
-    await notifyRequest.query(`
-      INSERT INTO [banc].[Notifications] ([UserCode], [Message], [IsRead], [CreatedAt])
-      VALUES (@UserCode, @Message, 0, GETDATE())
-    `);
-
-    return res.json({ 
-      success: true, 
-      message: 'Status updated and staff notified successfully.' 
+    return res.json({
+      success: true,
+      message: 'Status updated and staff notified successfully.'
     });
 
   } catch (error) {
     console.error('❌ Update Status Controller Error:', error);
-    return res.status(500).json({ 
-      success: false, 
+
+    if (error.statusCode === 404) {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+
+    return res.status(500).json({
+      success: false,
       message: 'Server error processing update action state.',
-      error: error.message 
+      error: error.message
     });
   }
 };
@@ -435,34 +331,14 @@ export const updateReferralStatus = async (req, res) => {
 export const getUserNotifications = async (req, res) => {
   try {
     const { userCode } = req.query;
-    
-    if (!userCode || userCode === 'undefined' || userCode === 'null') {
-      return res.json({ success: true, notifications: [] });
-    }
-
-    const request = new sql.Request();
-    request.input('CleanUserCode', sql.NVarChar, String(userCode).trim());
-    
-    const queryStr = `
-      SELECT [Id], [UserCode], [Message], [IsRead], [CreatedAt]
-      FROM [banc].[Notifications]
-      WHERE [UserCode] = @CleanUserCode
-      ORDER BY [CreatedAt] DESC
-    `;
-    
-    const result = await request.query(queryStr);
-    
-    return res.json({
-      success: true,
-      notifications: result.recordset
-    });
-    
+    const result = await notificationService.getUserNotifications(userCode);
+    return res.json(result);
   } catch (error) {
     console.error('❌ SQL Query Crash Details:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Server database error fetching notifications.', 
-      error: error.message 
+    return res.status(500).json({
+      success: false,
+      message: 'Server database error fetching notifications.',
+      error: error.message
     });
   }
 };
@@ -473,28 +349,13 @@ export const getUserNotifications = async (req, res) => {
 export const clearUserNotifications = async (req, res) => {
   try {
     const { userCode } = req.body;
-
-    if (!userCode || userCode === 'undefined') {
-      return res.status(400).json({ success: false, message: 'UserCode is required' });
-    }
-
-    const request = new sql.Request();
-    request.input('CleanUserCode', sql.NVarChar, String(userCode).trim());
-
-    await request.query(`
-      DELETE FROM [banc].[Notifications]
-      WHERE [UserCode] = @CleanUserCode
-    `);
-
-    return res.json({
-      success: true,
-      message: 'Notifications cleared successfully.'
-    });
+    const result = await notificationService.clearUserNotifications(userCode);
+    return res.json(result);
   } catch (error) {
     console.error('❌ Clear notifications failed:', error);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Server error trying to clear notifications.' 
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.statusCode ? error.message : 'Server error trying to clear notifications.'
     });
   }
 };
@@ -505,24 +366,14 @@ export const clearUserNotifications = async (req, res) => {
 export const markNotificationAsRead = async (req, res) => {
   try {
     const { id } = req.params; // Expects Notification ID
-
-    if (!id) {
-      return res.status(400).json({ success: false, message: 'Notification ID is required' });
-    }
-
-    const request = new sql.Request();
-    request.input('Id', sql.Int, parseInt(id, 10));
-
-    await request.query(`
-      UPDATE [banc].[Notifications]
-      SET [IsRead] = 1
-      WHERE [Id] = @Id
-    `);
-
-    return res.json({ success: true, message: 'Notification marked as read.' });
+    const result = await notificationService.markNotificationAsRead(id);
+    return res.json(result);
   } catch (error) {
     console.error('❌ Mark notification read failed:', error);
-    return res.status(500).json({ success: false, message: 'Server database update error.' });
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.statusCode ? error.message : 'Server database update error.'
+    });
   }
 };
 
@@ -532,24 +383,14 @@ export const markNotificationAsRead = async (req, res) => {
 export const markAllNotificationsAsRead = async (req, res) => {
   try {
     const { userCode } = req.body;
-
-    if (!userCode || userCode === 'undefined') {
-      return res.status(400).json({ success: false, message: 'UserCode is required' });
-    }
-
-    const request = new sql.Request();
-    request.input('CleanUserCode', sql.NVarChar, String(userCode).trim());
-
-    await request.query(`
-      UPDATE [banc].[Notifications]
-      SET [IsRead] = 1
-      WHERE [UserCode] = @CleanUserCode AND [IsRead] = 0
-    `);
-
-    return res.json({ success: true, message: 'All notifications marked as read.' });
+    const result = await notificationService.markAllNotificationsAsRead(userCode);
+    return res.json(result);
   } catch (error) {
     console.error('❌ Mark all notifications read failed:', error);
-    return res.status(500).json({ success: false, message: 'Server error marking all as read.' });
+    return res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.statusCode ? error.message : 'Server error marking all as read.'
+    });
   }
 };
 
@@ -559,34 +400,28 @@ export const getReferralById = async (req, res) => {
     const { id } = req.params;
 
     // ✅ Safe Check: Verifies if the incoming string matches a valid 36-character GUID pattern
-    const isValidGUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
-
-    if (!id || !isValidGUID) {
+    if (!id || !isValidGuid(id)) {
       console.warn(`⚠️ Blocked an invalid lookup attempt with ID format: "${id}"`);
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid or missing unique identifier format' 
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or missing unique identifier format'
       });
     }
 
-    const request = new sql.Request();
-    
-    // This is now perfectly safe to run because we guaranteed it's a GUID
-    request.input('Id', sql.UniqueIdentifier, id.trim()); 
-
-    const result = await request.execute('[banc].[usp_sel_referral_by_id]');
-
-    if (!result.recordset || result.recordset.length === 0) {
-      return res.status(404).json({ success: false, message: 'Referral not found' });
-    }
+    const data = await referralService.getReferralById(id.trim());
 
     return res.status(200).json({
       success: true,
-      data: result.recordset[0]
+      data
     });
 
   } catch (error) {
     console.error('❌ Get Referral By ID Error:', error);
+
+    if (error.statusCode === 404) {
+      return res.status(404).json({ success: false, message: error.message });
+    }
+
     return res.status(500).json({
       success: false,
       message: 'Failed to fetch referral'
