@@ -1,10 +1,11 @@
 import express from 'express'
 import {
     sendOtp, verifyOtp, loginStep1, changePassword,
-    uploadProfilePhoto, upload, getGroups, getBranches,
+    uploadProfilePhoto, getGroups, getBranches,
     register, checkEmail, getUsersForApproval, approveRejectUser
 } from '../controllers/authController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
+import { photoUpload } from '../middleware/upload.js'
 
 const router = express.Router()
 
@@ -19,7 +20,7 @@ router.post('/register', register)
 
 // Authenticated
 router.post('/change-password', requireAuth, changePassword)
-router.post('/upload-photo', requireAuth, upload.single('photo'), uploadProfilePhoto)
+router.post('/upload-photo', requireAuth, photoUpload.single('photo'), uploadProfilePhoto)
 
 // Authenticated + Branch Head only
 router.get('/approvals', requireAuth, requireRole('BRANCH_HEAD'), getUsersForApproval)

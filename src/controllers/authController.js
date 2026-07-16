@@ -1,37 +1,9 @@
 import sql from '../config/db.js'
 import bcrypt from 'bcrypt'
 import { sendOtpEmail, sendWelcomeEmail, sendApprovalEmail } from '../services/emailService.js'
-import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import jwt from 'jsonwebtoken'
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'avatar_uploads/')
-  },
-
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname)
-    const safeName = `${Date.now()}${ext}`
-    cb(null, safeName)
-  }
-})
-
-export const upload = multer({
-  storage,
-
-  fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Only image files allowed'), false)
-    }
-    cb(null, true)
-  },
-
-  limits: {
-    fileSize: 2 * 1024 * 1024 // ✅ 2MB
-  }
-})
 
 const otpStore = {}
 

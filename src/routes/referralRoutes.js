@@ -16,11 +16,10 @@ import {
   markNotificationAsRead,     
   markAllNotificationsAsRead
 } from '../controllers/referralController.js'
-import multer from 'multer'
 import { requireAuth } from '../middleware/auth.js'
+import { consentUpload } from '../middleware/upload.js'
 
 const router = express.Router()
-const upload = multer({ dest: 'uploads/' })
 
 // ==========================================
 // ⭐ 1. LITERAL NOTIFICATION ROUTES (ABSOLUTE TOP)
@@ -52,7 +51,7 @@ router.get('/referrer/:code', requireAuth, getReferrerByCode)
 // Profiling is filled by the end client via the emailed consent-flow link — stays public.
 router.put('/:id/profiling', updateReferralProfiling)
 router.put('/:id/status', requireAuth, updateReferralStatus)
-router.post('/upload-consent', upload.single('consentFile'), uploadConsent)
+router.post('/upload-consent', consentUpload.single('consentFile'), uploadConsent)
 router.post('/list', requireAuth, getReferrals)
 
 // ==========================================
