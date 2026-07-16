@@ -113,7 +113,7 @@ export const verifyOtp = async (req, res) => {
     // ✅ 2. Sign the token (Use a long random string in your backend .env file)
     const token = jwt.sign(
       tokenPayload,
-      process.env.JWT_SECRET || 'fallback_secret_key_change_me_in_production',
+      process.env.JWT_SECRET,
       { expiresIn: '8h' } // Token expires in 8 hours
     );
 

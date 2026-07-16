@@ -1,11 +1,14 @@
 import fetch from 'node-fetch'
 
+// TODO: broad TLS-bypass for the whole process — kept as-is since it may be load-bearing
+// for the Graph API calls in this network, but should be scoped to a dedicated
+// https.Agent for just these requests instead of process-wide.
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
-const TENANT_ID = '7cc2411d-654b-46c5-aefe-f08401ab01ba'
-const CLIENT_ID = '159fafe8-3d04-4e8d-b2b7-61f36a4e68d6'
-const CLIENT_SECRET = 'REDACTED-ROTATED-SECRET'
-const SENDER_EMAIL = 'bancassurance@phillife.com.ph'
+const TENANT_ID = process.env.GRAPH_TENANT_ID
+const CLIENT_ID = process.env.GRAPH_CLIENT_ID
+const CLIENT_SECRET = process.env.GRAPH_CLIENT_SECRET
+const SENDER_EMAIL = process.env.GRAPH_SENDER_EMAIL
 
 // ✅ Get token
 const getAccessToken = async () => {

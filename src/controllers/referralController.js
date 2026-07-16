@@ -89,11 +89,9 @@ export const createReferral = async (req, res) => {
     request.input('PlanId', sql.Int, planId)
     request.input('ReferrerCode', sql.NVarChar, referrerCode)
     request.input('ReferrerName', sql.NVarChar, referrerName)
-    // request.input('BranchCode', sql.Int, branchCode)
-    request.input('BranchCode', sql.Int, parseInt(user.BranchCode || 0, 10))
-    request.input('AreaCode', sql.Int, parseInt(user.AreaCode || 0, 10))
+    request.input('BranchCode', sql.Int, parseInt(branchCode || 0, 10))
+    request.input('AreaCode', sql.Int, parseInt(areaCode || 0, 10))
     request.input('BranchName', sql.NVarChar, branchName)
-    // request.input('AreaCode', sql.Int, areaCode)
     request.input('AreaName', sql.NVarChar, areaName)
     request.input('Status', sql.NVarChar, status)
     request.input('StatusDate', sql.Date, statusDate)
@@ -343,33 +341,6 @@ export const checkConsent = async (req, res) => {
   }
 }
 // DASHBOARD REFERRALS
-// export const getReferrals = async (req, res) => {
-//   try {
-//     const { user } = req.body
-//     console.log('Incoming user:', req.body.user)
-//     const request = new sql.Request()
-
-//     request.input('Role', sql.NVarChar, user.Role)
-//     request.input('UserCode', sql.NVarChar, user.UserCode)
-//     request.input('BranchCode', sql.Int, user.BranchCode || 0)
-//     request.input('AreaCode', sql.Int, user.AreaCode || 0)
-
-//     const result = await request.execute('[banc].[usp_sel_referrals_by_role]')
-
-//     res.json({
-//       success: true,
-//       data: result.recordset
-//     })
-
-//   } catch (error) {
-//     console.error('❌ Get Referrals Error:', error)
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch referrals'
-//     })
-//   }
-// }
-
 export const getReferrals = async (req, res) => {
   try {
     const { user } = req.body;
@@ -394,54 +365,6 @@ export const getReferrals = async (req, res) => {
 };
 
 // UPDATE REFERRAL STATUS FROM DASHBOARD
-// export const updateReferralStatus = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { status } = req.body;
-    
-//     // 1. Fetch current info to find the staff member code and client name
-//     const infoRequest = new sql.Request();
-//     infoRequest.input('Id', sql.UniqueIdentifier, id);
-//     const refCheck = await infoRequest.query(`
-//       SELECT ReferrerCode, FirstName, LastName 
-//       FROM banc.Referrals 
-//       WHERE Id = @Id
-//     `);
-
-//     if (refCheck.recordset.length === 0) {
-//       return res.status(404).json({ success: false, message: 'Referral not found' });
-//     }
-
-//     const referral = refCheck.recordset[0];
-
-//     // 2. Perform the actual database status update
-//     const updateRequest = new sql.Request();
-//     updateRequest.input('Id', sql.UniqueIdentifier, id);
-//     updateRequest.input('Status', sql.NVarChar, status);
-//     await updateRequest.execute('[banc].[usp_upd_referral_status]');
-
-//     // 3. Inject an alert row targeting the individual referrer code
-//     const notifyRequest = new sql.Request();
-//     const alertMsg = `Your referral for ${referral.FirstName} ${referral.LastName} has been updated to "${status}".`;
-    
-//     notifyRequest.input('UserCode', sql.NVarChar, referral.ReferrerCode);
-//     notifyRequest.input('Message', sql.NVarChar, alertMsg);
-    
-//     await notifyRequest.query(`
-//       INSERT INTO banc.Notifications (UserCode, Message)
-//       VALUES (@UserCode, @Message)
-//     `);
-
-//     res.json({ success: true, message: 'Status updated and staff notified successfully' });
-//   } catch (error) {
-//     console.error('❌ Update Status Error:', error);
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// };
-
-
-// FETCH NOTIFICATIONS FOR LOGGED IN USER
-// UPDATE REFERRAL STATUS (FIXED COMPILATION BLOCK)
 export const updateReferralStatus = async (req, res) => {
   try {
     const { id } = req.params;
