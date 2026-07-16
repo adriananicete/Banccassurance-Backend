@@ -3,9 +3,9 @@ import fetch from 'node-fetch'
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
 const TENANT_ID = '7cc2411d-654b-46c5-aefe-f08401ab01ba'
-const CLIENT_ID = '18937dc8-041b-4bdc-888f-5844454f5388'
+const CLIENT_ID = '159fafe8-3d04-4e8d-b2b7-61f36a4e68d6'
 const CLIENT_SECRET = 'REDACTED-ROTATED-SECRET'
-const SENDER_EMAIL = 'iplessupport@phillife.com.ph'
+const SENDER_EMAIL = 'bancassurance@phillife.com.ph'
 
 // ✅ Get token
 const getAccessToken = async () => {
@@ -98,7 +98,7 @@ export const sendConsentEmail = async (toEmail, token) => {
 
     <p>
       <strong>Best regards,</strong><br/>
-      PHILLIFE
+      PHILLIFE FINANCIAL
     </p>
   `
 
@@ -143,7 +143,7 @@ export const sendConsentEmail = async (toEmail, token) => {
 export const sendOtpEmail = async (toEmail, otp) => {
   const accessToken = await getAccessToken()
 
-const emailBody = `
+  const emailBody = `
 <html>
 <head>
   <style>
@@ -190,22 +190,22 @@ const emailBody = `
 </html>
 `;
 
-const mail = {
-  message: {
-    subject: 'Your OTP Code',
-    body: {
-      contentType: 'HTML',
-      content: emailBody
-    },
-    toRecipients: [
-      {
-        emailAddress: {
-          address: toEmail
+  const mail = {
+    message: {
+      subject: 'Your OTP Code',
+      body: {
+        contentType: 'HTML',
+        content: emailBody
+      },
+      toRecipients: [
+        {
+          emailAddress: {
+            address: toEmail
+          }
         }
-      }
-    ]
-  }
-};
+      ]
+    }
+  };
 
   const response = await fetch(
     `https://graph.microsoft.com/v1.0/users/${SENDER_EMAIL}/sendMail`,
@@ -228,4 +228,137 @@ const mail = {
   console.log('✅ OTP Email sent to:', toEmail)
 }
 
+export const sendWelcomeEmail = async (toEmail, firstName, userCode, tempPassword) => {
+  const accessToken = await getAccessToken();
 
+  const emailBody = `
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; color: #333; }
+    .container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+    .credentials { background-color: #f4f6fb; border-radius: 6px; padding: 16px; margin: 20px 0; }
+    .label { font-size: 12px; color: #888; margin-bottom: 2px; }
+    .value { font-size: 16px; font-weight: bold; color: #1e3a8a; }
+    .note { font-size: 13px; color: #e53935; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Bancassurance Referral System</h2>
+
+    <p>Hello, <strong>${firstName}</strong>!</p>
+
+    <p>Your registration has been received and is currently <strong>pending approval</strong> by your branch head.
+    Once approved, you may log in using the credentials below.</p>
+
+    <div class="credentials">
+      <div class="label">User Code</div>
+      <div class="value">${userCode}</div>
+      <br/>
+      <div class="label">Temporary Password</div>
+      <div class="value">${tempPassword}</div>
+    </div>
+
+    <p class="note">⚠ For security purposes, please change your password immediately upon first login.</p>
+
+    <p>If you did not request this registration, please contact your system administrator immediately.</p>
+
+    <br/>
+    <p>Regards,<br/>Bancassurance Referral System Team</p>
+  </div>
+</body>
+</html>
+  `;
+
+  const mail = {
+    message: {
+      subject: 'Your Bancassurance Referral System Account',
+      body: { contentType: 'HTML', content: emailBody },
+      toRecipients: [{ emailAddress: { address: toEmail } }]
+    }
+  };
+
+  const response = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${SENDER_EMAIL}/sendMail`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(mail)
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Welcome Email error:', error);
+    throw new Error('Failed to send welcome email');
+  }
+
+  console.log('✅ Welcome Email sent to:', toEmail);
+};
+
+
+
+export const sendApprovalEmail = async (toEmail, firstName, userCode, action) => {
+  const accessToken = await getAccessToken();
+
+  const isApproved = action === 'APPROVE';
+
+  const emailBody = `
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; color: #333; }
+    .container { max-width: 600px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+    .status { font-size: 18px; font-weight: bold; text-align: center; padding: 12px; border-radius: 6px;
+              color: white; background-color: ${isApproved ? '#2e7d32' : '#c62828'}; margin: 20px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Bancassurance Referral System</h2>
+    <p>Hello, <strong>${firstName}</strong>!</p>
+    <div class="status">Your registration has been ${isApproved ? 'APPROVED' : 'REJECTED'}</div>
+    ${isApproved
+      ? `<p>Your account is now active. You may log in using your User Code: <strong>${userCode}</strong> and the temporary password sent to you during registration.</p>
+         <p>Please change your password immediately upon first login.</p>`
+      : `<p>Unfortunately your registration request has been rejected. Please contact your Branch Head for more information.</p>`
+    }
+    <br/>
+    <p>Regards,<br/>Bancassurance Referral System Team</p>
+  </div>
+</body>
+</html>
+  `;
+
+  const mail = {
+    message: {
+      subject: `Your Registration has been ${isApproved ? 'Approved' : 'Rejected'} - Bancassurance Referral System`,
+      body: { contentType: 'HTML', content: emailBody },
+      toRecipients: [{ emailAddress: { address: toEmail } }]
+    }
+  };
+
+  const response = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${SENDER_EMAIL}/sendMail`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(mail)
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Approval Email error:', error);
+    throw new Error('Failed to send approval email');
+  }
+
+  console.log(`✅ Approval Email (${action}) sent to:`, toEmail);
+};

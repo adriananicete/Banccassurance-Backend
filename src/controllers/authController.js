@@ -1,6 +1,6 @@
 import sql from '../config/db.js'
 import bcrypt from 'bcrypt'
-import { sendOtpEmail } from '../services/emailService.js'
+import { sendOtpEmail, sendWelcomeEmail, sendApprovalEmail } from '../services/emailService.js'
 import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
@@ -112,8 +112,8 @@ export const verifyOtp = async (req, res) => {
 
     // ✅ 2. Sign the token (Use a long random string in your backend .env file)
     const token = jwt.sign(
-      tokenPayload, 
-      process.env.JWT_SECRET || 'fallback_secret_key_change_me_in_production', 
+      tokenPayload,
+      process.env.JWT_SECRET || 'fallback_secret_key_change_me_in_production',
       { expiresIn: '8h' } // Token expires in 8 hours
     );
 
@@ -134,7 +134,7 @@ export const verifyOtp = async (req, res) => {
         FullName: user.FullName,
         Role: user.Role,
         Photo: user.Photo,
-        BranchCode: user.BranchCode, 
+        BranchCode: user.BranchCode,
         AreaCode: user.AreaCode,
         AOCode: user.AOCode
       }
@@ -161,13 +161,26 @@ export const loginStep1 = async (req, res) => {
 
     const user = result.recordset[0]
 
+    // ✅ Check StatusCode from SP
+    if (user.StatusCode === 'NOT_FOUND') {
+      return res.json({ success: false, message: 'Invalid credentials' })
+    }
+
+    if (user.StatusCode === 'PENDING') {
+      return res.json({ success: false, message: 'Your account is pending approval. Please wait for your Branch Head to approve your registration.' })
+    }
+
+    if (user.StatusCode === 'DEACTIVATED') {
+      return res.json({ success: false, message: 'Your account has been deactivated. Please contact your Branch Head.' })
+    }
+
     if (!user.PasswordHash) {
       return res.json({ success: false, message: 'No password set' })
     }
 
     console.log('Password received:', password);
     console.log('Hash from DB:', user.PasswordHash);
-    
+
 
     const isMatch = await bcrypt.compare(password, user.PasswordHash)
 
@@ -350,3 +363,110 @@ export const getBranches = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' })
   }
 }
+
+
+//  ✅ CHECK EMAIL
+export const checkEmail = async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) return res.json({ exists: false });
+
+    const request = new sql.Request();
+    request.input('Email', sql.NVarChar, email.trim());
+    request.input('CheckOnly', sql.Bit, 1);
+
+    const result = await request.execute('banc.usp_ins_register_user');
+    return res.json({ exists: result.recordset[0].exists === 1 });
+  } catch (error) {
+    console.error('❌ Check Email Error:', error);
+    return res.status(500).json({ exists: false });
+  }
+};
+
+// ✅ REGISTER USER
+export const register = async (req, res) => {
+  try {
+    const {
+      firstName, middleName, lastName, suffix,
+      birthday, email, mobileNumber, position,
+      role, areaCode, branchCode
+    } = req.body;
+
+    // ✅ Auto-generate a temporary password
+    const tempPassword = Math.random().toString(36).slice(-8) +
+      Math.random().toString(36).toUpperCase().slice(-4);
+
+    // ✅ Hash it before storing
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    const request = new sql.Request();
+    request.input('Email', sql.NVarChar, email);
+    request.input('CheckOnly', sql.Bit, 0);
+    request.input('FirstName', sql.NVarChar, firstName);
+    request.input('MiddleName', sql.NVarChar, middleName || null);
+    request.input('LastName', sql.NVarChar, lastName);
+    request.input('Suffix', sql.NVarChar, suffix || null);
+    request.input('Birthday', sql.Date, birthday);
+    request.input('MobileNumber', sql.NVarChar, mobileNumber);
+    request.input('Position', sql.NVarChar, position);
+    request.input('Role', sql.NVarChar, role);
+    request.input('AreaCode', sql.NVarChar, areaCode || null);
+    request.input('BranchCode', sql.Int, branchCode || null);
+    request.input('PasswordHash', sql.NVarChar, passwordHash);
+
+    const result = await request.execute('banc.usp_ins_register_user');
+    const { Success, Message, UserCode } = result.recordset[0];
+
+    if (Success === 1) {
+      // ✅ Send welcome email with temp password
+      await sendWelcomeEmail(email, firstName, UserCode, tempPassword);
+      return res.json({ success: true, message: Message, userCode: UserCode });
+    } else {
+      return res.json({ success: false, message: Message });
+    }
+  } catch (error) {
+    console.error('❌ Register Error:', error);
+    return res.status(500).json({ success: false, message: 'Server error. Please try again.' });
+  }
+};
+
+// ✅ GET USERS FOR APPROVAL (Branch Head only)
+export const getUsersForApproval = async (req, res) => {
+  try {
+    const { branchCode, status = 'ALL' } = req.query;
+
+    const request = new sql.Request();
+    request.input('BranchCode', sql.Int, parseInt(branchCode));
+    request.input('StatusFilter', sql.NVarChar, status);
+
+    const result = await request.execute('banc.usp_sel_users_for_approval');
+    return res.json({ success: true, data: result.recordset });
+  } catch (error) {
+    console.error('❌ Get Users For Approval Error:', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ✅ APPROVE OR REJECT USER (Branch Head only)
+export const approveRejectUser = async (req, res) => {
+  try {
+    const { userId, action } = req.body;
+
+    const request = new sql.Request();
+    request.input('UserId', sql.Int, userId);
+    request.input('Action', sql.NVarChar, action);
+
+    const result = await request.execute('banc.usp_ins_approve_reject_user');
+    const { Success, Message, FirstName, Email, UserCode } = result.recordset[0];
+
+    if (Success === 1) {
+      await sendApprovalEmail(Email, FirstName, UserCode, action);
+      return res.json({ success: true, message: Message });
+    } else {
+      return res.json({ success: false, message: Message });
+    }
+  } catch (error) {
+    console.error('❌ Approve/Reject Error:', error);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
