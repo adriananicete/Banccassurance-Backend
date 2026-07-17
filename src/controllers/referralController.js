@@ -1,5 +1,4 @@
 import { v4 as uuidv4 } from "uuid";
-import * as notificationService from "../services/notificationService.js";
 import * as referralService from "../services/referralService.js";
 import { isValidGuid } from "../utils/validators.js";
 import { consentConfirmedTemplate } from "../templates/consentConfirmedTemplate.js";
@@ -187,56 +186,6 @@ export const updateReferralStatus = async (req, res, next) => {
 };
 
 // FETCH NOTIFICATIONS FOR LOGGED IN USER
-
-export const getUserNotifications = async (req, res, next) => {
-  try {
-    const { userCode } = req.query;
-    const result = await notificationService.getUserNotifications(userCode);
-    return res.json(result);
-  } catch (error) {
-    next(error)
-  }
-};
-
-// =========================================================================
-// ✅ CLEAR ALL NOTIFICATIONS FOR A USER
-// =========================================================================
-export const clearUserNotifications = async (req, res, next) => {
-  try {
-    const { userCode } = req.body;
-    const result = await notificationService.clearUserNotifications(userCode);
-    return res.json(result);
-  } catch (error) {
-    next(error)
-  }
-};
-
-// =========================================================================
-// ✅ MARK A SINGLE NOTIFICATION AS READ
-// =========================================================================
-export const markNotificationAsRead = async (req, res, next) => {
-  try {
-    const { id } = req.params; // Expects Notification ID
-    const result = await notificationService.markNotificationAsRead(id);
-    return res.json(result);
-  } catch (error) {
-    next(error)
-  }
-};
-
-// =========================================================================
-// ✅ MARK ALL NOTIFICATIONS FOR A USER AS READ
-// =========================================================================
-export const markAllNotificationsAsRead = async (req, res, next) => {
-  try {
-    const { userCode } = req.body;
-    const result =
-      await notificationService.markAllNotificationsAsRead(userCode);
-    return res.json(result);
-  } catch (error) {
-    next(error)
-  }
-};
 
 // GET REFERRAL BY ID
 export const getReferralById = async (req, res, next) => {
