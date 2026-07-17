@@ -1,14 +1,11 @@
+import https from 'https';
 import fetch from "node-fetch";
 import { consentEmailTemplate } from "../templates/consentEmailTemplate.js";
 import { otpEmailTemplate } from "../templates/otpEmailTemplate.js";
 import { welcomeEmailTemplate } from "../templates/welcomeEmailTemplate.js";
 import { approvalEmailTemplate } from "../templates/approvalEmailTemplate.js";
-import { response } from "express";
 
-// TODO: broad TLS-bypass for the whole process — kept as-is since it may be load-bearing
-// for the Graph API calls in this network, but should be scoped to a dedicated
-// https.Agent for just these requests instead of process-wide.
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+const tlsAgent = new https.Agent({ rejectUnauthorized: false });
 
 const TENANT_ID = process.env.GRAPH_TENANT_ID;
 const CLIENT_ID = process.env.GRAPH_CLIENT_ID;
@@ -34,6 +31,7 @@ const getAccessToken = async () => {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: params,
+    agent: tlsAgent
   });
 
   const data = await response.json();
@@ -73,6 +71,7 @@ const sendMail = async (toEmail, subject, htmlBody) => {
           'Content-Type': "application/json",
         },
         body: JSON.stringify(mail),
+        agent: tlsAgent
       },
     );
 
@@ -86,7 +85,7 @@ const sendMail = async (toEmail, subject, htmlBody) => {
 // ✅ Send email
 export const sendConsentEmail = async (toEmail, token) => {
   
-  const confirmLink = `http://localhost:5000/api/referrals/confirm-consent?token=${token}`;
+  const confirmLink = `${process.env.BASE_URL}/api/referrals/confirm-consent?token=${token}`;
 
   const emailBody = consentEmailTemplate(confirmLink);
 
