@@ -27,6 +27,13 @@ export const verifyOtp = async (req, res) => {
 
     const { user } = result
 
+    let aoFullName = null
+    if (user.AOCode) {
+      // Assuming your userService has a method to find a user by their UserCode
+      const accountOfficer = await userService.findByUserCode(user.AOCode)
+      aoFullName = accountOfficer ? accountOfficer.FullName : null
+    }
+
     // ✅ 1. Generate a secure JWT payload
     const tokenPayload = {
       UserId: user.UserId,
@@ -60,7 +67,8 @@ export const verifyOtp = async (req, res) => {
         Photo: user.Photo,
         BranchCode: user.BranchCode,
         AreaCode: user.AreaCode,
-        AOCode: user.AOCode
+        AOCode: user.AOCode,
+        aoFullName: aoFullName
       }
     })
   } catch (error) {
