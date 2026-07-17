@@ -4,7 +4,8 @@ import cors from 'cors'
 import cookieParser from 'cookie-parser' // 👈 Added: Needed to parse HTTP-Only Cookies
 import referralRoutes from './routes/referralRoutes.js'
 import { connectDB } from './config/db.js'
-import authRoutes from './routes/authRoutes.js'
+import authRoutes from './routes/authRoutes.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -39,6 +40,8 @@ app.use(
   '/uploads',
   express.static(path.join(__dirname, '../avatar_uploads'))
 )
+
+app.use(errorHandler)
 
 // ✅ Connect to Database
 connectDB()

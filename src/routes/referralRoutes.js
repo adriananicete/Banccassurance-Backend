@@ -42,7 +42,6 @@ router.post('/resend-consent', sendConsent)
 router.get('/confirm-consent', confirmConsent)
 router.get('/check-consent', checkConsent)
 router.get('/plans', requireAuth, getPlans)
-router.get('/', requireAuth, getReferrals)
 
 // ==========================================
 // 3. Specific routes with sub-parameters

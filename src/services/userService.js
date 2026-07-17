@@ -141,7 +141,7 @@ export const checkEmail = async (email) => {
 }
 
 export const register = async (fields) => {
-  const tempPassword = crypto.randomBytes(12).toString('base64url');
+  const tempPassword = crypto.randomBytes(12).toString('base64url')
   const passwordHash = await bcrypt.hash(tempPassword, 10)
 
   const result = await userModel.checkOrRegisterUser({

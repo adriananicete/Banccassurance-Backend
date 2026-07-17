@@ -6,7 +6,7 @@ import { consentConfirmedTemplate } from "../templates/consentConfirmedTemplate.
 import { consentInvalidTemplate } from "../templates/consentInvalidTemplate.js";
 
 // GET REFERRER INFO BY CODE (AUTO-FILL)
-export const getReferrerByCode = async (req, res) => {
+export const getReferrerByCode = async (req, res, next) => {
   try {
     const { code } = req.params;
     const data = await referralService.getReferrerByCode(code);
@@ -16,16 +16,11 @@ export const getReferrerByCode = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error("❌ Get Referrer Error:", error);
-
-    res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.statusCode ? error.message : "Server error",
-    });
+    next(error)
   }
 };
 // GET ALL PLANS
-export const getPlans = async (req, res) => {
+export const getPlans = async (req, res, next) => {
   try {
     const data = await referralService.getPlans();
 
@@ -34,16 +29,11 @@ export const getPlans = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error("❌ Get Plans Error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch plans",
-    });
+    next(error)
   }
 };
 // CREATE REFERRAL (INSERT VIA SP)
-export const createReferral = async (req, res) => {
+export const createReferral = async (req, res, next) => {
   try {
     const {
       firstName,
@@ -92,16 +82,11 @@ export const createReferral = async (req, res) => {
       id,
     });
   } catch (error) {
-    console.error("❌ Insert Referral Error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Database error",
-    });
+    next(error)
   }
 };
 // SEND CONSENT
-export const sendConsent = async (req, res) => {
+export const sendConsent = async (req, res, next) => {
   try {
     const { email } = req.body;
     const token = uuidv4();
@@ -114,16 +99,11 @@ export const sendConsent = async (req, res) => {
       token,
     });
   } catch (error) {
-    console.error("❌ Send Consent Error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to send consent email",
-    });
+    next(error)
   }
 };
 // UPDATE REFERRAL PROFILING
-export const updateReferralProfiling = async (req, res) => {
+export const updateReferralProfiling = async (req, res, next) => {
   try {
     const { id } = req.params;
     const data = req.body;
@@ -135,11 +115,7 @@ export const updateReferralProfiling = async (req, res) => {
       message: "Profiling updated successfully",
     });
   } catch (error) {
-    console.error("❌ Update Profiling Error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Database error",
-    });
+    next(error)
   }
 };
 // CONFIRM CONSENT
@@ -157,7 +133,7 @@ export const confirmConsent = async (req, res) => {
   }
 };
 // CHECK CONSENT STATUS
-export const checkConsent = async (req, res) => {
+export const checkConsent = async (req, res, next) => {
   try {
     const { email } = req.query;
 
@@ -165,15 +141,11 @@ export const checkConsent = async (req, res) => {
 
     res.json({ status });
   } catch (error) {
-    console.error("❌ Check Consent Error:", error);
-
-    res.status(500).json({
-      status: "ERROR",
-    });
+    next(error)
   }
 };
 // DASHBOARD REFERRALS
-export const getReferrals = async (req, res) => {
+export const getReferrals = async (req, res, next) => {
   try {
     const data = await referralService.getReferralsByRole(req.user);
 
@@ -182,15 +154,12 @@ export const getReferrals = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error("❌ Get Referrals Error:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch referrals" });
+    next(error)
   }
 };
 
 // UPDATE REFERRAL STATUS FROM DASHBOARD
-export const updateReferralStatus = async (req, res) => {
+export const updateReferralStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -213,95 +182,64 @@ export const updateReferralStatus = async (req, res) => {
       message: "Status updated and staff notified successfully.",
     });
   } catch (error) {
-    console.error("❌ Update Status Controller Error:", error);
-
-    if (error.statusCode === 404) {
-      return res.status(404).json({ success: false, message: error.message });
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: "Server error processing update action state."
-    });
+    next(error)
   }
 };
 
 // FETCH NOTIFICATIONS FOR LOGGED IN USER
 
-export const getUserNotifications = async (req, res) => {
+export const getUserNotifications = async (req, res, next) => {
   try {
     const { userCode } = req.query;
     const result = await notificationService.getUserNotifications(userCode);
     return res.json(result);
   } catch (error) {
-    console.error("❌ SQL Query Crash Details:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Server database error fetching notifications.",
-    });
+    next(error)
   }
 };
 
 // =========================================================================
 // ✅ CLEAR ALL NOTIFICATIONS FOR A USER
 // =========================================================================
-export const clearUserNotifications = async (req, res) => {
+export const clearUserNotifications = async (req, res, next) => {
   try {
     const { userCode } = req.body;
     const result = await notificationService.clearUserNotifications(userCode);
     return res.json(result);
   } catch (error) {
-    console.error("❌ Clear notifications failed:", error);
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.statusCode
-        ? error.message
-        : "Server error trying to clear notifications.",
-    });
+    next(error)
   }
 };
 
 // =========================================================================
 // ✅ MARK A SINGLE NOTIFICATION AS READ
 // =========================================================================
-export const markNotificationAsRead = async (req, res) => {
+export const markNotificationAsRead = async (req, res, next) => {
   try {
     const { id } = req.params; // Expects Notification ID
     const result = await notificationService.markNotificationAsRead(id);
     return res.json(result);
   } catch (error) {
-    console.error("❌ Mark notification read failed:", error);
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.statusCode
-        ? error.message
-        : "Server database update error.",
-    });
+    next(error)
   }
 };
 
 // =========================================================================
 // ✅ MARK ALL NOTIFICATIONS FOR A USER AS READ
 // =========================================================================
-export const markAllNotificationsAsRead = async (req, res) => {
+export const markAllNotificationsAsRead = async (req, res, next) => {
   try {
     const { userCode } = req.body;
     const result =
       await notificationService.markAllNotificationsAsRead(userCode);
     return res.json(result);
   } catch (error) {
-    console.error("❌ Mark all notifications read failed:", error);
-    return res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.statusCode
-        ? error.message
-        : "Server error marking all as read.",
-    });
+    next(error)
   }
 };
 
 // GET REFERRAL BY ID
-export const getReferralById = async (req, res) => {
+export const getReferralById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -323,21 +261,12 @@ export const getReferralById = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error("❌ Get Referral By ID Error:", error);
-
-    if (error.statusCode === 404) {
-      return res.status(404).json({ success: false, message: error.message });
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch referral",
-    });
+    next(error)
   }
 };
 
 // UPLOAD IMAGE CONSENT
-export const uploadConsent = async (req, res) => {
+export const uploadConsent = async (req, res, next) => {
   try {
     console.log("Upload hit");
 
@@ -352,8 +281,7 @@ export const uploadConsent = async (req, res) => {
       success: true,
       message: "Uploaded successfully",
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false });
+  } catch (error) {
+    next(error)
   }
 };

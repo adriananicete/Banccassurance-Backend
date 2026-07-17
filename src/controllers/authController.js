@@ -3,18 +3,17 @@ import path from 'path'
 import fs from 'fs'
 import * as userService from '../services/userService.js'
 
-export const sendOtp = async (req, res) => {
+export const sendOtp = async (req, res, next) => {
   try {
     const identifier = req.body.identifier?.trim()
     const result = await userService.sendOtp(identifier)
     res.json(result)
   } catch (error) {
-    console.error('Send OTP Error:', error)
-    res.status(500).json({ success: false })
+    next(error)
   }
 }
 
-export const verifyOtp = async (req, res) => {
+export const verifyOtp = async (req, res, next) => {
   try {
     const identifier = req.body.identifier?.trim()
     const { otp } = req.body
@@ -67,38 +66,32 @@ export const verifyOtp = async (req, res) => {
       }
     })
   } catch (error) {
-    console.error('Verify OTP Error:', error)
-    res.status(500).json({ success: false })
+    next(error)
   }
 }
 
-export const loginStep1 = async (req, res) => {
+export const loginStep1 = async (req, res, next) => {
   try {
     const identifier = req.body.identifier?.trim()
     const { password } = req.body
     const result = await userService.loginStep1(identifier, password)
     res.json(result)
   } catch (error) {
-    console.error('Login Step1 Error:', error)
-    res.status(500).json({ success: false })
+    next(error)
   }
 }
 
-export const changePassword = async (req, res) => {
+export const changePassword = async (req, res, next) => {
   try {
     const { userCode, currentPassword, newPassword } = req.body
     const result = await userService.changePassword(userCode, currentPassword, newPassword)
     res.json(result)
   } catch (error) {
-    console.error('❌ Change Password Error:', error)
-    res.status(error.statusCode || 500).json({
-      success: false,
-      message: error.statusCode ? error.message : 'Server error'
-    })
+    next(error)
   }
 }
 
-export const uploadProfilePhoto = async (req, res) => {
+export const uploadProfilePhoto = async (req, res, next) => {
   try {
     const { userCode } = req.body
 
@@ -129,34 +122,31 @@ export const uploadProfilePhoto = async (req, res) => {
     })
 
   } catch (error) {
-    console.error('❌ Upload Error:', error)
-    res.status(500).json({ message: 'Upload failed' })
+    next(error)
   }
 }
 
-export const getGroups = async (req, res) => {
+export const getGroups = async (req, res, next) => {
   try {
     const data = await userService.getGroups()
     res.json({ success: true, data })
   } catch (error) {
-    console.error('❌ Get Groups Error:', error)
-    res.status(500).json({ success: false, message: 'Server error' })
+    next(error)
   }
 }
 
-export const getBranches = async (req, res) => {
+export const getBranches = async (req, res, next) => {
   try {
     const { areaCode } = req.query
     const data = await userService.getBranches(areaCode)
     res.json({ success: true, data })
   } catch (error) {
-    console.error('❌ Get Branches Error:', error)
-    res.status(500).json({ success: false, message: 'Server error' })
+    next(error)
   }
 }
 
 // ✅ CHECK EMAIL
-export const checkEmail = async (req, res) => {
+export const checkEmail = async (req, res, next) => {
   try {
     const { email } = req.query
     if (!email) return res.json({ exists: false })
@@ -164,13 +154,12 @@ export const checkEmail = async (req, res) => {
     const exists = await userService.checkEmail(email.trim())
     return res.json({ exists })
   } catch (error) {
-    console.error('❌ Check Email Error:', error)
-    return res.status(500).json({ exists: false })
+    next(error)
   }
 }
 
 // ✅ REGISTER USER
-export const register = async (req, res) => {
+export const register = async (req, res, next) => {
   try {
     const {
       firstName, middleName, lastName, suffix,
@@ -186,31 +175,28 @@ export const register = async (req, res) => {
 
     return res.json(result)
   } catch (error) {
-    console.error('❌ Register Error:', error)
-    return res.status(500).json({ success: false, message: 'Server error. Please try again.' })
+    next(error)
   }
 }
 
 // ✅ GET USERS FOR APPROVAL (Branch Head only)
-export const getUsersForApproval = async (req, res) => {
+export const getUsersForApproval = async (req, res, next) => {
   try {
     const { branchCode, status = 'ALL' } = req.query
     const data = await userService.getUsersForApproval(branchCode, status)
     return res.json({ success: true, data })
   } catch (error) {
-    console.error('❌ Get Users For Approval Error:', error)
-    return res.status(500).json({ success: false, message: 'Server error.' })
+    next(error)
   }
 }
 
 // ✅ APPROVE OR REJECT USER (Branch Head only)
-export const approveRejectUser = async (req, res) => {
+export const approveRejectUser = async (req, res, next) => {
   try {
     const { userId, action } = req.body
     const result = await userService.approveRejectUser(userId, action)
     return res.json(result)
   } catch (error) {
-    console.error('❌ Approve/Reject Error:', error)
-    return res.status(500).json({ success: false, message: 'Server error.' })
+    next(error)
   }
 }
