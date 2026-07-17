@@ -176,3 +176,14 @@ export const approveRejectUser = async (userId, action) => {
 
   return { success: false, message: Message }
 }
+
+export const findByUserCode = async (userCode) => {
+  // Leverages the existing pattern in your service file
+  const result = await userModel.validateUser(userCode).run()
+  
+  if (result.recordset.length === 0) {
+    return null
+  }
+  
+  return result.recordset[0]
+}
