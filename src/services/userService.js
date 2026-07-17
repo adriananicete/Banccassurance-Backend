@@ -1,6 +1,8 @@
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import * as userModel from '../models/userModel.js'
-import { sendOtpEmail, sendWelcomeEmail, sendApprovalEmail } from './emailService.js'
+import { sendOtpEmail, sendWelcomeEmail, sendApprovalEmail } from './emailService.js';
+
 
 const otpStore = {}
 
@@ -139,8 +141,7 @@ export const checkEmail = async (email) => {
 }
 
 export const register = async (fields) => {
-  const tempPassword = Math.random().toString(36).slice(-8) +
-    Math.random().toString(36).toUpperCase().slice(-4)
+  const tempPassword = crypto.randomBytes(12).toString('base64url');
   const passwordHash = await bcrypt.hash(tempPassword, 10)
 
   const result = await userModel.checkOrRegisterUser({

@@ -31,7 +31,10 @@ export const verifyOtp = async (req, res) => {
     const tokenPayload = {
       UserId: user.UserId,
       UserCode: user.UserCode,
-      Role: user.Role
+      Role: user.Role,
+      BranchCode: user.BranchCode,
+      AreaCode: user.AreaCode,
+      AOCode: user.AOCode
     }
 
     // ✅ 2. Sign the token (Use a long random string in your backend .env file)
