@@ -12,12 +12,12 @@ import {
   getReferralById,
   uploadConsent
 } from '../controllers/referralController.js'
-import { requireAuth } from '../middleware/auth.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 import { consentUpload } from '../middleware/upload.js'
 
 const router = express.Router();
 
-router.post('/', requireAuth, createReferral)
+router.post('/', requireAuth, requireRole('BRANCH_HEAD', 'BRANCH_STAFF'), createReferral)
 
 router.post('/send-consent', sendConsent)
 router.post('/resend-consent', sendConsent)

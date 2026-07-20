@@ -15,7 +15,7 @@ export const getReferrerByCode = async (req, res, next) => {
       data,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 // GET ALL PLANS
@@ -28,7 +28,7 @@ export const getPlans = async (req, res, next) => {
       data,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 // CREATE REFERRAL (INSERT VIA SP)
@@ -55,7 +55,7 @@ export const createReferral = async (req, res, next) => {
       aoCode,
     } = req.body;
 
-    const id = await referralService.createReferral({
+    const referral = await referralService.createReferral({
       firstName,
       lastName,
       middleName,
@@ -78,10 +78,20 @@ export const createReferral = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      id,
+      data: {
+        id: referral.Id,
+        referralNo: referral.ReferralNo,
+      },
     });
   } catch (error) {
-    next(error)
+    if (error.statusCode === 409) {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+        existing: error.data,
+      });
+    }
+    next(error);
   }
 };
 // SEND CONSENT
@@ -98,7 +108,14 @@ export const sendConsent = async (req, res, next) => {
       token,
     });
   } catch (error) {
-    next(error)
+    if (error.statusCode === 409) {
+      return res.status(409).json({
+        success: false,
+        message: error.message,
+        existing: error.data,
+      });
+    }
+    next(error);
   }
 };
 // UPDATE REFERRAL PROFILING
@@ -114,7 +131,7 @@ export const updateReferralProfiling = async (req, res, next) => {
       message: "Profiling updated successfully",
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 // CONFIRM CONSENT
@@ -140,7 +157,7 @@ export const checkConsent = async (req, res, next) => {
 
     res.json({ status });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 // DASHBOARD REFERRALS
@@ -153,7 +170,7 @@ export const getReferrals = async (req, res, next) => {
       data,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
@@ -181,7 +198,7 @@ export const updateReferralStatus = async (req, res, next) => {
       message: "Status updated and staff notified successfully.",
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
@@ -210,7 +227,7 @@ export const getReferralById = async (req, res, next) => {
       data,
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
 
@@ -231,6 +248,6 @@ export const uploadConsent = async (req, res, next) => {
       message: "Uploaded successfully",
     });
   } catch (error) {
-    next(error)
+    next(error);
   }
 };
