@@ -109,3 +109,15 @@ export const getReferralById = (id) => {
   request.input('Id', sql.UniqueIdentifier, id)
   return { request, run: () => request.execute('[banc].[usp_sel_referral_by_id]') }
 }
+
+
+export const findActiveDuplicate = (email, tenantPrefix) => {
+  const request = new sql.Request()
+  request.input('Email', sql.NVarChar, email)
+  request.input('Prefix', sql.NVarChar, tenantPrefix + '-%')
+  return { request, run: () => request.query(`
+      SELECT Id, ReferralNo, FirstName, LastName, MiddleName, Suffix, Email, MobileNumber, Status, StatusDate, ReferrerCode, ReferrerName, BranchCode, BranchName, AreaCode, AreaName, AOName, AOCode, CreatedAt FROM banc.Referrals
+      WHERE Email = @Email AND Status NOT IN ('Closed', 'Declined')
+      AND ReferrerCode LIKE @Prefix
+    `)}
+}
