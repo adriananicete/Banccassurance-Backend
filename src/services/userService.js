@@ -200,18 +200,24 @@ export const getUsersForApproval = async (user, status) => {
     return result.recordset;
   }
 
-  if (user.Role === GROUP_HEAD) {
+  else if (user.Role === GROUP_HEAD) {
     const result = await userModel
       .getBranchHeadsForApproval(user.AreaCode, status)
       .run();
     return result.recordset;
   }
 
-  if (user.Role === SECTOR_HEAD) {
+  else if (user.Role === SECTOR_HEAD) {
     const result = await userModel
       .getGroupHeadsForApproval(user.UserId, status)
       .run();
     return result.recordset;
+  }
+
+  else {
+    const err = new Error("Invalid Role");
+      err.statusCode = 400;
+      throw err;
   }
 };
 
