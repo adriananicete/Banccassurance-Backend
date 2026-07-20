@@ -2,6 +2,7 @@ import * as notificationService from '../services/notificationService.js'
 
 export const getUserNotifications = async (req, res, next) => {
   try {
+    
     const { userCode } = req.query;
     const result = await notificationService.getUserNotifications(userCode);
     return res.json(result);

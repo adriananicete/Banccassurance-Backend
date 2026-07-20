@@ -89,6 +89,24 @@ export const loginStep1 = async (req, res, next) => {
   }
 }
 
+export const logout = async (req, res, next) => {
+  try {
+    res.clearCookie('auth_token',  {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      
+    })
+
+    return res.status(200).json({
+      success: true,
+      message: 'User logged out'
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const changePassword = async (req, res, next) => {
   try {
     const { userCode, currentPassword, newPassword } = req.body
@@ -172,13 +190,13 @@ export const register = async (req, res, next) => {
     const {
       firstName, middleName, lastName, suffix,
       birthday, email, mobileNumber, position,
-      role, areaCode, branchCode
+      role, areaCode, branchCode, employeeNo
     } = req.body
 
     const result = await userService.register({
       firstName, middleName, lastName, suffix,
       birthday, email, mobileNumber, position,
-      role, areaCode, branchCode
+      role, areaCode, branchCode, employeeNo
     })
 
     return res.json(result)
@@ -190,8 +208,8 @@ export const register = async (req, res, next) => {
 // ✅ GET USERS FOR APPROVAL (Branch Head only)
 export const getUsersForApproval = async (req, res, next) => {
   try {
-    const { branchCode, status = 'ALL' } = req.query
-    const data = await userService.getUsersForApproval(branchCode, status)
+    const { status = 'ALL' } = req.query
+    const data = await userService.getUsersForApproval(req.user, status)
     return res.json({ success: true, data })
   } catch (error) {
     next(error)
@@ -202,7 +220,7 @@ export const getUsersForApproval = async (req, res, next) => {
 export const approveRejectUser = async (req, res, next) => {
   try {
     const { userId, action } = req.body
-    const result = await userService.approveRejectUser(userId, action)
+    const result = await userService.approveRejectUser(req.user, userId, action)
     return res.json(result)
   } catch (error) {
     next(error)
