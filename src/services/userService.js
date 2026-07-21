@@ -167,6 +167,16 @@ export const checkEmail = async (email) => {
 
 export const register = async (fields) => {
   const tempPassword = crypto.randomBytes(12).toString("base64url");
+
+  const checkEmployeeNo = await userModel.checkEmployeeNoExists(fields.employeeNo).run();
+
+  if(checkEmployeeNo.recordset.length > 0) {
+    return {
+      success: false,
+      message: 'Employee number already registered'
+    }
+  }
+
   const passwordHash = await bcrypt.hash(tempPassword, 10);
 
   const result = await userModel

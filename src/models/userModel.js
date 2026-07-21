@@ -262,3 +262,13 @@ WHERE UserId = @UserId AND AreaCode = @AreaCode
       `),
   };
 };
+
+export const checkEmployeeNoExists = (employeeNo) => {
+  const request = new sql.Request()
+  request.input('EmployeeNo', sql.NVarChar, employeeNo)
+  return {
+    request, run: () => request.query(`
+      SELECT EmployeeNo FROM banc.Users WHERE EmployeeNo = @EmployeeNo
+      `)
+  }
+}
