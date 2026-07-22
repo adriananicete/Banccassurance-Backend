@@ -74,7 +74,7 @@ export const createReferral = async (req, res, next) => {
       statusDate,
       aoName,
       aoCode,
-    });
+    }, req.user.Role);
 
     res.status(201).json({
       success: true,

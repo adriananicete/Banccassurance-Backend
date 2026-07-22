@@ -2,6 +2,7 @@ import * as referralModel from "../models/referralModel.js";
 import * as notificationModel from "../models/notificationModel.js";
 import { sendConsentEmail } from "./emailService.js";
 import { getTenant } from "../utils/tenant.js";
+import * as userModel from "../models/userModel.js";
 
 const formatArray = (arr) => {
   const parsed = typeof arr === "string" ? JSON.parse(arr) : arr;
@@ -25,7 +26,7 @@ export const getPlans = async () => {
   return result.recordset;
 };
 
-export const createReferral = async (data) => {
+export const createReferral = async (data, referrerRole) => {
   const tenantPrefix = getTenant(data.referrerCode);
   const findDuplicateExistingReferral = await referralModel
     .findActiveDuplicate(data.email, tenantPrefix)
@@ -39,6 +40,23 @@ export const createReferral = async (data) => {
   }
 
   const result = await referralModel.createReferral(data).run();
+
+  if (referrerRole === "BRANCH_STAFF") {
+    const branchHeads = await userModel
+      .getBranchHeadByBranch(data.branchCode)
+      .run();
+
+    if (branchHeads.recordset.length > 0) {
+      try {
+        const message = `New referral submitted: ${data.firstName} ${data.lastName} by ${data.referrerName}`;
+        for (let branchHead of branchHeads.recordset) {
+          await notificationModel.insert(branchHead.UserCode, message).run();
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }
   return result.recordset[0];
 };
 
