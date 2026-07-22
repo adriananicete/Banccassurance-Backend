@@ -97,7 +97,7 @@ export const checkConsent = async (email) => {
 
 export const getReferralsByRole = async (user) => {
   const result = await referralModel.getReferralsByRole(user).run();
-  return result.recordset;
+  return result.recordset.map(({ ConsentToken, ...rest }) => rest);
 };
 
 export const updateReferralStatus = async (id, status) => {
@@ -126,5 +126,6 @@ export const getReferralById = async (id) => {
     throw err;
   }
 
-  return result.recordset[0];
+  const { ConsentToken, ...rest } = result.recordset[0];
+  return rest
 };
