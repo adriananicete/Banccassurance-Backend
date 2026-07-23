@@ -11,10 +11,9 @@ import {
   updateReferralStatus,
   getReferralById,
   uploadConsent,
-  getUserNotifications,
-  clearUserNotifications,
-  markNotificationAsRead,
-  markAllNotificationsAsRead
+  // getUserNotifications,
+  // markNotificationAsRead,
+  // markAllNotificationsAsRead
 } from '../controllers/referralController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { consentUpload } from '../middleware/upload.js'
