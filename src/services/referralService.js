@@ -18,7 +18,30 @@ export const getReferrerByCode = async (code) => {
     throw err;
   }
 
-  return result.recordset[0];
+  const referrer = result.recordset[0];
+
+  // Diagnostic logging to help trace missing BranchName issues
+  console.log('referralService.getReferrerByCode - incoming code:', code);
+  console.log('referralService.getReferrerByCode - initial referrer record:', JSON.stringify(referrer));
+
+  const branchName = referrer?.BranchName;
+  const branchCode = referrer?.BranchCode;
+  const hasMissingBranchName = !branchName || ["N/A", "NA", "NULL", "null"].includes(String(branchName).trim());
+
+  if (hasMissingBranchName && branchCode) {
+    console.log('referralService.getReferrerByCode - BranchName missing; looking up by BranchCode:', branchCode);
+    const branchResult = await userModel.getBranchNameByCode(branchCode).run();
+    console.log('referralService.getReferrerByCode - branch lookup recordset:', JSON.stringify(branchResult.recordset));
+    const matchedBranch = branchResult.recordset?.[0];
+
+    if (matchedBranch?.BranchName) {
+      referrer.BranchName = matchedBranch.BranchName;
+      console.log('referralService.getReferrerByCode - resolved BranchName:', matchedBranch.BranchName);
+    }
+  }
+
+  console.log('referralService.getReferrerByCode - final referrer object returned:', JSON.stringify(referrer));
+  return referrer;
 };
 
 export const getPlans = async () => {
