@@ -242,19 +242,22 @@ export const getReferralById = async (req, res, next) => {
 // UPLOAD IMAGE CONSENT
 export const uploadConsent = async (req, res, next) => {
   try {
-    console.log("Upload hit");
 
+    const { email } = req.body;
     const file = req.file;
-    const email = req.body.email;
 
-    if (!file) {
-      return res.json({ success: false, message: "No file uploaded" });
-    }
+    if(!email) return res.status(400).json({
+      success: false,
+      message: 'Email is required'
+    })
 
-    res.json({
-      success: true,
-      message: "Uploaded successfully",
-    });
+    if (!file) return res.status(400).json({ success: false, message: "No file uploaded" });
+
+    const filePath = file.filename
+
+    const result = await referralService.uploadConsent(email, filePath)
+
+    return res.json(result);
   } catch (error) {
     next(error);
   }

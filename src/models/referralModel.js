@@ -121,3 +121,12 @@ export const findActiveDuplicate = (email, tenantPrefix) => {
       AND ReferrerCode LIKE @Prefix
     `)}
 }
+
+export const uploadConsentFile = (email, filePath) => {
+  const request = new sql.Request()
+  request.input('Email', sql.NVarChar, email)
+  request.input('FilePath', sql.NVarChar, filePath)
+  return {
+    request, run: () => request.execute('banc.usp_upload_consent_file')
+  }
+}

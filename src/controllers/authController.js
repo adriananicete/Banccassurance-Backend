@@ -39,7 +39,6 @@ export const verifyOtp = async (req, res, next) => {
       UserCode: user.UserCode,
       Role: user.Role,
       BranchCode: user.BranchCode,
-      BranchName: user.BranchName,
       AreaCode: user.AreaCode,
       AOCode: user.AOCode
     }

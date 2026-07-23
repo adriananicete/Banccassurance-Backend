@@ -129,3 +129,19 @@ export const getReferralById = async (id) => {
   const { ConsentToken, ...rest } = result.recordset[0];
   return rest
 };
+
+export const uploadConsent = async (email, filePath) => {
+  const result = await referralModel.uploadConsentFile(email, filePath).run();
+
+  if(result.rowsAffected[0] === 0) {
+    const message = 'No pending consent request found for this email'
+    const err = new Error(message);
+    err.statusCode = 404;
+    throw err
+  }
+
+  return {
+    success: true,
+    message: 'Consent file uploaded successfully'
+  };
+}
