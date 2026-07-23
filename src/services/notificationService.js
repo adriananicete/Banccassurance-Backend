@@ -22,14 +22,14 @@ export const clearUserNotifications = async (userCode) => {
   return { success: true, message: 'Notifications cleared successfully.' }
 }
 
-export const markNotificationAsRead = async (id) => {
+export const markNotificationAsRead = async (id, userCode) => {
   if (!id) {
     const err = new Error('Notification ID is required')
     err.statusCode = 400
     throw err
   }
 
-  await notificationModel.markAsRead(parseInt(id, 10)).run()
+  await notificationModel.markAsRead(parseInt(id, 10), userCode).run()
 
   return { success: true, message: 'Notification marked as read.' }
 }

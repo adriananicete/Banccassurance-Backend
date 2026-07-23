@@ -39,15 +39,16 @@ export const deleteByUserCode = (userCode) => {
   }
 }
 
-export const markAsRead = (id) => {
+export const markAsRead = (id, userCode) => {
   const request = new sql.Request()
   request.input('Id', sql.Int, id)
+  request.input('UserCode', sql.NVarChar, userCode)
   return {
     request,
     run: () => request.query(`
       UPDATE [banc].[Notifications]
-      SET [IsRead] = 1
-      WHERE [Id] = @Id
+SET [IsRead] = 1
+WHERE [Id] = @Id AND [UserCode] = @UserCode
     `)
   }
 }

@@ -264,11 +264,54 @@ WHERE UserId = @UserId AND AreaCode = @AreaCode
 };
 
 export const checkEmployeeNoExists = (employeeNo) => {
-  const request = new sql.Request()
-  request.input('EmployeeNo', sql.NVarChar, employeeNo)
+  const request = new sql.Request();
+  request.input("EmployeeNo", sql.NVarChar, employeeNo);
   return {
-    request, run: () => request.query(`
+    request,
+    run: () =>
+      request.query(`
       SELECT EmployeeNo FROM banc.Users WHERE EmployeeNo = @EmployeeNo
-      `)
-  }
-}
+      `),
+  };
+};
+
+export const getBranchHeadByBranch = (branchCode) => {
+  const request = new sql.Request();
+  request.input("BranchCode", sql.Int, branchCode);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT UserCode FROM banc.Users WHERE Role = 'BRANCH_HEAD' AND BranchCode = @BranchCode AND IsActive = 1
+      `),
+  };
+};
+
+export const getGroupHeadByArea = (areaCode) => {
+  const request = new sql.Request();
+  request.input("AreaCode", sql.NVarChar, areaCode);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT UserCode FROM banc.Users WHERE Role = 'GROUP_HEAD' AND AreaCode = @AreaCode AND IsActive = 1
+      `),
+  };
+};
+
+export const getSectorHeadByArea = (areaCode) => {
+  const request = new sql.Request();
+  request.input("AreaCode", sql.Int, Number(areaCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT u.UserCode 
+FROM banc.Users u
+INNER JOIN banc.user_area ua ON u.UserId = ua.UserId
+WHERE u.Role = 'SECTOR_HEAD' 
+  AND ua.AreaCode = @AreaCode 
+  AND u.IsActive = 1
+      `),
+  };
+};

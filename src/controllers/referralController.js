@@ -74,7 +74,7 @@ export const createReferral = async (req, res, next) => {
       statusDate,
       aoName,
       aoCode,
-    });
+    }, req.user.Role);
 
     res.status(201).json({
       success: true,
@@ -123,6 +123,14 @@ export const updateReferralProfiling = async (req, res, next) => {
   try {
     const { id } = req.params;
     const data = req.body;
+
+    if (!id || !isValidGuid(id)) {
+      console.warn(`Warning: Blocked profiling update attempt due to invalid GUID format: "${id}"`)
+      return res.status(400).json({
+        success: false,
+        message: `Invalid referral ID format supplied.`,
+      });
+    }
 
     await referralService.updateReferralProfiling(id, data);
 

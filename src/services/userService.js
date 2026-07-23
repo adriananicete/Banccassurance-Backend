@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import * as userModel from "../models/userModel.js";
+import * as notificationModel from "../models/notificationModel.js";
 import {
   sendOtpEmail,
   sendWelcomeEmail,
@@ -168,13 +169,15 @@ export const checkEmail = async (email) => {
 export const register = async (fields) => {
   const tempPassword = crypto.randomBytes(12).toString("base64url");
 
-  const checkEmployeeNo = await userModel.checkEmployeeNoExists(fields.employeeNo).run();
+  const checkEmployeeNo = await userModel
+    .checkEmployeeNoExists(fields.employeeNo)
+    .run();
 
-  if(checkEmployeeNo.recordset.length > 0) {
+  if (checkEmployeeNo.recordset.length > 0) {
     return {
       success: false,
-      message: 'Employee number already registered'
-    }
+      message: "Employee number already registered",
+    };
   }
 
   const passwordHash = await bcrypt.hash(tempPassword, 10);
@@ -196,6 +199,56 @@ export const register = async (fields) => {
       UserCode,
       tempPassword,
     );
+
+    if (fields.role === BRANCH_STAFF) {
+      const branchHeads = await userModel
+        .getBranchHeadByBranch(fields.branchCode)
+        .run();
+
+      if (branchHeads.recordset.length > 0) {
+        try {
+          const message = `New staff registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+          for (let branchHead of branchHeads.recordset) {
+            await notificationModel.insert(branchHead.UserCode, message).run();
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    } else if (fields.role === BRANCH_HEAD) {
+      const groupHeads = await userModel
+        .getGroupHeadByArea(fields.areaCode)
+        .run();
+
+      if (groupHeads.recordset.length > 0) {
+        try {
+          const message = `New branch head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+          for (let groupHead of groupHeads.recordset) {
+            await notificationModel.insert(groupHead.UserCode, message).run();
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    } else if (fields.role === GROUP_HEAD) {
+      const sectorHeads = await userModel
+        .getSectorHeadByArea(fields.areaCode)
+        .run();
+
+      if (sectorHeads.recordset.length > 0) {
+        try {
+          const message = `New group head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+          for (let sectorHead of sectorHeads.recordset) {
+            await notificationModel.insert(sectorHead.UserCode, message).run();
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    } else {
+      console.log('No approver for this role')
+    }
+
     return { success: true, message: Message, userCode: UserCode };
   }
 
@@ -208,26 +261,20 @@ export const getUsersForApproval = async (user, status) => {
       .getUsersForApproval(Number(user.BranchCode), status)
       .run();
     return result.recordset;
-  }
-
-  else if (user.Role === GROUP_HEAD) {
+  } else if (user.Role === GROUP_HEAD) {
     const result = await userModel
       .getBranchHeadsForApproval(user.AreaCode, status)
       .run();
     return result.recordset;
-  }
-
-  else if (user.Role === SECTOR_HEAD) {
+  } else if (user.Role === SECTOR_HEAD) {
     const result = await userModel
       .getGroupHeadsForApproval(user.UserId, status)
       .run();
     return result.recordset;
-  }
-
-  else {
+  } else {
     const err = new Error("Invalid Role");
-      err.statusCode = 400;
-      throw err;
+    err.statusCode = 400;
+    throw err;
   }
 };
 

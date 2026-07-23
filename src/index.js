@@ -9,6 +9,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import { globalLimiter } from "./middleware/rateLimiter.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,6 +27,8 @@ app.use(
 app.use(cookieParser());
 
 app.use(express.json());
+
+app.use(globalLimiter);
 
 app.get("/", (req, res) => {
   res.send("API is running...");
