@@ -18,7 +18,7 @@ import { mediumLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-router.post('/', requireAuth, requireRole('BRANCH_HEAD', 'BRANCH_STAFF', 'ACCOUNT_OFFICER'), createReferral)
+router.post('/', requireAuth, requireRole('BRANCH_HEAD', 'BRANCH_STAFF'), createReferral)
 router.get('/', requireAuth, getReferrals)
 
 router.post('/send-consent', mediumLimiter, sendConsent)
