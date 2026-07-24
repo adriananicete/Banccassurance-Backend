@@ -39,7 +39,6 @@ export const verifyOtp = async (req, res, next) => {
       UserCode: user.UserCode,
       Role: user.Role,
       BranchCode: user.BranchCode,
-      BranchName: user.BranchName,
       AreaCode: user.AreaCode,
       AOCode: user.AOCode
     }
@@ -110,8 +109,10 @@ export const logout = async (req, res, next) => {
 
 export const changePassword = async (req, res, next) => {
   try {
-    const { userCode, currentPassword, newPassword } = req.body
-    const result = await userService.changePassword(userCode, currentPassword, newPassword)
+    const { currentPassword, newPassword } = req.body
+    const { UserCode } = req.user;
+
+    const result = await userService.changePassword(UserCode, currentPassword, newPassword)
     res.json(result)
   } catch (error) {
     next(error)
@@ -120,14 +121,14 @@ export const changePassword = async (req, res, next) => {
 
 export const uploadProfilePhoto = async (req, res, next) => {
   try {
-    const { userCode } = req.body
+    const { UserCode } = req.user;
 
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' })
     }
 
     const newFileName = req.file.filename
-    const { oldPhoto } = await userService.uploadProfilePhoto(userCode, newFileName)
+    const { oldPhoto } = await userService.uploadProfilePhoto(UserCode, newFileName)
 
     // ✅ DELETE OLD FILE (IF EXISTS)
     if (oldPhoto) {

@@ -13,6 +13,7 @@ import {
   GROUP_HEAD,
   SECTOR_HEAD,
 } from "../utils/constant.js";
+import { throwHttpError } from "../utils/error.js";
 
 const otpStore = {};
 
@@ -120,18 +121,14 @@ export const changePassword = async (
   const result = await userModel.getPasswordHash(userCode).run();
 
   if (result.recordset.length === 0) {
-    const err = new Error("User not found");
-    err.statusCode = 404;
-    throw err;
+    throwHttpError(404, "User not found");
   }
 
   const user = result.recordset[0];
   const isMatch = await bcrypt.compare(currentPassword, user.PasswordHash);
 
   if (!isMatch) {
-    const err = new Error("Current password is incorrect");
-    err.statusCode = 400;
-    throw err;
+    throwHttpError(400, "Current password is incorrect");
   }
 
   const newHash = await bcrypt.hash(newPassword, 10);
@@ -246,7 +243,7 @@ export const register = async (fields) => {
         }
       }
     } else {
-      console.log('No approver for this role')
+      console.log("No approver for this role");
     }
 
     return { success: true, message: Message, userCode: UserCode };
@@ -272,18 +269,14 @@ export const getUsersForApproval = async (user, status) => {
       .run();
     return result.recordset;
   } else {
-    const err = new Error("Invalid Role");
-    err.statusCode = 400;
-    throw err;
+    throwHttpError(400, "Invalid Role");
   }
 };
 
 export const approveRejectUser = async (user, userId, action) => {
   const getUserScopeById = await userModel.getUserScopeById(userId).run();
   if (getUserScopeById.recordset.length === 0) {
-    const err = new Error("Not Found");
-    err.statusCode = 404;
-    throw err;
+    throwHttpError(404, "Not Found");
   }
   const targetUser = getUserScopeById.recordset[0];
 
@@ -292,9 +285,7 @@ export const approveRejectUser = async (user, userId, action) => {
       targetUser.Role !== BRANCH_STAFF ||
       targetUser.BranchCode !== user.BranchCode
     ) {
-      const err = new Error("Forbidden");
-      err.statusCode = 403;
-      throw err;
+      throwHttpError(403, "Forbidden");
     }
   }
 
@@ -303,17 +294,13 @@ export const approveRejectUser = async (user, userId, action) => {
       targetUser.Role !== BRANCH_HEAD ||
       targetUser.AreaCode !== user.AreaCode
     ) {
-      const err = new Error("Forbidden");
-      err.statusCode = 403;
-      throw err;
+      throwHttpError(403, "Forbidden");
     }
   }
 
   if (user.Role === SECTOR_HEAD) {
     if (targetUser.Role !== GROUP_HEAD) {
-      const err = new Error("Forbidden");
-      err.statusCode = 403;
-      throw err;
+      throwHttpError(403, "Forbidden");
     }
 
     const scopeCheck = await userModel
@@ -321,9 +308,7 @@ export const approveRejectUser = async (user, userId, action) => {
       .run();
 
     if (scopeCheck.recordset.length === 0) {
-      const err = new Error("Forbidden");
-      err.statusCode = 403;
-      throw err;
+      throwHttpError(403, "Forbidden");
     }
   }
 

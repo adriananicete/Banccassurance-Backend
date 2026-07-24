@@ -27,8 +27,6 @@ export const createReferral = (data) => {
   request.input('AreaCode', sql.Int, parseInt(data.areaCode || 0, 10))
   request.input('BranchName', sql.NVarChar, data.branchName)
   request.input('AreaName', sql.NVarChar, data.areaName)
-  request.input('Status', sql.NVarChar, data.status)
-  request.input('StatusDate', sql.Date, data.statusDate)
   request.input('AOName', sql.NVarChar, data.aoName)
   request.input('AOCode', sql.NVarChar, data.aoCode)
   return { request, run: () => request.execute('[banc].[usp_ins_referrals]') }
@@ -120,4 +118,13 @@ export const findActiveDuplicate = (email, tenantPrefix) => {
       WHERE Email = @Email AND Status NOT IN ('Closed', 'Declined')
       AND ReferrerCode LIKE @Prefix
     `)}
+}
+
+export const uploadConsentFile = (email, filePath) => {
+  const request = new sql.Request()
+  request.input('Email', sql.NVarChar, email)
+  request.input('FilePath', sql.NVarChar, filePath)
+  return {
+    request, run: () => request.execute('banc.usp_upload_consent_file')
+  }
 }
