@@ -23,7 +23,7 @@ export const getReferrerByCode = async (req, res, next) => {
     next(error);
   }
 };
-// GET ALL PLANS
+
 export const getPlans = async (req, res, next) => {
   try {
     const data = await referralService.getPlans();
@@ -36,7 +36,7 @@ export const getPlans = async (req, res, next) => {
     next(error);
   }
 };
-// CREATE REFERRAL (INSERT VIA SP)
+
 export const createReferral = async (req, res, next) => {
   try {
     const {
@@ -48,16 +48,6 @@ export const createReferral = async (req, res, next) => {
       occupation,
       email,
       planId,
-      referrerCode,
-      referrerName,
-      branchCode,
-      branchName,
-      areaCode,
-      areaName,
-      // status,
-      // statusDate,
-      aoName,
-      aoCode,
     } = req.body;
 
     const referral = await referralService.createReferral({
@@ -69,15 +59,7 @@ export const createReferral = async (req, res, next) => {
       occupation,
       email,
       planId,
-      referrerCode,
-      referrerName,
-      branchCode,
-      branchName,
-      areaCode,
-      areaName,
-      aoName,
-      aoCode,
-    }, req.user.Role);
+    }, req.user);
 
     res.status(201).json({
       success: true,
@@ -97,7 +79,8 @@ export const createReferral = async (req, res, next) => {
     next(error);
   }
 };
-// SEND CONSENT
+
+
 export const sendConsent = async (req, res, next) => {
   try {
     const { email } = req.body;
@@ -114,7 +97,7 @@ export const sendConsent = async (req, res, next) => {
     next(error);
   }
 };
-// UPDATE REFERRAL PROFILING
+
 export const updateReferralProfiling = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -138,7 +121,7 @@ export const updateReferralProfiling = async (req, res, next) => {
     next(error);
   }
 };
-// CONFIRM CONSENT
+
 export const confirmConsent = async (req, res) => {
   try {
     const { token } = req.query;
@@ -152,7 +135,7 @@ export const confirmConsent = async (req, res) => {
     res.status(400).send(consentInvalidTemplate());
   }
 };
-// CHECK CONSENT STATUS
+
 export const checkConsent = async (req, res, next) => {
   try {
     const { email } = req.query;
@@ -164,7 +147,7 @@ export const checkConsent = async (req, res, next) => {
     next(error);
   }
 };
-// DASHBOARD REFERRALS
+
 export const getReferrals = async (req, res, next) => {
   try {
     const data = await referralService.getReferralsByRole(req.user);
@@ -178,7 +161,7 @@ export const getReferrals = async (req, res, next) => {
   }
 };
 
-// UPDATE REFERRAL STATUS FROM DASHBOARD
+
 export const updateReferralStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -206,9 +189,6 @@ export const updateReferralStatus = async (req, res, next) => {
   }
 };
 
-// FETCH NOTIFICATIONS FOR LOGGED IN USER
-
-// GET REFERRAL BY ID
 export const getReferralById = async (req, res, next) => {
   try {
     const { id } = req.params;
