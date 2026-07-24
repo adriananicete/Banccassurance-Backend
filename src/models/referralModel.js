@@ -128,3 +128,29 @@ export const uploadConsentFile = (email, filePath) => {
     request, run: () => request.execute('banc.usp_upload_consent_file')
   }
 }
+
+export const getReferrerAttribution = (userCode) => {
+ const request = new sql.Request()
+ request.input('UserCode', sql.NVarChar, userCode)
+ return {
+  request, run: () => request.query(`
+    SELECT
+    u.UserCode    AS ReferrerCode,
+    u.FullName    AS ReferrerName,
+    u.AOCode,
+    ao.FullName   AS AOName,
+    b.BranchCode,
+    b.BranchName,
+    b.AreaCode,
+    a.AreaName
+FROM banc.Users u
+INNER JOIN banc.branches b
+    ON u.BranchCode = b.BranchCode
+INNER JOIN banc.group_areas a
+    ON b.AreaCode = a.AreaCode
+LEFT JOIN banc.Users ao
+    ON u.AOCode = ao.UserCode
+WHERE u.UserCode = @UserCode
+    `)
+ } 
+}

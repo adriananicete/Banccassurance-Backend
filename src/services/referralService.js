@@ -25,8 +25,15 @@ export const getPlans = async () => {
   return result.recordset;
 };
 
-export const createReferral = async (data, referrerRole) => {
-  const tenantPrefix = getTenant(data.referrerCode);
+export const createReferral = async (data, user) => {
+
+  const userAttribution = await referralModel.getReferrerAttribution(user.UserCode).run();
+  if(userAttribution.recordset.length === 0) throwHttpError(400, 'Your account is not assigned to a branch. Please contact your administrator.');
+
+  const authAttribution = userAttribution.recordset[0]
+
+  const tenantPrefix = getTenant(user.UserCode);
+
   const findDuplicateExistingReferral = await referralModel
     .findActiveDuplicate(data.email, tenantPrefix)
     .run();
@@ -35,16 +42,28 @@ export const createReferral = async (data, referrerRole) => {
     throwHttpError(409, "An active referral already exists for this client", findDuplicateExistingReferral.recordset[0]);
   }
 
-  const result = await referralModel.createReferral(data).run();
+  const referralData = {
+    ...data,
+    referrerCode: authAttribution.ReferrerCode,
+    referrerName: authAttribution.ReferrerName,
+    branchCode: authAttribution.BranchCode,
+    branchName: authAttribution.BranchName,
+    areaCode: authAttribution.AreaCode,
+    areaName: authAttribution.AreaName,
+    aoCode: authAttribution.AOCode,
+    aoName: authAttribution.AOName,
+  }
 
-  if (referrerRole === "BRANCH_STAFF") {
+  const result = await referralModel.createReferral(referralData).run();
+
+  if (user.Role === "BRANCH_STAFF") {
     const branchHeads = await userModel
-      .getBranchHeadByBranch(data.branchCode)
+      .getBranchHeadByBranch(authAttribution.BranchCode)
       .run();
 
     if (branchHeads.recordset.length > 0) {
       try {
-        const message = `New referral submitted: ${data.firstName} ${data.lastName} by ${data.referrerName}`;
+        const message = `New referral submitted: ${data.firstName} ${data.lastName} by ${authAttribution.ReferrerName}`;
         for (let branchHead of branchHeads.recordset) {
           await notificationModel.insert(branchHead.UserCode, message).run();
         }
