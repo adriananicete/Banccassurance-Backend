@@ -27,8 +27,6 @@ export const createReferral = (data) => {
   request.input('AreaCode', sql.Int, parseInt(data.areaCode || 0, 10))
   request.input('BranchName', sql.NVarChar, data.branchName)
   request.input('AreaName', sql.NVarChar, data.areaName)
-  request.input('Status', sql.NVarChar, data.status)
-  request.input('StatusDate', sql.Date, data.statusDate)
   request.input('AOName', sql.NVarChar, data.aoName)
   request.input('AOCode', sql.NVarChar, data.aoCode)
   return { request, run: () => request.execute('[banc].[usp_ins_referrals]') }

@@ -49,8 +49,8 @@ export const createReferral = async (req, res, next) => {
       branchName,
       areaCode,
       areaName,
-      status,
-      statusDate,
+      // status,
+      // statusDate,
       aoName,
       aoCode,
     } = req.body;
@@ -70,8 +70,6 @@ export const createReferral = async (req, res, next) => {
       branchName,
       areaCode,
       areaName,
-      status,
-      statusDate,
       aoName,
       aoCode,
     }, req.user.Role);
@@ -108,13 +106,6 @@ export const sendConsent = async (req, res, next) => {
       token,
     });
   } catch (error) {
-    if (error.statusCode === 409) {
-      return res.status(409).json({
-        success: false,
-        message: error.message,
-        existing: error.data,
-      });
-    }
     next(error);
   }
 };
