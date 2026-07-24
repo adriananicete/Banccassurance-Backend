@@ -80,6 +80,21 @@ export const createReferral = async (data, referrerRole) => {
       }
     }
   }
+
+  if (data.aoCode) {
+    try {
+      const accountOfficer = await userModel.getAccountOfficerByCode(data.aoCode).run();
+      if (accountOfficer.recordset.length > 0) {
+        const aoMessage = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${data.referrerName}.`;
+        for (const officer of accountOfficer.recordset) {
+          await notificationModel.insert(officer.UserCode, aoMessage).run();
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
   return result.recordset[0];
 };
 
@@ -136,8 +151,23 @@ export const updateReferralStatus = async (id, status) => {
 
   await referralModel.updateStatus(id, status).run();
 
+  // Notify the branch staff who submitted the referral, and their branch head — the Account
+  // Officer is the one making this change, so they don't need to be notified of their own update.
   const alertMsg = `Your referral for ${referral.FirstName} ${referral.LastName} has been updated to "${status}".`;
   await notificationModel.insert(referral.ReferrerCode, alertMsg).run();
+
+  try {
+    const branchHeads = await userModel.getBranchHeadByBranch(referral.BranchCode).run();
+    if (branchHeads.recordset.length > 0) {
+      const branchHeadMsg = `Referral for ${referral.FirstName} ${referral.LastName} has been updated to "${status}".`;
+      for (const branchHead of branchHeads.recordset) {
+        if (branchHead.UserCode === referral.ReferrerCode) continue;
+        await notificationModel.insert(branchHead.UserCode, branchHeadMsg).run();
+      }
+    }
+  } catch (error) {
+    console.error(error);
+  }
 };
 
 export const getReferralById = async (id) => {

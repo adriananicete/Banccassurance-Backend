@@ -301,6 +301,18 @@ export const getBranchHeadByBranch = (branchCode) => {
   };
 };
 
+export const getAccountOfficerByCode = (aoCode) => {
+  const request = new sql.Request();
+  request.input("AOCode", sql.NVarChar, aoCode);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT UserCode FROM banc.Users WHERE Role = 'ACCOUNT_OFFICER' AND UserCode = @AOCode AND IsActive = 1
+      `),
+  };
+};
+
 export const getGroupHeadByArea = (areaCode) => {
   const request = new sql.Request();
   request.input("AreaCode", sql.NVarChar, areaCode);

@@ -6,9 +6,12 @@ export const insert = (userCode, message) => {
   request.input('Message', sql.NVarChar, message)
   return {
     request,
+    // SYSUTCDATETIME(), not GETDATE() — the mssql driver reads datetime columns back
+    // assuming they're already UTC (useUTC defaults to true), so storing local server
+    // time here caused the browser to double-apply a timezone shift on display.
     run: () => request.query(`
       INSERT INTO [banc].[Notifications] ([UserCode], [Message], [IsRead], [CreatedAt])
-      VALUES (@UserCode, @Message, 0, GETDATE())
+      VALUES (@UserCode, @Message, 0, SYSUTCDATETIME())
     `)
   }
 }
