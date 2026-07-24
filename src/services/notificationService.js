@@ -1,4 +1,5 @@
 import * as notificationModel from '../models/notificationModel.js'
+import { throwHttpError } from '../utils/error.js'
 
 export const getUserNotifications = async (userCode) => {
   if (!userCode || userCode === 'undefined' || userCode === 'null') {
@@ -12,9 +13,7 @@ export const getUserNotifications = async (userCode) => {
 
 export const clearUserNotifications = async (userCode) => {
   if (!userCode || userCode === 'undefined') {
-    const err = new Error('UserCode is required')
-    err.statusCode = 400
-    throw err
+    throwHttpError(400, 'UserCode is required')
   }
 
   await notificationModel.deleteByUserCode(String(userCode).trim()).run()
@@ -24,9 +23,7 @@ export const clearUserNotifications = async (userCode) => {
 
 export const markNotificationAsRead = async (id, userCode) => {
   if (!id) {
-    const err = new Error('Notification ID is required')
-    err.statusCode = 400
-    throw err
+    throwHttpError(400, 'Notification ID is required')
   }
 
   await notificationModel.markAsRead(parseInt(id, 10), userCode).run()
@@ -36,9 +33,7 @@ export const markNotificationAsRead = async (id, userCode) => {
 
 export const markAllNotificationsAsRead = async (userCode) => {
   if (!userCode || userCode === 'undefined') {
-    const err = new Error('UserCode is required')
-    err.statusCode = 400
-    throw err
+    throwHttpError(400, 'UserCode is required')
   }
 
   await notificationModel.markAllAsRead(String(userCode).trim()).run()

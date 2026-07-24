@@ -3,6 +3,7 @@ import * as notificationModel from "../models/notificationModel.js";
 import { sendConsentEmail } from "./emailService.js";
 import { getTenant } from "../utils/tenant.js";
 import * as userModel from "../models/userModel.js";
+import { throwHttpError } from "../utils/error.js";
 
 const formatArray = (arr) => {
   const parsed = typeof arr === "string" ? JSON.parse(arr) : arr;
@@ -13,9 +14,7 @@ export const getReferrerByCode = async (code) => {
   const result = await referralModel.getReferrerByCode(code).run();
 
   if (result.recordset.length === 0) {
-    const err = new Error("Referrer not found");
-    err.statusCode = 404;
-    throw err;
+    throwHttpError(404, "Referrer not found")
   }
 
   return result.recordset[0];
@@ -33,10 +32,7 @@ export const createReferral = async (data, referrerRole) => {
     .run();
 
   if (findDuplicateExistingReferral.recordset.length > 0) {
-    const err = new Error("An active referral already exists for this client");
-    err.statusCode = 409;
-    err.data = findDuplicateExistingReferral.recordset[0];
-    throw err;
+    throwHttpError(409, "An active referral already exists for this client", findDuplicateExistingReferral.recordset[0]);
   }
 
   const result = await referralModel.createReferral(data).run();
@@ -104,9 +100,7 @@ export const updateReferralStatus = async (id, status) => {
   const refCheck = await referralModel.getReferralContactInfo(id).run();
 
   if (refCheck.recordset.length === 0) {
-    const err = new Error("Referral tracking record not found.");
-    err.statusCode = 404;
-    throw err;
+    throwHttpError(404, "Referral tracking record not found.");
   }
 
   const referral = refCheck.recordset[0];
@@ -121,9 +115,7 @@ export const getReferralById = async (id) => {
   const result = await referralModel.getReferralById(id).run();
 
   if (!result.recordset || result.recordset.length === 0) {
-    const err = new Error("Referral not found");
-    err.statusCode = 404;
-    throw err;
+    throwHttpError(404, "Referral not found");
   }
 
   const { ConsentToken, ...rest } = result.recordset[0];
@@ -134,10 +126,7 @@ export const uploadConsent = async (email, filePath) => {
   const result = await referralModel.uploadConsentFile(email, filePath).run();
 
   if(result.rowsAffected[0] === 0) {
-    const message = 'No pending consent request found for this email'
-    const err = new Error(message);
-    err.statusCode = 404;
-    throw err
+    throwHttpError(404, 'No pending consent request found for this email')
   }
 
   return {
