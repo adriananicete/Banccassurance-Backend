@@ -72,20 +72,6 @@ export const getGroups = () => {
   };
 };
 
-export const getBranchNameByCode = (branchCode) => {
-  const request = new sql.Request();
-  request.input("BranchCode", sql.Int, branchCode || null);
-  return {
-    request,
-    run: () =>
-      request.query(`
-      SELECT TOP 1 BranchCode, BranchName
-      FROM banc.branches
-      WHERE BranchCode = @BranchCode
-    `),
-  };
-};
-
 export const getBranches = (areaCode) => {
   const request = new sql.Request();
 
