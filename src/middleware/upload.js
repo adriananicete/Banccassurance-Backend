@@ -1,5 +1,19 @@
 import multer from "multer";
-import path from "path";
+
+const fileMap = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+};
+
+const consentFileMap = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "application/pdf": ".pdf"
+};
 
 const photoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -7,7 +21,13 @@ const photoStorage = multer.diskStorage({
   },
 
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    if (!fileMap[file.mimetype]) {
+      const err = new Error("File type not allowed");
+      err.statusCode = 400;
+      cb(err);
+      return;
+    }
+    const ext = fileMap[file.mimetype]
     const safeName = `${Date.now()}${ext}`;
     cb(null, safeName);
   },
@@ -17,8 +37,11 @@ export const photoUpload = multer({
   storage: photoStorage,
 
   fileFilter: (req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) {
-      return cb(new Error("Only image files allowed"), false);
+    if (!fileMap[file.mimetype]) {
+      const err = new Error("File type not allowed");
+      err.statusCode = 400;
+      cb(err);
+      return;
     }
     cb(null, true);
   },
@@ -34,7 +57,13 @@ const consentStorage = multer.diskStorage({
   },
 
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    if(!consentFileMap[file.mimetype]) {
+      const err = new Error("File type not allowed");
+      err.statusCode = 400;
+      cb(err);
+      return;
+    }
+    const ext = consentFileMap[file.mimetype];
     const safeName = `${Date.now()}${ext}`;
     cb(null, safeName);
   },
@@ -44,11 +73,11 @@ export const consentUpload = multer({
   storage: consentStorage,
 
   fileFilter: (req, file, cb) => {
-    if (
-      !file.mimetype.startsWith("image/") &&
-      file.mimetype !== "application/pdf"
-    ) {
-      return cb(new Error("Only images and PDF files are allowed"), false);
+    if(!consentFileMap[file.mimetype]) {
+      const err = new Error("File type not allowed");
+      err.statusCode = 400;
+      cb(err);
+      return;
     }
     cb(null, true);
   },
