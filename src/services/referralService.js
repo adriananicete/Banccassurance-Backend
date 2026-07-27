@@ -4,6 +4,7 @@ import { sendConsentEmail } from "./emailService.js";
 import { getTenant } from "../utils/tenant.js";
 import * as userModel from "../models/userModel.js";
 import { throwHttpError } from "../utils/error.js";
+import { validStatus } from "../utils/constant.js";
 
 const formatArray = (arr) => {
   const parsed = typeof arr === "string" ? JSON.parse(arr) : arr;
@@ -96,11 +97,11 @@ export const createReferral = async (data, user) => {
     }
   }
 
-  if (data.aoCode) {
+  if (authAttribution.AOCode) {
     try {
-      const accountOfficer = await userModel.getAccountOfficerByCode(data.aoCode).run();
+      const accountOfficer = await userModel.getAccountOfficerByCode(authAttribution.AOCode).run();
       if (accountOfficer.recordset.length > 0) {
-        const aoMessage = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${data.referrerName}.`;
+        const aoMessage = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${authAttribution.ReferrerName}.`;
         for (const officer of accountOfficer.recordset) {
           await notificationModel.insert(officer.UserCode, aoMessage).run();
         }
@@ -154,6 +155,8 @@ export const getReferralsByRole = async (user) => {
 };
 
 export const updateReferralStatus = async (id, status) => {
+
+  if(!validStatus.includes(status)) throwHttpError(400, 'Invalid status value')
   const refCheck = await referralModel.getReferralContactInfo(id).run();
 
   if (refCheck.recordset.length === 0) {
@@ -164,8 +167,6 @@ export const updateReferralStatus = async (id, status) => {
 
   await referralModel.updateStatus(id, status).run();
 
-  // Notify the branch staff who submitted the referral, and their branch head — the Account
-  // Officer is the one making this change, so they don't need to be notified of their own update.
   const alertMsg = `Your referral for ${referral.FirstName} ${referral.LastName} has been updated to "${status}".`;
   await notificationModel.insert(referral.ReferrerCode, alertMsg).run();
 
