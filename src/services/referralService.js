@@ -11,8 +11,8 @@ const formatArray = (arr) => {
   return Array.isArray(parsed) ? parsed.join(", ") : parsed;
 };
 
-export const getReferrerByCode = async (code) => {
-  const result = await referralModel.getReferrerByCode(code).run();
+export const getReferrerByCode = async (userCode) => {
+  const result = await referralModel.getReferrerAttribution(userCode).run();
 
   if (result.recordset.length === 0) {
     throwHttpError(404, "Referrer not found")
@@ -20,27 +20,6 @@ export const getReferrerByCode = async (code) => {
 
   const referrer = result.recordset[0];
 
-  // Diagnostic logging to help trace missing BranchName issues
-  console.log('referralService.getReferrerByCode - incoming code:', code);
-  console.log('referralService.getReferrerByCode - initial referrer record:', JSON.stringify(referrer));
-
-  const branchName = referrer?.BranchName;
-  const branchCode = referrer?.BranchCode;
-  const hasMissingBranchName = !branchName || ["N/A", "NA", "NULL", "null"].includes(String(branchName).trim());
-
-  if (hasMissingBranchName && branchCode) {
-    console.log('referralService.getReferrerByCode - BranchName missing; looking up by BranchCode:', branchCode);
-    const branchResult = await userModel.getBranchNameByCode(branchCode).run();
-    console.log('referralService.getReferrerByCode - branch lookup recordset:', JSON.stringify(branchResult.recordset));
-    const matchedBranch = branchResult.recordset?.[0];
-
-    if (matchedBranch?.BranchName) {
-      referrer.BranchName = matchedBranch.BranchName;
-      console.log('referralService.getReferrerByCode - resolved BranchName:', matchedBranch.BranchName);
-    }
-  }
-
-  console.log('referralService.getReferrerByCode - final referrer object returned:', JSON.stringify(referrer));
   return referrer;
 };
 
@@ -55,6 +34,8 @@ export const createReferral = async (data, user) => {
   if(userAttribution.recordset.length === 0) throwHttpError(400, 'Your account is not assigned to a branch. Please contact your administrator.');
 
   const authAttribution = userAttribution.recordset[0]
+
+  if(authAttribution.AOCode === null) throwHttpError(400, 'Your account has no assigned Account Officer. Please contact your administrator.')
 
   const tenantPrefix = getTenant(user.UserCode);
 

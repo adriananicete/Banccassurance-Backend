@@ -7,13 +7,8 @@ import { consentInvalidTemplate } from "../templates/consentInvalidTemplate.js";
 // GET REFERRER INFO BY CODE (AUTO-FILL)
 export const getReferrerByCode = async (req, res, next) => {
   try {
-    const { code } = req.params;
-    console.log('referralController.getReferrerByCode - incoming request', {
-      code,
-      user: req.user ? { UserCode: req.user.UserCode, Role: req.user.Role, BranchCode: req.user.BranchCode } : null,
-      timestamp: new Date().toISOString()
-    });
-    const data = await referralService.getReferrerByCode(code);
+    
+    const data = await referralService.getReferrerByCode(req.user.UserCode);
 
     res.status(200).json({
       success: true,
