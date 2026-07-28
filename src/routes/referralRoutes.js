@@ -30,8 +30,8 @@ router.get('/plans', requireAuth, getPlans)
 router.get('/referrer/:code', requireAuth, getReferrerByCode)
 
 router.post('/upload-consent', strictLimiter, requireAuth, consentUpload.single('consentFile'), uploadConsent)
-router.put('/:id/profiling', requireAuth, updateReferralProfiling)
-router.put('/:id/status', requireAuth, updateReferralStatus)
+router.put('/:id/profiling', requireAuth, requireRole('BRANCH_STAFF', 'BRANCH_HEAD'), updateReferralProfiling)
+router.put('/:id/status', requireAuth, requireRole('ACCOUNT_OFFICER'), updateReferralStatus)
 
 router.get('/:id', requireAuth, getReferralById)
 

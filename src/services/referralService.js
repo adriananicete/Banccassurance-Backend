@@ -4,7 +4,17 @@ import { sendConsentEmail } from "./emailService.js";
 import { getTenant } from "../utils/tenant.js";
 import * as userModel from "../models/userModel.js";
 import { throwHttpError } from "../utils/error.js";
-import { validStatus } from "../utils/constant.js";
+import {
+  ACCOUNT_OFFICER,
+  AREA_SALES_HEAD,
+  BRANCH_HEAD,
+  BRANCH_STAFF,
+  DEPARTMENT_HEAD,
+  GROUP_HEAD,
+  REGIONAL_SALES_HEAD,
+  SECTOR_HEAD,
+  validStatus,
+} from "../utils/constant.js";
 
 const formatArray = (arr) => {
   const parsed = typeof arr === "string" ? JSON.parse(arr) : arr;
@@ -15,7 +25,7 @@ export const getReferrerByCode = async (userCode) => {
   const result = await referralModel.getReferrerAttribution(userCode).run();
 
   if (result.recordset.length === 0) {
-    throwHttpError(404, "Referrer not found")
+    throwHttpError(404, "Referrer not found");
   }
 
   const referrer = result.recordset[0];
@@ -29,13 +39,22 @@ export const getPlans = async () => {
 };
 
 export const createReferral = async (data, user) => {
+  const userAttribution = await referralModel
+    .getReferrerAttribution(user.UserCode)
+    .run();
+  if (userAttribution.recordset.length === 0)
+    throwHttpError(
+      400,
+      "Your account is not assigned to a branch. Please contact your administrator.",
+    );
 
-  const userAttribution = await referralModel.getReferrerAttribution(user.UserCode).run();
-  if(userAttribution.recordset.length === 0) throwHttpError(400, 'Your account is not assigned to a branch. Please contact your administrator.');
+  const authAttribution = userAttribution.recordset[0];
 
-  const authAttribution = userAttribution.recordset[0]
-
-  if(authAttribution.AOCode === null) throwHttpError(400, 'Your account has no assigned Account Officer. Please contact your administrator.')
+  if (authAttribution.AOCode === null)
+    throwHttpError(
+      400,
+      "Your account has no assigned Account Officer. Please contact your administrator.",
+    );
 
   const tenantPrefix = getTenant(user.UserCode);
 
@@ -44,7 +63,11 @@ export const createReferral = async (data, user) => {
     .run();
 
   if (findDuplicateExistingReferral.recordset.length > 0) {
-    throwHttpError(409, "An active referral already exists for this client", findDuplicateExistingReferral.recordset[0]);
+    throwHttpError(
+      409,
+      "An active referral already exists for this client",
+      findDuplicateExistingReferral.recordset[0],
+    );
   }
 
   const referralData = {
@@ -57,7 +80,7 @@ export const createReferral = async (data, user) => {
     areaName: authAttribution.AreaName,
     aoCode: authAttribution.AOCode,
     aoName: authAttribution.AOName,
-  }
+  };
 
   const result = await referralModel.createReferral(referralData).run();
 
@@ -80,7 +103,9 @@ export const createReferral = async (data, user) => {
 
   if (authAttribution.AOCode) {
     try {
-      const accountOfficer = await userModel.getAccountOfficerByCode(authAttribution.AOCode).run();
+      const accountOfficer = await userModel
+        .getAccountOfficerByCode(authAttribution.AOCode)
+        .run();
       if (accountOfficer.recordset.length > 0) {
         const aoMessage = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${authAttribution.ReferrerName}.`;
         for (const officer of accountOfficer.recordset) {
@@ -100,7 +125,13 @@ export const sendConsent = async (email, token) => {
   await sendConsentEmail(email, token);
 };
 
-export const updateReferralProfiling = async (id, data) => {
+export const updateReferralProfiling = async (id, data, user) => {
+  const referrer = await referralModel.getReferralContactInfo(id).run();
+
+  if (referrer.recordset.length === 0) throwHttpError(404, "Not Found");
+  if (referrer.recordset[0].ReferrerCode !== user.UserCode)
+    throwHttpError(403, "Forbidden");
+
   await referralModel
     .updateProfiling(id, {
       civilStatus: data.civilStatus,
@@ -135,9 +166,9 @@ export const getReferralsByRole = async (user) => {
   return result.recordset.map(({ ConsentToken, ...rest }) => rest);
 };
 
-export const updateReferralStatus = async (id, status) => {
-
-  if(!validStatus.includes(status)) throwHttpError(400, 'Invalid status value')
+export const updateReferralStatus = async (id, status, user) => {
+  if (!validStatus.includes(status))
+    throwHttpError(400, "Invalid status value");
   const refCheck = await referralModel.getReferralContactInfo(id).run();
 
   if (refCheck.recordset.length === 0) {
@@ -145,6 +176,7 @@ export const updateReferralStatus = async (id, status) => {
   }
 
   const referral = refCheck.recordset[0];
+  if (referral.AOCode !== user.UserCode) throwHttpError(403, "Forbidden");
 
   await referralModel.updateStatus(id, status).run();
 
@@ -152,12 +184,16 @@ export const updateReferralStatus = async (id, status) => {
   await notificationModel.insert(referral.ReferrerCode, alertMsg).run();
 
   try {
-    const branchHeads = await userModel.getBranchHeadByBranch(referral.BranchCode).run();
+    const branchHeads = await userModel
+      .getBranchHeadByBranch(referral.BranchCode)
+      .run();
     if (branchHeads.recordset.length > 0) {
       const branchHeadMsg = `Referral for ${referral.FirstName} ${referral.LastName} has been updated to "${status}".`;
       for (const branchHead of branchHeads.recordset) {
         if (branchHead.UserCode === referral.ReferrerCode) continue;
-        await notificationModel.insert(branchHead.UserCode, branchHeadMsg).run();
+        await notificationModel
+          .insert(branchHead.UserCode, branchHeadMsg)
+          .run();
       }
     }
   } catch (error) {
@@ -165,7 +201,7 @@ export const updateReferralStatus = async (id, status) => {
   }
 };
 
-export const getReferralById = async (id) => {
+export const getReferralById = async (id, user) => {
   const result = await referralModel.getReferralById(id).run();
 
   if (!result.recordset || result.recordset.length === 0) {
@@ -173,18 +209,47 @@ export const getReferralById = async (id) => {
   }
 
   const { ConsentToken, ...rest } = result.recordset[0];
-  return rest
+
+  const isAllowed = await canAccessReferral(rest, user)
+  if(!isAllowed) throwHttpError(403, 'Forbidden')
+  return rest;
 };
 
 export const uploadConsent = async (email, filePath) => {
   const result = await referralModel.uploadConsentFile(email, filePath).run();
 
-  if(result.rowsAffected[0] === 0) {
-    throwHttpError(404, 'No pending consent request found for this email')
+  if (result.rowsAffected[0] === 0) {
+    throwHttpError(404, "No pending consent request found for this email");
   }
 
   return {
     success: true,
-    message: 'Consent file uploaded successfully'
+    message: "Consent file uploaded successfully",
   };
-}
+};
+
+export const canAccessReferral = async (referral, user) => {
+  if (user.Role === BRANCH_STAFF) {
+    if (referral.ReferrerCode === user.UserCode) return true;
+  } else if (user.Role === BRANCH_HEAD) {
+    if (referral.BranchCode === user.BranchCode) return true;
+  } else if (user.Role === ACCOUNT_OFFICER) {
+    if (referral.AOCode === user.UserCode) return true;
+  } else if (user.Role === GROUP_HEAD || user.Role === AREA_SALES_HEAD) {
+    if (String(referral.AreaCode) === String(user.AreaCode)) return true;
+  } else if(user.Role === SECTOR_HEAD || user.Role === DEPARTMENT_HEAD) {
+    const sectorOrDepartmentHead = await userModel
+    .isAreaInSectorScope(user.UserId, referral.AreaCode)
+    .run();
+
+    return sectorOrDepartmentHead.recordset.length > 0
+  } else if(user.Role === REGIONAL_SALES_HEAD) {
+    const regionalSalesHead = await userModel
+    .isAreaInRegionalScope(user.UserCode, referral.AreaCode)
+    .run();
+
+    return regionalSalesHead.recordset.length > 0
+  } else {
+    return false;
+  }
+};

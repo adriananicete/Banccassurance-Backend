@@ -263,6 +263,21 @@ WHERE UserId = @UserId AND AreaCode = @AreaCode
   };
 };
 
+export const isAreaInRegionalScope = (userCode, areaCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, userCode);
+  request.input("AreaCode", sql.Int, Number(areaCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+        SELECT 1 AS InScope
+FROM banc.regional_sales_head_areas
+WHERE UserCode = @UserCode AND AreaCode = @AreaCode
+      `),
+  };
+};
+
 export const checkEmployeeNoExists = (employeeNo) => {
   const request = new sql.Request();
   request.input("EmployeeNo", sql.NVarChar, employeeNo);

@@ -106,7 +106,7 @@ export const updateReferralProfiling = async (req, res, next) => {
       });
     }
 
-    await referralService.updateReferralProfiling(id, data);
+    await referralService.updateReferralProfiling(id, data, req.user);
 
     res.status(200).json({
       success: true,
@@ -173,7 +173,7 @@ export const updateReferralStatus = async (req, res, next) => {
       });
     }
 
-    await referralService.updateReferralStatus(id.trim(), status);
+    await referralService.updateReferralStatus(id.trim(), status, req.user);
 
     return res.json({
       success: true,
@@ -199,7 +199,7 @@ export const getReferralById = async (req, res, next) => {
       });
     }
 
-    const data = await referralService.getReferralById(id.trim());
+    const data = await referralService.getReferralById(id.trim(), req.user);
 
     return res.status(200).json({
       success: true,
