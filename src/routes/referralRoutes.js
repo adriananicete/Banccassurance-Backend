@@ -11,6 +11,7 @@ import {
   updateReferralStatus,
   getReferralById,
   uploadConsent,
+  confirmConsentPost,
 } from '../controllers/referralController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { consentUpload } from '../middleware/upload.js'
@@ -23,6 +24,7 @@ router.get('/', requireAuth, getReferrals)
 
 router.post('/send-consent', mediumLimiter, requireAuth, sendConsent)
 router.post('/resend-consent', mediumLimiter, requireAuth, sendConsent)
+router.post('/confirm-consent', confirmConsentPost)
 router.get('/confirm-consent', confirmConsent)
 router.get('/check-consent', requireAuth, checkConsent)
 router.get('/plans', requireAuth, getPlans)
