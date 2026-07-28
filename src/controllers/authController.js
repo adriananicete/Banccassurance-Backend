@@ -70,7 +70,8 @@ export const verifyOtp = async (req, res, next) => {
         BranchCode: user.BranchCode,
         AreaCode: user.AreaCode,
         AOCode: user.AOCode,
-        aoFullName: aoFullName
+        aoFullName: aoFullName,
+        EmployeeNo: user.EmployeeNo,
       }
     })
   } catch (error) {

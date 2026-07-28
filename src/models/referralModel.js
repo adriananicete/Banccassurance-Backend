@@ -87,7 +87,7 @@ export const getReferralContactInfo = (id) => {
   return {
     request,
     run: () => request.query(`
-      SELECT [ReferrerCode], [FirstName], [LastName], [BranchCode]
+      SELECT [ReferrerCode], [FirstName], [LastName], [BranchCode], [AOCode], [Status]
       FROM [banc].[Referrals]
       WHERE [Id] = @Id
     `)

@@ -3,6 +3,7 @@ import * as referralService from "../services/referralService.js";
 import { isValidGuid } from "../utils/validators.js";
 import { consentConfirmedTemplate } from "../templates/consentConfirmedTemplate.js";
 import { consentInvalidTemplate } from "../templates/consentInvalidTemplate.js";
+import { consentFormTemplate } from "../templates/consentFormTemplate.js";
 
 // GET REFERRER INFO BY CODE (AUTO-FILL)
 export const getReferrerByCode = async (req, res, next) => {
@@ -85,8 +86,7 @@ export const sendConsent = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: "Consent email sent",
-      token,
+      message: "Consent email sent"
     });
   } catch (error) {
     next(error);
@@ -106,7 +106,7 @@ export const updateReferralProfiling = async (req, res, next) => {
       });
     }
 
-    await referralService.updateReferralProfiling(id, data);
+    await referralService.updateReferralProfiling(id, data, req.user);
 
     res.status(200).json({
       success: true,
@@ -121,9 +121,8 @@ export const confirmConsent = async (req, res) => {
   try {
     const { token } = req.query;
 
-    await referralService.confirmConsentRequest(token);
+    res.send(consentFormTemplate(token))
 
-    res.send(consentConfirmedTemplate());
   } catch (error) {
     console.error("❌ Confirm Consent Error:", error);
 
@@ -173,7 +172,7 @@ export const updateReferralStatus = async (req, res, next) => {
       });
     }
 
-    await referralService.updateReferralStatus(id.trim(), status);
+    await referralService.updateReferralStatus(id.trim(), status, req.user);
 
     return res.json({
       success: true,
@@ -199,7 +198,7 @@ export const getReferralById = async (req, res, next) => {
       });
     }
 
-    const data = await referralService.getReferralById(id.trim());
+    const data = await referralService.getReferralById(id.trim(), req.user);
 
     return res.status(200).json({
       success: true,
@@ -233,3 +232,17 @@ export const uploadConsent = async (req, res, next) => {
     next(error);
   }
 };
+
+export const confirmConsentPost = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+
+    await referralService.confirmConsentRequest(token);
+
+    res.send(consentConfirmedTemplate())
+  } catch (error) {
+    console.error("❌ Confirm Consent Error:", error);
+
+    res.status(400).send(consentInvalidTemplate());
+  }
+}

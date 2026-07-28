@@ -1,3 +1,5 @@
+import { throwHttpError } from "./error.js";
+
 export const getTenant = (userCode) => {
   const tenant = ["USR", "PHL"];
 
@@ -10,9 +12,7 @@ export const getTenant = (userCode) => {
   const tenantPrefix = arrOfUserCode[0];
 
   if (!tenant.includes(tenantPrefix)) {
-    const err = new Error("Invalid company prefix");
-    err.statusCode = 400;
-    throw err;
+    throwHttpError(400, 'Invalid company prefix')
   }
 
   return tenantPrefix;

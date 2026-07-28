@@ -27,6 +27,7 @@ app.use(
 app.use(cookieParser());
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 
 app.use(globalLimiter);
 
@@ -46,4 +47,7 @@ connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
-});
+}).catch((err) => {
+  console.error('Failed to start server:', err.message);
+  process.exit(1);
+})
