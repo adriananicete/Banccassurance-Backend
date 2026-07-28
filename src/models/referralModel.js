@@ -71,8 +71,7 @@ export const checkConsent = (email) => {
   return { request, run: () => request.execute('[banc].[usp_check_consent]') }
 }
 
-// AreaCode is intentionally sql.NVarChar here (unlike createReferral's sql.Int) —
-// preserved as-is, matches the pre-existing SP contract for this call.
+// Get referrals scoped to the user's role.
 export const getReferralsByRole = (user) => {
   const request = new sql.Request()
   request.input('Role', sql.NVarChar, user.Role)
