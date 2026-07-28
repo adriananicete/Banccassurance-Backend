@@ -13,6 +13,7 @@ import {
   GROUP_HEAD,
   REGIONAL_SALES_HEAD,
   SECTOR_HEAD,
+  statusTransitions,
   validStatus,
 } from "../utils/constant.js";
 
@@ -177,6 +178,10 @@ export const updateReferralStatus = async (id, status, user) => {
 
   const referral = refCheck.recordset[0];
   if (referral.AOCode !== user.UserCode) throwHttpError(403, "Forbidden");
+
+  const allowedStatus = statusTransitions[referral.Status];
+  if(allowedStatus.length === 0) throwHttpError(400, `Status cannot be changed from ${referral.Status}`)
+  if(!allowedStatus.includes(status)) throwHttpError(400, `Cannot transition from ${referral.Status} to ${status}`)
 
   await referralModel.updateStatus(id, status).run();
 
