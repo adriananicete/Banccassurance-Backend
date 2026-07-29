@@ -78,7 +78,7 @@ export const getReferralsByRole = (user) => {
   request.input('UserCode', sql.NVarChar, user.UserCode)
   request.input('BranchCode', sql.Int, user.BranchCode || 0)
   request.input('AreaCode', sql.NVarChar, user.AreaCode || '0')
-  return { request, run: () => request.execute('[banc].[usp_sel_referrals_by_role]') }
+  return { request, run: () => request.execute('[banc].[usp_sel_referrals_by_role_1]') }
 }
 
 export const getReferralContactInfo = (id) => {
