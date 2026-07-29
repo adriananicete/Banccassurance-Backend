@@ -135,7 +135,7 @@ export const getReferrerAttribution = (userCode) => {
   request, run: () => request.query(`
     SELECT
     u.UserCode    AS ReferrerCode,
-    u.FullName    AS ReferrerName,
+    COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS ReferrerName,
     u.AOCode,
     ao.FullName   AS AOName,
     b.BranchCode,
@@ -160,7 +160,7 @@ export const getAOAttribution = (userCode) => {
   return {
     request, run: () => request.query(`
       SELECT TOP (1)
-          u.FullName    AS ReferrerName,
+          COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS ReferrerName,
           b.AreaCode,
           a.AreaName,
           ash.UserCode  AS ASHUserCode
