@@ -23,8 +23,8 @@ export const createReferral = (data) => {
   request.input('PlanId', sql.Int, data.planId)
   request.input('ReferrerCode', sql.NVarChar, data.referrerCode)
   request.input('ReferrerName', sql.NVarChar, data.referrerName)
-  request.input('BranchCode', sql.Int, parseInt(data.branchCode || 0, 10))
-  request.input('AreaCode', sql.Int, parseInt(data.areaCode || 0, 10))
+  request.input('BranchCode', sql.Int, data.branchCode != null ? parseInt(data.branchCode, 10) : null)
+  request.input('AreaCode', sql.Int, data.areaCode != null ? parseInt(data.areaCode, 10) : null)
   request.input('BranchName', sql.NVarChar, data.branchName)
   request.input('AreaName', sql.NVarChar, data.areaName)
   request.input('AOName', sql.NVarChar, data.aoName)
@@ -152,4 +152,30 @@ LEFT JOIN banc.Users ao
 WHERE u.UserCode = @UserCode
     `)
  } 
+}
+
+export const getAOAttribution = (userCode) => {
+  const request = new sql.Request()
+  request.input('UserCode', sql.NVarChar, userCode)
+  return {
+    request, run: () => request.query(`
+      SELECT TOP (1)
+          u.FullName    AS ReferrerName,
+          b.AreaCode,
+          a.AreaName,
+          ash.UserCode  AS ASHUserCode
+      FROM banc.Users u
+      INNER JOIN banc.account_officer_branches aob
+          ON u.UserCode = aob.UserCode
+      INNER JOIN banc.branches b
+          ON aob.BranchCode = b.BranchCode
+      INNER JOIN banc.group_areas a
+          ON b.AreaCode = a.AreaCode
+      LEFT JOIN banc.Users ash
+          ON CAST(a.AreaCode AS NVARCHAR) = ash.AreaCode
+          AND ash.Role = 'AREA_SALES_HEAD'
+          AND ash.IsActive = 1
+      WHERE u.UserCode = @UserCode
+      `)
+  }
 }

@@ -40,85 +40,131 @@ export const getPlans = async () => {
 };
 
 export const createReferral = async (data, user) => {
-  const userAttribution = await referralModel
-    .getReferrerAttribution(user.UserCode)
-    .run();
-  if (userAttribution.recordset.length === 0)
-    throwHttpError(
-      400,
-      "Your account is not assigned to a branch. Please contact your administrator.",
-    );
+  if (user.Role === BRANCH_STAFF || user.Role === BRANCH_HEAD) {
+    const userAttribution = await referralModel
+      .getReferrerAttribution(user.UserCode)
+      .run();
+    if (userAttribution.recordset.length === 0)
+      throwHttpError(
+        400,
+        "Your account is not assigned to a branch. Please contact your administrator.",
+      );
 
-  const authAttribution = userAttribution.recordset[0];
+    const authAttribution = userAttribution.recordset[0];
 
-  if (authAttribution.AOCode === null)
-    throwHttpError(
-      400,
-      "Your account has no assigned Account Officer. Please contact your administrator.",
-    );
+    if (authAttribution.AOCode === null)
+      throwHttpError(
+        400,
+        "Your account has no assigned Account Officer. Please contact your administrator.",
+      );
 
-  const tenantPrefix = getTenant(user.UserCode);
+    const tenantPrefix = getTenant(user.UserCode);
 
-  const findDuplicateExistingReferral = await referralModel
-    .findActiveDuplicate(data.email, tenantPrefix)
-    .run();
-
-  if (findDuplicateExistingReferral.recordset.length > 0) {
-    throwHttpError(
-      409,
-      "An active referral already exists for this client",
-      findDuplicateExistingReferral.recordset[0],
-    );
-  }
-
-  const referralData = {
-    ...data,
-    referrerCode: authAttribution.ReferrerCode,
-    referrerName: authAttribution.ReferrerName,
-    branchCode: authAttribution.BranchCode,
-    branchName: authAttribution.BranchName,
-    areaCode: authAttribution.AreaCode,
-    areaName: authAttribution.AreaName,
-    aoCode: authAttribution.AOCode,
-    aoName: authAttribution.AOName,
-  };
-
-  const result = await referralModel.createReferral(referralData).run();
-
-  if (user.Role === "BRANCH_STAFF") {
-    const branchHeads = await userModel
-      .getBranchHeadByBranch(authAttribution.BranchCode)
+    const findDuplicateExistingReferral = await referralModel
+      .findActiveDuplicate(data.email, tenantPrefix)
       .run();
 
-    if (branchHeads.recordset.length > 0) {
+    if (findDuplicateExistingReferral.recordset.length > 0) {
+      throwHttpError(
+        409,
+        "An active referral already exists for this client",
+        findDuplicateExistingReferral.recordset[0],
+      );
+    }
+
+    const referralData = {
+      ...data,
+      referrerCode: authAttribution.ReferrerCode,
+      referrerName: authAttribution.ReferrerName,
+      branchCode: authAttribution.BranchCode,
+      branchName: authAttribution.BranchName,
+      areaCode: authAttribution.AreaCode,
+      areaName: authAttribution.AreaName,
+      aoCode: authAttribution.AOCode,
+      aoName: authAttribution.AOName,
+    };
+
+    const result = await referralModel.createReferral(referralData).run();
+
+    if (user.Role === "BRANCH_STAFF") {
+      const branchHeads = await userModel
+        .getBranchHeadByBranch(authAttribution.BranchCode)
+        .run();
+
+      if (branchHeads.recordset.length > 0) {
+        try {
+          const message = `New referral submitted: ${data.firstName} ${data.lastName} by ${authAttribution.ReferrerName}`;
+          for (let branchHead of branchHeads.recordset) {
+            await notificationModel.insert(branchHead.UserCode, message).run();
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    }
+
+    if (authAttribution.AOCode) {
       try {
-        const message = `New referral submitted: ${data.firstName} ${data.lastName} by ${authAttribution.ReferrerName}`;
-        for (let branchHead of branchHeads.recordset) {
-          await notificationModel.insert(branchHead.UserCode, message).run();
+        const accountOfficer = await userModel
+          .getAccountOfficerByCode(authAttribution.AOCode)
+          .run();
+        if (accountOfficer.recordset.length > 0) {
+          const aoMessage = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${authAttribution.ReferrerName}.`;
+          for (const officer of accountOfficer.recordset) {
+            await notificationModel.insert(officer.UserCode, aoMessage).run();
+          }
         }
       } catch (error) {
         console.error(error);
       }
     }
-  }
 
-  if (authAttribution.AOCode) {
-    try {
-      const accountOfficer = await userModel
-        .getAccountOfficerByCode(authAttribution.AOCode)
-        .run();
-      if (accountOfficer.recordset.length > 0) {
-        const aoMessage = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${authAttribution.ReferrerName}.`;
-        for (const officer of accountOfficer.recordset) {
-          await notificationModel.insert(officer.UserCode, aoMessage).run();
-        }
+    return result.recordset[0];
+  } else if (user.Role === ACCOUNT_OFFICER) {
+    const aoAttribution = await referralModel
+      .getAOAttribution(user.UserCode)
+      .run();
+
+    if (aoAttribution.recordset.length === 0)
+      throwHttpError(400, "Your account has no assigned branches");
+
+    const aoData = aoAttribution.recordset[0];
+    const tenantPrefix = getTenant(user.UserCode);
+
+    const findDuplicateExistingReferral = await referralModel
+      .findActiveDuplicate(data.email, tenantPrefix)
+      .run();
+    if (findDuplicateExistingReferral.recordset.length > 0)
+      throwHttpError(
+        409,
+        "An active referral already exists for this client",
+        findDuplicateExistingReferral.recordset[0],
+      );
+
+    const referralData = {
+      ...data,
+      referrerCode: user.UserCode,
+      referrerName: aoData.ReferrerName,
+      aoCode: user.UserCode,
+      aoName: aoData.ReferrerName,
+      branchCode: null,
+      branchName: null,
+      areaCode: aoData.AreaCode,
+      areaName: aoData.AreaName,
+    };
+
+    const result = await referralModel.createReferral(referralData).run();
+    if (aoData.ASHUserCode) {
+      try {
+        const message = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${aoData.ReferrerName}.`;
+        await notificationModel.insert(aoData.ASHUserCode, message).run();
+      } catch (error) {
+        console.error(error);
       }
-    } catch (error) {
-      console.error(error);
     }
-  }
 
-  return result.recordset[0];
+    return result.recordset[0];
+  }
 };
 
 export const sendConsent = async (email, token) => {
@@ -180,8 +226,13 @@ export const updateReferralStatus = async (id, status, user) => {
   if (referral.AOCode !== user.UserCode) throwHttpError(403, "Forbidden");
 
   const allowedStatus = statusTransitions[referral.Status];
-  if(allowedStatus.length === 0) throwHttpError(400, `Status cannot be changed from ${referral.Status}`)
-  if(!allowedStatus.includes(status)) throwHttpError(400, `Cannot transition from ${referral.Status} to ${status}`)
+  if (allowedStatus.length === 0)
+    throwHttpError(400, `Status cannot be changed from ${referral.Status}`);
+  if (!allowedStatus.includes(status))
+    throwHttpError(
+      400,
+      `Cannot transition from ${referral.Status} to ${status}`,
+    );
 
   await referralModel.updateStatus(id, status).run();
 
@@ -215,8 +266,8 @@ export const getReferralById = async (id, user) => {
 
   const { ConsentToken, ...rest } = result.recordset[0];
 
-  const isAllowed = await canAccessReferral(rest, user)
-  if(!isAllowed) throwHttpError(403, 'Forbidden')
+  const isAllowed = await canAccessReferral(rest, user);
+  if (!isAllowed) throwHttpError(403, "Forbidden");
   return rest;
 };
 
@@ -242,18 +293,18 @@ export const canAccessReferral = async (referral, user) => {
     if (referral.AOCode === user.UserCode) return true;
   } else if (user.Role === GROUP_HEAD || user.Role === AREA_SALES_HEAD) {
     if (String(referral.AreaCode) === String(user.AreaCode)) return true;
-  } else if(user.Role === SECTOR_HEAD || user.Role === DEPARTMENT_HEAD) {
+  } else if (user.Role === SECTOR_HEAD || user.Role === DEPARTMENT_HEAD) {
     const sectorOrDepartmentHead = await userModel
-    .isAreaInSectorScope(user.UserId, referral.AreaCode)
-    .run();
+      .isAreaInSectorScope(user.UserId, referral.AreaCode)
+      .run();
 
-    return sectorOrDepartmentHead.recordset.length > 0
-  } else if(user.Role === REGIONAL_SALES_HEAD) {
+    return sectorOrDepartmentHead.recordset.length > 0;
+  } else if (user.Role === REGIONAL_SALES_HEAD) {
     const regionalSalesHead = await userModel
-    .isAreaInRegionalScope(user.UserCode, referral.AreaCode)
-    .run();
+      .isAreaInRegionalScope(user.UserCode, referral.AreaCode)
+      .run();
 
-    return regionalSalesHead.recordset.length > 0
+    return regionalSalesHead.recordset.length > 0;
   } else {
     return false;
   }

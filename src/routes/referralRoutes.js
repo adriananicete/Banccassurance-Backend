@@ -16,10 +16,11 @@ import {
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { consentUpload } from '../middleware/upload.js'
 import { mediumLimiter, strictLimiter } from '../middleware/rateLimiter.js';
+import { ACCOUNT_OFFICER, BRANCH_HEAD, BRANCH_STAFF } from '../utils/constant.js';
 
 const router = express.Router();
 
-router.post('/', requireAuth, requireRole('BRANCH_HEAD', 'BRANCH_STAFF'), createReferral)
+router.post('/', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF, ACCOUNT_OFFICER), createReferral)
 router.get('/', requireAuth, getReferrals)
 
 router.post('/send-consent', mediumLimiter, requireAuth, sendConsent)
@@ -32,7 +33,7 @@ router.get('/plans', requireAuth, getPlans)
 router.get('/referrer/:code', requireAuth, getReferrerByCode)
 
 router.post('/upload-consent', strictLimiter, requireAuth, consentUpload.single('consentFile'), uploadConsent)
-router.put('/:id/profiling', requireAuth, requireRole('BRANCH_STAFF', 'BRANCH_HEAD'), updateReferralProfiling)
+router.put('/:id/profiling', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF, ACCOUNT_OFFICER), updateReferralProfiling)
 router.put('/:id/status', requireAuth, requireRole('ACCOUNT_OFFICER'), updateReferralStatus)
 
 router.get('/:id', requireAuth, getReferralById)
