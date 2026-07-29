@@ -19,3 +19,8 @@ export const statusTransitions = {
   "Approved": [],
   "Declined": [],
 }
+
+export const underwritingTransitions = {
+  "Closed Pending": ["Approved", "Declined", "Postponed"],
+  "Postponed": ["Approved", "Declined"]
+}

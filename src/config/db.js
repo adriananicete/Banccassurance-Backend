@@ -2,7 +2,7 @@
 process.env.NODE_NO_DEP_TLS_SNI = '1';
 import sql from 'mssql'
 
-const required = ['DB_USER', 'DB_PASSWORD', 'DB_SERVER', 'DB_DATABASE', 'JWT_SECRET']
+const required = ['DB_USER', 'DB_PASSWORD', 'DB_SERVER', 'DB_DATABASE', 'JWT_SECRET', 'UNDERWRITING_API_KEY']
 const missing = required.filter((k) => !process.env[k])
 if (missing.length) {
   console.error(`❌ Missing required DB env vars: ${missing.join(', ')}`)
