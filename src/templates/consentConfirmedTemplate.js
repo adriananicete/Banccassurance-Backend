@@ -1,17 +1,20 @@
 import { escapeHtml } from '../utils/validators.js'
 
-export const consentConfirmedTemplate = (referral) => {
+export const consentConfirmedTemplate = (referral, fallback = {}) => {
   const confirmedDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric', month: 'long', day: 'numeric'
   })
 
-  const detailRows = referral ? [
-    ['Client Name', `${referral.FirstName || ''} ${referral.LastName || ''}`.trim()],
-    ['Referral No.', referral.ReferralNo],
-    ['Branch', referral.BranchName],
-    ['Referred By', referral.ReferrerName],
+  const clientName = (referral && `${referral.FirstName || ''} ${referral.LastName || ''}`.trim()) || fallback.name || ''
+  const branch = (referral && referral.BranchName) || fallback.branchName || ''
+  const referredBy = (referral && referral.ReferrerName) || fallback.referrerName || ''
+
+  const detailRows = [
+    ['Client Name', clientName],
+    ['Branch', branch],
+    ['Referred By', referredBy],
     ['Date Confirmed', confirmedDate]
-  ].filter(([, value]) => value) : []
+  ].filter(([, value]) => value)
 
   const detailsHtml = detailRows.length ? `
           <div class="details">
@@ -152,7 +155,7 @@ export const consentConfirmedTemplate = (referral) => {
           </div>
           <h2>Consent Confirmed</h2>
           <p class="body-text">
-            Thank you for confirming your consent. Your referral will now move forward, and our team will reach out to you shortly to continue the process.
+            Thank you${clientName ? `, ${escapeHtml(clientName)},` : ''} for confirming your consent. Your referral will now move forward, and our team will reach out to you shortly to continue the process.
           </p>
           ${detailsHtml}
           <button type="button" class="done-btn" onclick="window.close()">Done</button>

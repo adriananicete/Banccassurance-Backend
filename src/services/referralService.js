@@ -167,9 +167,9 @@ export const createReferral = async (data, user) => {
   }
 };
 
-export const sendConsent = async (email, token) => {
+export const sendConsent = async (email, token, name, branchName, referrerName) => {
   await referralModel.insertConsentRequest(email, token).run();
-  await sendConsentEmail(email, token);
+  await sendConsentEmail(email, token, name, branchName, referrerName);
 };
 
 export const updateReferralProfiling = async (id, data, user) => {
@@ -202,10 +202,6 @@ export const updateReferralProfiling = async (id, data, user) => {
 export const confirmConsentRequest = async (token) => {
   const lookup = await referralModel.getReferralByConsentToken(token).run();
   const referral = lookup.recordset[0] || null;
-
-  if (!referral) {
-    console.warn(`⚠️ getReferralByConsentToken found no matching referral (token prefix: ${String(token).slice(0, 8)}...)`);
-  }
 
   await referralModel.confirmConsentRequest(token).run();
 

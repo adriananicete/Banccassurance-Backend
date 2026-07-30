@@ -83,9 +83,14 @@ const sendMail = async (toEmail, subject, htmlBody) => {
 };
 
 // ✅ Send email
-export const sendConsentEmail = async (toEmail, token) => {
-  
-  const confirmLink = `${process.env.BASE_URL}/api/referrals/confirm-consent?token=${token}`;
+export const sendConsentEmail = async (toEmail, token, name, branchName, referrerName) => {
+
+  const params = new URLSearchParams({ token });
+  if (name) params.set('name', name);
+  if (branchName) params.set('branchName', branchName);
+  if (referrerName) params.set('referrerName', referrerName);
+
+  const confirmLink = `${process.env.BASE_URL}/api/referrals/confirm-consent?${params.toString()}`;
 
   const emailBody = consentEmailTemplate(confirmLink);
 

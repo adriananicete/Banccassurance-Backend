@@ -1,4 +1,6 @@
-export const consentFormTemplate = (token) => `
+import { escapeHtml } from '../utils/validators.js'
+
+export const consentFormTemplate = (token, name, branchName, referrerName) => `
       <!DOCTYPE html>
       <html>
       <head>
@@ -116,7 +118,10 @@ export const consentFormTemplate = (token) => `
 
           <div class="form-section">
             <form method="POST" action="/api/referrals/confirm-consent">
-              <input type="hidden" name="token" value="${token}" />
+              <input type="hidden" name="token" value="${escapeHtml(token)}" />
+              <input type="hidden" name="name" value="${escapeHtml(name)}" />
+              <input type="hidden" name="branchName" value="${escapeHtml(branchName)}" />
+              <input type="hidden" name="referrerName" value="${escapeHtml(referrerName)}" />
               <button type="submit" class="confirm-btn">Confirm Consent</button>
             </form>
           </div>
