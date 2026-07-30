@@ -65,6 +65,19 @@ export const confirmConsentRequest = (token) => {
   return { request, run: () => request.execute('[banc].[usp_confirm_consent_request]') }
 }
 
+export const getReferralByConsentToken = (token) => {
+  const request = new sql.Request()
+  request.input('Token', sql.NVarChar, token)
+  return {
+    request,
+    run: () => request.query(`
+      SELECT ReferralNo, FirstName, LastName, MiddleName, Suffix, BranchName, ReferrerName
+      FROM [banc].[Referrals]
+      WHERE ConsentToken = @Token
+    `)
+  }
+}
+
 export const checkConsent = (email) => {
   const request = new sql.Request()
   request.input('Email', sql.NVarChar, email)

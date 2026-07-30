@@ -237,9 +237,9 @@ export const confirmConsentPost = async (req, res, next) => {
   try {
     const { token } = req.body;
 
-    await referralService.confirmConsentRequest(token);
+    const referral = await referralService.confirmConsentRequest(token);
 
-    res.send(consentConfirmedTemplate())
+    res.send(consentConfirmedTemplate(referral))
   } catch (error) {
     console.error("❌ Confirm Consent Error:", error);
 

@@ -200,7 +200,16 @@ export const updateReferralProfiling = async (id, data, user) => {
 };
 
 export const confirmConsentRequest = async (token) => {
+  const lookup = await referralModel.getReferralByConsentToken(token).run();
+  const referral = lookup.recordset[0] || null;
+
+  if (!referral) {
+    console.warn(`⚠️ getReferralByConsentToken found no matching referral (token prefix: ${String(token).slice(0, 8)}...)`);
+  }
+
   await referralModel.confirmConsentRequest(token).run();
+
+  return referral;
 };
 
 export const checkConsent = async (email) => {
