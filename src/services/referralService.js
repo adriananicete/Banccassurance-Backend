@@ -17,6 +17,7 @@ import {
   validStatus,
 } from "../utils/constant.js";
 import { safeNotify } from "./notificationService.js";
+import { isValidGuid } from "../utils/validators.js";
 
 const formatArray = (arr) => {
   const parsed = typeof arr === "string" ? JSON.parse(arr) : arr;
@@ -198,13 +199,20 @@ export const updateReferralProfiling = async (id, data, user) => {
     .run();
 };
 
+export const validateConsentToken = async (token) => {
+  if(!token || !isValidGuid(token)) throwHttpError(404, 'Invalid consent token')
+
+  const consentToken = await referralModel.getConsentRequestByToken(token).run();
+  if(consentToken.recordset.length === 0) throwHttpError(404, 'Token not found');
+
+  return consentToken.recordset[0];
+}
+
 export const confirmConsentRequest = async (token) => {
-  const lookup = await referralModel.getReferralByConsentToken(token).run();
-  const referral = lookup.recordset[0] || null;
+  if(!token || !isValidGuid(token)) throwHttpError(404, 'Invalid consent token')
 
-  await referralModel.confirmConsentRequest(token).run();
-
-  return referral;
+  const confirmConsent = await referralModel.confirmConsentRequest(token).run();
+  if(confirmConsent.rowsAffected[0] === 0) throwHttpError(404, 'Consent request not found or already confirmed')
 };
 
 export const checkConsent = async (email) => {
@@ -311,3 +319,4 @@ export const canAccessReferral = async (referral, user) => {
     return false;
   }
 };
+

@@ -122,6 +122,8 @@ export const confirmConsent = async (req, res) => {
   try {
     const { token, name, branchName, referrerName } = req.query;
 
+    await referralService.validateConsentToken(token)
+
     res.send(consentFormTemplate(token, name, branchName, referrerName))
 
   } catch (error) {
@@ -234,13 +236,13 @@ export const uploadConsent = async (req, res, next) => {
   }
 };
 
-export const confirmConsentPost = async (req, res, next) => {
+export const confirmConsentPost = async (req, res) => {
   try {
     const { token, name, branchName, referrerName } = req.body;
 
-    const referral = await referralService.confirmConsentRequest(token);
+    await referralService.confirmConsentRequest(token);
 
-    res.send(consentConfirmedTemplate(referral, { name, branchName, referrerName }))
+    res.send(consentConfirmedTemplate(null, { name, branchName, referrerName }))
   } catch (error) {
     console.error("❌ Confirm Consent Error:", error);
 
