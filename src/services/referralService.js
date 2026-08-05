@@ -61,7 +61,7 @@ export const createReferral = async (data, user) => {
     const tenantPrefix = getTenant(user.UserCode);
 
     const findDuplicateExistingReferral = await referralModel
-      .findActiveDuplicate(data.email, tenantPrefix)
+      .findActiveDuplicate(data.email, tenantPrefix, data.planId)
       .run();
 
     if (findDuplicateExistingReferral.recordset.length > 0) {
@@ -132,7 +132,7 @@ export const createReferral = async (data, user) => {
     const tenantPrefix = getTenant(user.UserCode);
 
     const findDuplicateExistingReferral = await referralModel
-      .findActiveDuplicate(data.email, tenantPrefix)
+      .findActiveDuplicate(data.email, tenantPrefix, data.planId)
       .run();
     if (findDuplicateExistingReferral.recordset.length > 0)
       throwHttpError(

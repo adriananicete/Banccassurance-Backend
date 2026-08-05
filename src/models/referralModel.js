@@ -121,13 +121,14 @@ export const getReferralById = (id) => {
 }
 
 
-export const findActiveDuplicate = (email, tenantPrefix) => {
+export const findActiveDuplicate = (email, tenantPrefix, planId) => {
   const request = new sql.Request()
   request.input('Email', sql.NVarChar, email)
   request.input('Prefix', sql.NVarChar, tenantPrefix + '-%')
+  request.input('PlanId', sql.Int, planId)
   return { request, run: () => request.query(`
       SELECT Id, ReferralNo, FirstName, LastName, MiddleName, Suffix, Email, MobileNumber, Status, StatusDate, ReferrerCode, ReferrerName, BranchCode, BranchName, AreaCode, AreaName, AOName, AOCode, CreatedAt FROM banc.Referrals
-      WHERE Email = @Email AND Status NOT IN ('Closed', 'Declined')
+      WHERE Email = @Email AND PlanId = @PlanId AND Status NOT IN ('Approved', 'Declined') 
       AND ReferrerCode LIKE @Prefix
     `)}
 }

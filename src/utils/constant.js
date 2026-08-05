@@ -10,11 +10,11 @@ export const REGIONAL_SALES_HEAD = 'REGIONAL_SALES_HEAD';
 export const validStatus = ["Referred","Contacted","Presented","Closed Pending","Approved","Declined","Lost","Postponed",];
 
 export const statusTransitions = {
-  "Referred": ["Contacted"],
-  "Contacted": ["Presented"],
-  "Presented": ["Closed Pending"],
+  "Referred": ["Presented", "Lost"],
+  "Contacted": ["Presented", "Lost"],
+  "Presented": ["Closed Pending", "Lost"],
   "Closed Pending": [],
-  "Lost": ["Contacted", "Presented", "Closed Pending"],
+  "Lost": ["Referred", "Presented"],
   "Postponed": [],
   "Approved": [],
   "Declined": [],
