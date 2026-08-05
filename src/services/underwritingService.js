@@ -1,8 +1,8 @@
 import underwritingModel from "../models/underwritingModel.js";
 import { underwritingTransitions } from "../utils/constant.js";
 import * as referralModel from "../models/referralModel.js";
-import * as notificationModel from "../models/notificationModel.js";
 import { throwHttpError } from "../utils/error.js";
+import { safeNotify } from "./notificationService.js";
 
 const getClosedPendingReferrals = async (filters) => {
   const result = await underwritingModel
@@ -26,10 +26,10 @@ const updateUnderwritingStatus = async (id, status) => {
   const message = `Your referral for ${ref.FirstName} ${ref.LastName} has been ${status}.`;
 
   if (ref.ReferrerCode !== ref.AOCode) {
-    await notificationModel.insert(ref.ReferrerCode, message).run();
-    await notificationModel.insert(ref.AOCode, message).run();
+    await safeNotify(ref.ReferrerCode, message);
+    await safeNotify(ref.AOCode, message)
   } else {
-    await notificationModel.insert(ref.ReferrerCode, message).run();
+    await safeNotify(ref.ReferrerCode, message)
   }
 };
 

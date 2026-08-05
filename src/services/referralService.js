@@ -1,5 +1,4 @@
 import * as referralModel from "../models/referralModel.js";
-import * as notificationModel from "../models/notificationModel.js";
 import { sendConsentEmail } from "./emailService.js";
 import { getTenant } from "../utils/tenant.js";
 import * as userModel from "../models/userModel.js";
@@ -16,6 +15,7 @@ import {
   statusTransitions,
   validStatus,
 } from "../utils/constant.js";
+import { safeNotify } from "./notificationService.js";
 
 const formatArray = (arr) => {
   const parsed = typeof arr === "string" ? JSON.parse(arr) : arr;
@@ -87,19 +87,19 @@ export const createReferral = async (data, user) => {
     const result = await referralModel.createReferral(referralData).run();
 
     if (user.Role === "BRANCH_STAFF") {
-      const branchHeads = await userModel
+      try {
+        const branchHeads = await userModel
         .getBranchHeadByBranch(authAttribution.BranchCode)
         .run();
 
       if (branchHeads.recordset.length > 0) {
-        try {
-          const message = `New referral submitted: ${data.firstName} ${data.lastName} by ${authAttribution.ReferrerName}`;
+        const message = `New referral submitted: ${data.firstName} ${data.lastName} by ${authAttribution.ReferrerName}`;
           for (let branchHead of branchHeads.recordset) {
-            await notificationModel.insert(branchHead.UserCode, message).run();
+            await safeNotify(branchHead.UserCode, message)
           }
-        } catch (error) {
-          console.error(error);
-        }
+      }
+      } catch (error) {
+        console.error(error)
       }
     }
 
@@ -111,7 +111,7 @@ export const createReferral = async (data, user) => {
         if (accountOfficer.recordset.length > 0) {
           const aoMessage = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${authAttribution.ReferrerName}.`;
           for (const officer of accountOfficer.recordset) {
-            await notificationModel.insert(officer.UserCode, aoMessage).run();
+            await safeNotify(officer.UserCode, aoMessage)
           }
         }
       } catch (error) {
@@ -155,12 +155,8 @@ export const createReferral = async (data, user) => {
 
     const result = await referralModel.createReferral(referralData).run();
     if (aoData.ASHUserCode) {
-      try {
-        const message = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${aoData.ReferrerName}.`;
-        await notificationModel.insert(aoData.ASHUserCode, message).run();
-      } catch (error) {
-        console.error(error);
-      }
+     const message = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${aoData.ReferrerName}.`;
+        await safeNotify(aoData.ASHUserCode, message)
     }
 
     return result.recordset[0];
@@ -242,7 +238,7 @@ export const updateReferralStatus = async (id, status, user) => {
   await referralModel.updateStatus(id, status).run();
 
   const alertMsg = `Your referral for ${referral.FirstName} ${referral.LastName} has been updated to "${status}".`;
-  await notificationModel.insert(referral.ReferrerCode, alertMsg).run();
+  await safeNotify(referral.ReferrerCode, alertMsg)
 
   try {
     const branchHeads = await userModel
@@ -252,9 +248,7 @@ export const updateReferralStatus = async (id, status, user) => {
       const branchHeadMsg = `Referral for ${referral.FirstName} ${referral.LastName} has been updated to "${status}".`;
       for (const branchHead of branchHeads.recordset) {
         if (branchHead.UserCode === referral.ReferrerCode) continue;
-        await notificationModel
-          .insert(branchHead.UserCode, branchHeadMsg)
-          .run();
+          await safeNotify(branchHead.UserCode, branchHeadMsg)
       }
     }
   } catch (error) {
