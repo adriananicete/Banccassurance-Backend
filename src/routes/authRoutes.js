@@ -12,7 +12,9 @@ import { strictLimiter, mediumLimiter } from '../middleware/rateLimiter.js';
 const router = express.Router()
 
 // Public / pre-auth (registration flow)
-router.post('/send-otp', strictLimiter, sendOtp)
+if(process.env.NODE_ENV !== 'production') {
+    router.post('/send-otp', strictLimiter, sendOtp)
+}
 router.post('/verify-otp', strictLimiter, verifyOtp)
 router.post('/login-step1', strictLimiter, loginStep1)
 router.get('/groups', getGroups)
