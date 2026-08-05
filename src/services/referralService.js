@@ -13,6 +13,7 @@ import {
   REGIONAL_SALES_HEAD,
   SECTOR_HEAD,
   statusTransitions,
+  validConsentStatus,
   validStatus,
 } from "../utils/constant.js";
 import { safeNotify } from "./notificationService.js";
@@ -40,6 +41,8 @@ export const getPlans = async () => {
 };
 
 export const createReferral = async (data, user) => {
+  const consent = await checkConsent(data.email)
+  if(!validConsentStatus.includes(consent)) throwHttpError(403, 'Client consent is required before this referral can be submitted. Ask the client to confirm the consent email, or upload a signed consent form.')
   if (user.Role === BRANCH_STAFF || user.Role === BRANCH_HEAD) {
     const userAttribution = await referralModel
       .getReferrerAttribution(user.UserCode)

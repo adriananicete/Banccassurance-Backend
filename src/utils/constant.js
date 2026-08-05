@@ -24,3 +24,5 @@ export const underwritingTransitions = {
   "Closed Pending": ["Approved", "Declined", "Postponed"],
   "Postponed": ["Approved", "Declined"]
 }
+
+export const validConsentStatus = ['CONFIRMED', 'UPLOADED'];
