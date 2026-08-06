@@ -11,6 +11,7 @@ import {
   BRANCH_HEAD,
   BRANCH_STAFF,
   GROUP_HEAD,
+  landBankRoles,
   SECTOR_HEAD,
 } from "../utils/constant.js";
 import { throwHttpError } from "../utils/error.js";
@@ -24,13 +25,14 @@ export const sendOtp = async (identifier) => {
 
   if (result.recordset.length === 0) {
     return { success: false, message: "Invalid user" };
+    throwHttpError(401, 'Invalid credentials');
   }
 
   const user = result.recordset[0];
   const email = user.Email;
   const otp = generateOtp();
 
-  otpStore[email] = { otp, expires: Date.now() + 5 * 60 * 1000 };
+  otpStore[email] = { otp, expires: Date.now() + 5 * 60 * 1000, attempts: 0 };
 
   console.log("Sending OTP to:", email);
   console.log("Generated OTP:", otp);
@@ -44,18 +46,24 @@ export const verifyOtp = async (identifier, otp) => {
   const result = await userModel.validateUser(identifier).run();
 
   if (result.recordset.length === 0) {
-    return { success: false };
+        throwHttpError(401, 'Invalid credentials');
   }
 
   const user = result.recordset[0];
   const record = otpStore[user.Email];
 
-  if (!record) return { success: false, message: "No OTP found" };
+  if (!record) throwHttpError(401, 'No OTP found');
   if (record.expires < Date.now())
-    return { success: false, message: "OTP expired" };
-  if (record.otp !== otp) return { success: false, message: "Invalid OTP" };
+    throwHttpError(401, 'OTP expired');
+  if (record.otp !== otp) {
+    record.attempts++;
+    if(record.attempts >= 5) {
+      delete otpStore[user.Email];
+      throwHttpError(401, 'Too many incorrect attempts. Please log in again.')
+    }
+    throwHttpError(401, 'Invalid OTP')
+  };
 
-  // Clear OTP immediately on successful use to prevent reuse replay attacks
   delete otpStore[user.Email];
 
   return { success: true, user };
@@ -65,45 +73,39 @@ export const loginStep1 = async (identifier, password) => {
   const result = await userModel.validateUser(identifier).run();
 
   if (result.recordset.length === 0) {
-    return { success: false, message: "Invalid credentials" };
+    throwHttpError(401, 'Invalid credentials');
   }
 
   const user = result.recordset[0];
 
-  if (user.StatusCode === "NOT_FOUND") {
-    return { success: false, message: "Invalid credentials" };
-  }
-
-  if (user.StatusCode === "PENDING") {
-    return {
-      success: false,
-      message:
-        "Your account is pending approval. Please wait for your Branch Head to approve your registration.",
-    };
-  }
-
-  if (user.StatusCode === "DEACTIVATED") {
-    return {
-      success: false,
-      message:
-        "Your account has been deactivated. Please contact your Branch Head.",
-    };
-  }
-
   if (!user.PasswordHash) {
-    return { success: false, message: "No password set" };
+    throwHttpError(401, 'Invalid credentials')
   }
 
   const isMatch = await bcrypt.compare(password, user.PasswordHash);
 
   if (!isMatch) {
-    return { success: false, message: "Invalid credentials" };
+    throwHttpError(401, 'Invalid credentials');
+  }
+
+
+  if (user.StatusCode === "NOT_FOUND") {
+    throwHttpError(401, 'Invalid credentials');
+  }
+
+  if (user.StatusCode === "PENDING") {
+    throwHttpError(401, 'Your account is pending approval. Please wait for your Branch Head to approve your registration.');
+  }
+
+  if (user.StatusCode === "DEACTIVATED") {
+    throwHttpError(401, 'Your account has been deactivated. Please contact your Branch Head.');
+
   }
 
   const email = user.Email;
   const otp = generateOtp();
 
-  otpStore[email] = { otp, expires: Date.now() + 5 * 60 * 1000 };
+  otpStore[email] = { otp, expires: Date.now() + 5 * 60 * 1000, attempts: 0 };
 
   console.log("2FA OTP:", otp);
 
@@ -163,6 +165,7 @@ export const checkEmail = async (email) => {
 };
 
 export const register = async (fields) => {
+  if(!landBankRoles.includes(fields.role)) throwHttpError(400, 'Invalid LandBank role')
   const tempPassword = crypto.randomBytes(12).toString("base64url");
 
   const checkEmployeeNo = await userModel

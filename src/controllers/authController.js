@@ -20,9 +20,6 @@ export const verifyOtp = async (req, res, next) => {
 
     const result = await userService.verifyOtp(identifier, otp)
 
-    if (!result.success) {
-      return res.json(result)
-    }
 
     const { user } = result
 
