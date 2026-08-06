@@ -4,9 +4,9 @@ import * as referralModel from "../models/referralModel.js";
 import { throwHttpError } from "../utils/error.js";
 import { safeNotify } from "./notificationService.js";
 
-const getClosedPendingReferrals = async (filters) => {
+const getUnderwritingReferrals = async (filters) => {
   const result = await underwritingModel
-    .getClosedPendingReferrals(filters)
+    .getUnderwritingReferrals(filters)
     .run();
 
   return result.recordset;
@@ -34,6 +34,6 @@ const updateUnderwritingStatus = async (id, status) => {
 };
 
 export default {
-  getClosedPendingReferrals,
+  getUnderwritingReferrals,
   updateUnderwritingStatus,
 };

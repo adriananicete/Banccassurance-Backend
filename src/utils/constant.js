@@ -7,14 +7,15 @@ export const AREA_SALES_HEAD = 'AREA_SALES_HEAD';
 export const DEPARTMENT_HEAD = 'DEPARTMENT_HEAD';
 export const REGIONAL_SALES_HEAD = 'REGIONAL_SALES_HEAD';
 
-export const validStatus = ["Referred","Contacted","Presented","Closed Pending","Approved","Declined","Lost","Postponed",];
+export const validStatus = ["Referred","Contacted","Presented","Closed Pending","Approved","Declined", "Deferred","Lost","Postponed",];
 
 export const statusTransitions = {
-  "Referred": ["Presented", "Lost"],
-  "Contacted": ["Presented", "Lost"],
-  "Presented": ["Closed Pending", "Lost"],
+  "Referred": ["Presented", "Lost", "Deferred"],
+  "Contacted": ["Presented", "Lost", "Deferred"], //legacy
+  "Deferred": ["Referred", "Presented"],
+  "Presented": ["Deferred", "Lost"],
   "Closed Pending": [],
-  "Lost": ["Referred", "Presented"],
+  "Lost": [],
   "Postponed": [],
   "Approved": [],
   "Declined": [],
@@ -22,6 +23,7 @@ export const statusTransitions = {
 
 export const underwritingTransitions = {
   "Closed Pending": ["Approved", "Declined", "Postponed"],
+  "Presented": ["Closed Pending"],
   "Postponed": ["Approved", "Declined"]
 }
 

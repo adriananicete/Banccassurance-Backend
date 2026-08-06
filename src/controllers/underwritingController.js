@@ -1,9 +1,9 @@
 import underwritingService from '../services/underwritingService.js'
 
-export const getClosedPendingReferrals = async (req, res, next) => {
+export const getUnderwritingReferrals = async (req, res, next) => {
     try {
         const { areaCode, aoCode } = req.query
-        const underWritingData = await underwritingService.getClosedPendingReferrals({areaCode, aoCode});
+        const underWritingData = await underwritingService.getUnderwritingReferrals({areaCode, aoCode});
 
         return res.status(200).json({
             success: true,
