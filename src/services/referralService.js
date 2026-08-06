@@ -222,9 +222,20 @@ export const checkConsent = async (email) => {
   return result.recordset.length > 0 ? result.recordset[0].Status : "PENDING";
 };
 
-export const getReferralsByRole = async (user) => {
-  const result = await referralModel.getReferralsByRole(user).run();
-  return result.recordset.map(({ ConsentToken, ...rest }) => rest);
+export const getReferralsByRole = async (user, pagination) => {
+  const result = await referralModel.getReferralsByRole(user, pagination).run();
+  const totalCount = result.recordset[0]?.TotalCount ?? 0;
+  const rows = result.recordset.map(({ ConsentToken, TotalCount, ...rest }) => rest);
+
+  return {
+    data: rows,
+    pagination: {
+      page: pagination.PageNumber,
+      pageSize: pagination.PageSize,
+      totalCount: totalCount,
+      totalPages: Math.ceil(totalCount / pagination.PageSize)
+    }
+  }
 };
 
 export const updateReferralStatus = async (id, status, user) => {

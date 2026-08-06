@@ -82,12 +82,14 @@ export const checkConsent = (email) => {
 }
 
 // Get referrals scoped to the user's role.
-export const getReferralsByRole = (user) => {
+export const getReferralsByRole = (user,pagination) => {
   const request = new sql.Request()
   request.input('Role', sql.NVarChar, user.Role)
   request.input('UserCode', sql.NVarChar, user.UserCode)
   request.input('BranchCode', sql.Int, user.BranchCode || 0)
   request.input('AreaCode', sql.NVarChar, user.AreaCode || '0')
+  request.input('PageNumber', sql.Int, pagination.PageNumber)
+  request.input('PageSize', sql.Int, pagination.PageSize)
   return { request, run: () => request.execute('[banc].[usp_sel_referrals_by_role_1]') }
 }
 

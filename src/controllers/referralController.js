@@ -147,11 +147,25 @@ export const checkConsent = async (req, res, next) => {
 
 export const getReferrals = async (req, res, next) => {
   try {
-    const data = await referralService.getReferralsByRole(req.user);
+    let { page, pageSize } = req.query;
+    page = parseInt(page, 10);
+    if(isNaN(page) || page < 1) page = 1;
+
+    pageSize = parseInt(pageSize, 10)
+    if(isNaN(pageSize) || pageSize < 1) pageSize = 20;
+
+    if(pageSize > 100) pageSize = 100
+
+    const pagination = {
+      PageNumber: page,
+      PageSize: pageSize,
+    }
+    
+    const data = await referralService.getReferralsByRole(req.user, pagination);
 
     res.json({
       success: true,
-      data,
+      ...data,
     });
   } catch (error) {
     next(error);
