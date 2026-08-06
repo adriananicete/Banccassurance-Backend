@@ -4,6 +4,7 @@ import { isValidGuid } from "../utils/validators.js";
 import { consentConfirmedTemplate } from "../templates/consentConfirmedTemplate.js";
 import { consentInvalidTemplate } from "../templates/consentInvalidTemplate.js";
 import { consentFormTemplate } from "../templates/consentFormTemplate.js";
+import { sortDirections, sortWhitelist } from "../utils/constant.js";
 
 // GET REFERRER INFO BY CODE (AUTO-FILL)
 export const getReferrerByCode = async (req, res, next) => {
@@ -147,7 +148,8 @@ export const checkConsent = async (req, res, next) => {
 
 export const getReferrals = async (req, res, next) => {
   try {
-    let { page, pageSize } = req.query;
+    let { page, pageSize, search, status, verified, dateFrom, dateTo, sortBy, sortDir } = req.query;
+
     page = parseInt(page, 10);
     if(isNaN(page) || page < 1) page = 1;
 
@@ -156,12 +158,29 @@ export const getReferrals = async (req, res, next) => {
 
     if(pageSize > 100) pageSize = 100
 
-    const pagination = {
+    if(verified === 'verified') {
+      verified = 1;
+    } else if(verified === 'not-verified') {
+      verified = 0;
+    } else {
+      verified = null;
+    };
+
+    sortDir = sortDir?.toUpperCase();
+
+    const options = {
       PageNumber: page,
       PageSize: pageSize,
+      Search: search || null,
+      Status: status || null,
+      Verified: verified,
+      DateFrom: !isNaN(Date.parse(dateFrom)) ? dateFrom : null,
+      DateTo: !isNaN(Date.parse(dateTo)) ? dateTo : null,
+      SortBy: sortWhitelist.includes(sortBy) ? sortBy : null,
+      SortDir: sortDirections.includes(sortDir) ? sortDir : "DESC"
     }
     
-    const data = await referralService.getReferralsByRole(req.user, pagination);
+    const data = await referralService.getReferralsByRole(req.user, options);
 
     res.json({
       success: true,

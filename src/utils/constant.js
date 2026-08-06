@@ -9,6 +9,13 @@ export const REGIONAL_SALES_HEAD = 'REGIONAL_SALES_HEAD';
 
 export const validStatus = ["Referred","Presented","Closed Pending","Approved","Declined", "Deferred","Lost","Postponed",];
 
+export const sortWhitelist = ["ReferralNo", "Name", "Email", "ConsentStatus", "Status", "CreatedAt", "StatusDate"];
+export const sortDirections = ["ASC", "DESC"];
+export const verifiedMap = {
+  verified: 1,
+  "not-verified": 0
+};
+
 export const statusTransitions = {
   "Referred": ["Presented", "Lost", "Deferred"],
   "Deferred": ["Referred", "Presented"],

@@ -81,15 +81,21 @@ export const checkConsent = (email) => {
   return { request, run: () => request.execute('[banc].[usp_check_consent]') }
 }
 
-// Get referrals scoped to the user's role.
-export const getReferralsByRole = (user,pagination) => {
+export const getReferralsByRole = (user,options) => {
   const request = new sql.Request()
   request.input('Role', sql.NVarChar, user.Role)
   request.input('UserCode', sql.NVarChar, user.UserCode)
   request.input('BranchCode', sql.Int, user.BranchCode || 0)
   request.input('AreaCode', sql.NVarChar, user.AreaCode || '0')
-  request.input('PageNumber', sql.Int, pagination.PageNumber)
-  request.input('PageSize', sql.Int, pagination.PageSize)
+  request.input('PageNumber', sql.Int, options.PageNumber)
+  request.input('PageSize', sql.Int, options?.PageSize)
+  request.input('Search', sql.NVarChar, options.Search)
+  request.input('Status', sql.NVarChar, options.Status)
+  request.input('Verified', sql.Bit, options.Verified)
+  request.input('DateFrom', sql.Date, options.DateFrom)
+  request.input('DateTo', sql.Date, options.DateTo)
+  request.input('SortBy', sql.NVarChar, options.SortBy)
+  request.input('SortDir', sql.NVarChar, options.SortDir)
   return { request, run: () => request.execute('[banc].[usp_sel_referrals_by_role_1]') }
 }
 
