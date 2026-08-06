@@ -12,6 +12,7 @@ import {
   BRANCH_STAFF,
   GROUP_HEAD,
   landBankRoles,
+  minimumLengthPassword,
   SECTOR_HEAD,
 } from "../utils/constant.js";
 import { throwHttpError } from "../utils/error.js";
@@ -119,6 +120,9 @@ export const changePassword = async (
   currentPassword,
   newPassword,
 ) => {
+
+  if(!newPassword || newPassword.length < minimumLengthPassword) throwHttpError(400, 'Your password must be at least 8 characters.')
+
   const result = await userModel.getPasswordHash(userCode).run();
 
   if (result.recordset.length === 0) {
@@ -131,6 +135,8 @@ export const changePassword = async (
   if (!isMatch) {
     throwHttpError(400, "Current password is incorrect");
   }
+
+  if(newPassword === currentPassword) throwHttpError(400, 'Old password must be changed')
 
   const newHash = await bcrypt.hash(newPassword, 10);
   await userModel.updatePassword(userCode, newHash).run();

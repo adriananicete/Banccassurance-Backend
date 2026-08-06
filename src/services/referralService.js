@@ -17,7 +17,7 @@ import {
   validStatus,
 } from "../utils/constant.js";
 import { safeNotify } from "./notificationService.js";
-import { isValidGuid } from "../utils/validators.js";
+import { isValidEmail, isValidGuid } from "../utils/validators.js";
 
 const formatArray = (arr) => {
   const parsed = typeof arr === "string" ? JSON.parse(arr) : arr;
@@ -168,6 +168,8 @@ export const createReferral = async (data, user) => {
 };
 
 export const sendConsent = async (email, token, name, branchName, referrerName) => {
+  if(!email || !isValidEmail(email)) throwHttpError(400, 'Invalid Email')
+    
   await referralModel.insertConsentRequest(email, token).run();
   await sendConsentEmail(email, token, name, branchName, referrerName);
 };

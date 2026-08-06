@@ -28,3 +28,5 @@ export const underwritingTransitions = {
 export const validConsentStatus = ['CONFIRMED', 'UPLOADED'];
 
 export const landBankRoles = [BRANCH_STAFF, BRANCH_HEAD, GROUP_HEAD];
+
+export const minimumLengthPassword = 8;
