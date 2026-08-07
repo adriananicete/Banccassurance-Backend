@@ -281,4 +281,16 @@ export const confirmConsentPost = async (req, res) => {
 
     res.status(400).send(consentInvalidTemplate());
   }
+};
+
+export const getReferralCounts = async (req, res, next) => {
+  try {
+    const result = await referralService.getReferralCounts(req.user);
+
+    res.json({
+      success: true, ...result
+    })
+  } catch (error) {
+    next(error);
+  }
 }

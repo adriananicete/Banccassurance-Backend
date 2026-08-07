@@ -12,6 +12,7 @@ import {
   getReferralById,
   uploadConsent,
   confirmConsentPost,
+  getReferralCounts,
 } from '../controllers/referralController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { consentUpload } from '../middleware/upload.js'
@@ -20,22 +21,25 @@ import { ACCOUNT_OFFICER, BRANCH_HEAD, BRANCH_STAFF } from '../utils/constant.js
 
 const router = express.Router();
 
-router.post('/', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF, ACCOUNT_OFFICER), createReferral)
-router.get('/', requireAuth, getReferrals)
 
-router.post('/send-consent', mediumLimiter, requireAuth, sendConsent)
-router.post('/resend-consent', mediumLimiter, requireAuth, sendConsent)
-router.post('/confirm-consent', confirmConsentPost)
+router.get('/', requireAuth, getReferrals)
+router.get('/counts', requireAuth, getReferralCounts)
 router.get('/confirm-consent', confirmConsent)
 router.get('/check-consent', requireAuth, checkConsent)
 router.get('/plans', requireAuth, getPlans)
 
-router.get('/referrer/:code', requireAuth, getReferrerByCode)
-
+router.post('/', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF, ACCOUNT_OFFICER), createReferral)
+router.post('/send-consent', mediumLimiter, requireAuth, sendConsent)
+router.post('/resend-consent', mediumLimiter, requireAuth, sendConsent)
+router.post('/confirm-consent', confirmConsentPost)
 router.post('/upload-consent', strictLimiter, requireAuth, consentUpload.single('consentFile'), uploadConsent)
+
+router.get('/:id', requireAuth, getReferralById)
+router.get('/referrer/:code', requireAuth, getReferrerByCode)
 router.put('/:id/profiling', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF), updateReferralProfiling)
 router.put('/:id/status', requireAuth, requireRole('ACCOUNT_OFFICER'), updateReferralStatus)
 
-router.get('/:id', requireAuth, getReferralById)
+
+
 
 export default router

@@ -238,6 +238,17 @@ export const getReferralsByRole = async (user, pagination) => {
   }
 };
 
+export const getReferralCounts = async (user) => {
+  const result = await referralModel.getReferralCountsByRole(user).run();
+  const counts = result.recordset;
+  const total = counts.reduce((acc, cur) => acc + cur.Total, 0);
+
+  return {
+    data: counts,
+    total: total
+  }
+};
+
 export const updateReferralStatus = async (id, status, user) => {
   if (!validStatus.includes(status))
     throwHttpError(400, "Invalid status value");
@@ -334,4 +345,3 @@ export const canAccessReferral = async (referral, user) => {
     return false;
   }
 };
-

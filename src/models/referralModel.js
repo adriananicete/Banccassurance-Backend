@@ -198,3 +198,14 @@ export const getAOAttribution = (userCode) => {
       `)
   }
 }
+
+export const getReferralCountsByRole = (user) => {
+  const request = new sql.Request()
+  request.input('Role', sql.NVarChar, user.Role)
+  request.input('UserCode', sql.NVarChar, user.UserCode)
+  request.input('BranchCode', sql.Int, user.BranchCode || 0)
+  request.input('AreaCode', sql.NVarChar, user.AreaCode || '0')
+  return {
+    request, run: () => request.execute('[banc].[usp_sel_referral_counts_by_role]')
+  }
+}
