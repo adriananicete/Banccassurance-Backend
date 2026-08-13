@@ -94,6 +94,42 @@ export const getReferralsByRole = (user) => {
   return { request, run: () => request.execute('[banc].[usp_sel_referrals_by_role_1]') }
 }
 
+export const getReferralsForSectorOrDepartmentHead = () => {
+  const request = new sql.Request()
+  return {
+    request,
+    run: () => request.query(`
+      SELECT
+        r.Id,
+        r.ReferralNo,
+        r.FirstName,
+        r.LastName,
+        r.MiddleName,
+        r.Suffix,
+        r.Email,
+        r.MobileNumber,
+        r.Status,
+        r.StatusDate,
+        r.ReferrerCode,
+        r.ReferrerName,
+        r.BranchCode,
+        COALESCE(r.BranchName, b.BranchName) AS BranchName,
+        COALESCE(r.AreaCode, b.AreaCode) AS AreaCode,
+        COALESCE(r.AreaName, a.AreaName) AS AreaName,
+        r.AOName,
+        r.AOCode,
+        r.CreatedAt,
+        r.ConsentToken
+      FROM banc.Referrals r
+      LEFT JOIN banc.branches b
+        ON r.BranchCode = b.BranchCode
+      LEFT JOIN banc.group_areas a
+        ON COALESCE(r.AreaCode, b.AreaCode) = a.AreaCode
+      ORDER BY r.CreatedAt DESC
+    `)
+  }
+}
+
 export const getReferralContactInfo = (id) => {
   const request = new sql.Request()
   request.input('Id', sql.UniqueIdentifier, id)

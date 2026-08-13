@@ -214,6 +214,13 @@ export const checkConsent = async (email) => {
 };
 
 export const getReferralsByRole = async (user) => {
+  const role = String(user.Role || '').trim().toUpperCase();
+
+  if (role === SECTOR_HEAD || role === DEPARTMENT_HEAD) {
+    const result = await referralModel.getReferralsForSectorOrDepartmentHead(user.UserId).run();
+    return result.recordset.map(({ ConsentToken, ...rest }) => rest);
+  }
+
   const result = await referralModel.getReferralsByRole(user).run();
   return result.recordset.map(({ ConsentToken, ...rest }) => rest);
 };
