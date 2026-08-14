@@ -1,6 +1,6 @@
 import sql from "../config/db.js";
 
-const getClosedPendingReferrals = (filters = {}) => {
+const getUnderwritingReferrals = (filters = {}) => {
   let whereClause = [];
 
   const request = new sql.Request();
@@ -22,12 +22,12 @@ const getClosedPendingReferrals = (filters = {}) => {
        BranchCode, BranchName, AreaCode, AreaName,
        AOCode, AOName, CreatedAt
 FROM banc.Referrals
-WHERE Status IN ('Closed Pending', 'Postponed') ${whereClause.join(' ')}
+WHERE Status IN ('Presented', 'Closed Pending', 'Postponed') ${whereClause.join(' ')}
 ORDER BY StatusDate ASC
         `)
   }
 };
 
 export default {
-  getClosedPendingReferrals,
+  getUnderwritingReferrals,
 };

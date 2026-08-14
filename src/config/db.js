@@ -25,6 +25,7 @@ export const connectDB = async () => {
     await sql.connect(dbConfig)
     console.log('Connected to MSSQL')
   } catch (err) {
+    console.error('DB connection failed:', err)
     throw err
   }
 }

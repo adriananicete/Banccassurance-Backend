@@ -4,6 +4,7 @@ import { isValidGuid } from "../utils/validators.js";
 import { consentConfirmedTemplate } from "../templates/consentConfirmedTemplate.js";
 import { consentInvalidTemplate } from "../templates/consentInvalidTemplate.js";
 import { consentFormTemplate } from "../templates/consentFormTemplate.js";
+import { sortDirections, sortWhitelist } from "../utils/constant.js";
 
 // GET REFERRER INFO BY CODE (AUTO-FILL)
 export const getReferrerByCode = async (req, res, next) => {
@@ -122,6 +123,8 @@ export const confirmConsent = async (req, res) => {
   try {
     const { token, name, branchName, referrerName } = req.query;
 
+    await referralService.validateConsentToken(token)
+
     res.send(consentFormTemplate(token, name, branchName, referrerName))
 
   } catch (error) {
@@ -145,11 +148,43 @@ export const checkConsent = async (req, res, next) => {
 
 export const getReferrals = async (req, res, next) => {
   try {
-    const data = await referralService.getReferralsByRole(req.user);
+    let { page, pageSize, search, status, verified, dateFrom, dateTo, sortBy, sortDir } = req.query;
+
+    page = parseInt(page, 10);
+    if(isNaN(page) || page < 1) page = 1;
+
+    pageSize = parseInt(pageSize, 10)
+    if(isNaN(pageSize) || pageSize < 1) pageSize = 20;
+
+    if(pageSize > 100) pageSize = 100
+
+    if(verified === 'verified') {
+      verified = 1;
+    } else if(verified === 'not-verified') {
+      verified = 0;
+    } else {
+      verified = null;
+    };
+
+    sortDir = sortDir?.toUpperCase();
+
+    const options = {
+      PageNumber: page,
+      PageSize: pageSize,
+      Search: search || null,
+      Status: status || null,
+      Verified: verified,
+      DateFrom: !isNaN(Date.parse(dateFrom)) ? dateFrom : null,
+      DateTo: !isNaN(Date.parse(dateTo)) ? dateTo : null,
+      SortBy: sortWhitelist.includes(sortBy) ? sortBy : null,
+      SortDir: sortDirections.includes(sortDir) ? sortDir : "DESC"
+    }
+    
+    const data = await referralService.getReferralsByRole(req.user, options);
 
     res.json({
       success: true,
-      data,
+      ...data,
     });
   } catch (error) {
     next(error);
@@ -234,16 +269,28 @@ export const uploadConsent = async (req, res, next) => {
   }
 };
 
-export const confirmConsentPost = async (req, res, next) => {
+export const confirmConsentPost = async (req, res) => {
   try {
     const { token, name, branchName, referrerName } = req.body;
 
-    const referral = await referralService.confirmConsentRequest(token);
+    await referralService.confirmConsentRequest(token);
 
-    res.send(consentConfirmedTemplate(referral, { name, branchName, referrerName }))
+    res.send(consentConfirmedTemplate(null, { name, branchName, referrerName }))
   } catch (error) {
     console.error("❌ Confirm Consent Error:", error);
 
     res.status(400).send(consentInvalidTemplate());
+  }
+};
+
+export const getReferralCounts = async (req, res, next) => {
+  try {
+    const result = await referralService.getReferralCounts(req.user);
+
+    res.json({
+      success: true, ...result
+    })
+  } catch (error) {
+    next(error);
   }
 }

@@ -65,16 +65,13 @@ export const confirmConsentRequest = (token) => {
   return { request, run: () => request.execute('[banc].[usp_confirm_consent_request]') }
 }
 
-export const getReferralByConsentToken = (token) => {
+export const getConsentRequestByToken = (token) => {
   const request = new sql.Request()
   request.input('Token', sql.NVarChar, token)
   return {
-    request,
-    run: () => request.query(`
-      SELECT ReferralNo, FirstName, LastName, MiddleName, Suffix, BranchName, ReferrerName
-      FROM [banc].[Referrals]
-      WHERE ConsentToken = @Token
-    `)
+    request, run: () => request.query(`SELECT Status, ConsumedAt
+      FROM [banc].[consent_request]
+      WHERE Token = @Token`)
   }
 }
 
@@ -84,13 +81,21 @@ export const checkConsent = (email) => {
   return { request, run: () => request.execute('[banc].[usp_check_consent]') }
 }
 
-// Get referrals scoped to the user's role.
-export const getReferralsByRole = (user) => {
+export const getReferralsByRole = (user,options) => {
   const request = new sql.Request()
   request.input('Role', sql.NVarChar, user.Role)
   request.input('UserCode', sql.NVarChar, user.UserCode)
   request.input('BranchCode', sql.Int, user.BranchCode || 0)
   request.input('AreaCode', sql.NVarChar, user.AreaCode || '0')
+  request.input('PageNumber', sql.Int, options.PageNumber)
+  request.input('PageSize', sql.Int, options?.PageSize)
+  request.input('Search', sql.NVarChar, options.Search)
+  request.input('Status', sql.NVarChar, options.Status)
+  request.input('Verified', sql.Bit, options.Verified)
+  request.input('DateFrom', sql.Date, options.DateFrom)
+  request.input('DateTo', sql.Date, options.DateTo)
+  request.input('SortBy', sql.NVarChar, options.SortBy)
+  request.input('SortDir', sql.NVarChar, options.SortDir)
   return { request, run: () => request.execute('[banc].[usp_sel_referrals_by_role_1]') }
 }
 
@@ -157,13 +162,14 @@ export const getReferralById = (id) => {
 }
 
 
-export const findActiveDuplicate = (email, tenantPrefix) => {
+export const findActiveDuplicate = (email, tenantPrefix, planId) => {
   const request = new sql.Request()
   request.input('Email', sql.NVarChar, email)
   request.input('Prefix', sql.NVarChar, tenantPrefix + '-%')
+  request.input('PlanId', sql.Int, planId)
   return { request, run: () => request.query(`
       SELECT Id, ReferralNo, FirstName, LastName, MiddleName, Suffix, Email, MobileNumber, Status, StatusDate, ReferrerCode, ReferrerName, BranchCode, BranchName, AreaCode, AreaName, AOName, AOCode, CreatedAt FROM banc.Referrals
-      WHERE Email = @Email AND Status NOT IN ('Closed', 'Declined')
+      WHERE Email = @Email AND PlanId = @PlanId AND Status NOT IN ('Approved', 'Declined') 
       AND ReferrerCode LIKE @Prefix
     `)}
 }
@@ -226,5 +232,16 @@ export const getAOAttribution = (userCode) => {
           AND ash.IsActive = 1
       WHERE u.UserCode = @UserCode
       `)
+  }
+}
+
+export const getReferralCountsByRole = (user) => {
+  const request = new sql.Request()
+  request.input('Role', sql.NVarChar, user.Role)
+  request.input('UserCode', sql.NVarChar, user.UserCode)
+  request.input('BranchCode', sql.Int, user.BranchCode || 0)
+  request.input('AreaCode', sql.NVarChar, user.AreaCode || '0')
+  return {
+    request, run: () => request.execute('[banc].[usp_sel_referral_counts_by_role]')
   }
 }
