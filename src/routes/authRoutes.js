@@ -8,6 +8,7 @@ import {
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { photoUpload } from '../middleware/upload.js';
 import { strictLimiter, mediumLimiter } from '../middleware/rateLimiter.js';
+import { AREA_SALES_HEAD, BRANCH_HEAD, DEPARTMENT_HEAD, GROUP_HEAD, REGIONAL_SALES_HEAD, SECTOR_HEAD } from '../utils/constant.js';
 
 const router = express.Router()
 
@@ -24,7 +25,7 @@ router.post('/change-password', requireAuth, changePassword)
 router.post('/upload-photo', requireAuth, photoUpload.single('photo'), uploadProfilePhoto)
 
 // Authenticated + Branch Head only
-router.get('/approvals', requireAuth, requireRole('BRANCH_HEAD', 'GROUP_HEAD', 'SECTOR_HEAD'), getUsersForApproval)
-router.post('/approvals/action', requireAuth, requireRole('BRANCH_HEAD', 'GROUP_HEAD', 'SECTOR_HEAD'), approveRejectUser)
+router.get('/approvals', requireAuth, requireRole(BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD), getUsersForApproval)
+router.post('/approvals/action', requireAuth, requireRole(BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD), approveRejectUser)
 
 export default router

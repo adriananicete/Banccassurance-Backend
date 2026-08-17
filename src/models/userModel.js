@@ -248,6 +248,85 @@ ORDER BY CreatedAt DESC;
   };
 };
 
+export const getRegionalSalesHeadsForApproval = (status) => {
+  const request = new sql.Request();
+  request.input("StatusFilter", sql.NVarChar, status);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT
+    UserId,
+    UserCode,
+    FirstName,
+    LastName,
+    Email,
+    MobileNumber,
+    Position,
+    Role,
+    IsActive,
+    CreatedAt,
+    CASE
+        WHEN IsActive = 1  THEN 'APPROVED'
+        WHEN IsActive = -1 THEN 'REJECTED'
+        ELSE 'PENDING'
+    END AS Status
+FROM banc.Users
+  WHERE Role = 'REGIONAL_SALES_HEAD'
+  AND (
+        @StatusFilter = 'ALL' 
+     OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
+     OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
+     OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
+  )
+ORDER BY CreatedAt DESC;
+      `),
+  };
+};
+
+export const getAreaSalesHeadsForApproval = (rshUserCode, status) => {
+  const request = new sql.Request();
+  request.input("RshUserCode", sql.NVarChar, rshUserCode)
+  request.input("StatusFilter", sql.NVarChar, status);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT
+    UserId,
+    UserCode,
+    FirstName,
+    LastName,
+    Email,
+    MobileNumber,
+    Position,
+    Role,
+    IsActive,
+    CreatedAt,
+    CASE
+        WHEN IsActive = 1  THEN 'APPROVED'
+        WHEN IsActive = -1 THEN 'REJECTED'
+        ELSE 'PENDING'
+    END AS Status
+FROM banc.Users 
+  WHERE Role = 'AREA_SALES_HEAD'
+  AND EXISTS (
+  SELECT 1
+  FROM banc.area_sales_head_areas a
+  INNER JOIN banc.regional_sales_head_areas r ON a.AreaCode = r.AreaCode
+  WHERE a.UserCode = banc.Users.UserCode AND r.UserCode = @RshUserCode
+)
+  AND (
+        @StatusFilter = 'ALL' 
+     OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
+     OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
+     OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
+  )
+ORDER BY CreatedAt DESC;
+      `),
+  };
+};
+
 export const isAreaInSectorScope = (sectorHeadUserId, areaCode) => {
   const request = new sql.Request();
   request.input("UserId", sql.Int, sectorHeadUserId);
@@ -323,11 +402,11 @@ export const getAreaSalesHeadByArea = (areaCode) => {
     request,
     run: () =>
       request.query(`
-       SELECT u.UserCode
+       SELECT u.UserCode 
 FROM banc.Users u
 INNER JOIN banc.area_sales_head_areas a ON u.UserCode = a.UserCode
-WHERE u.Role = 'AREA_SALES_HEAD'
-  AND a.AreaCode = @AreaCode
+WHERE u.Role = 'AREA_SALES_HEAD' 
+  AND a.AreaCode = @AreaCode 
   AND u.IsActive = 1
       `),
   };
@@ -340,11 +419,11 @@ export const getRegionalSalesHeadByArea = (areaCode) => {
     request,
     run: () =>
       request.query(`
-      SELECT u.UserCode
+      SELECT u.UserCode 
 FROM banc.Users u
 INNER JOIN banc.regional_sales_head_areas r ON u.UserCode = r.UserCode
-WHERE u.Role = 'REGIONAL_SALES_HEAD'
-  AND r.AreaCode = @AreaCode
+WHERE u.Role = 'REGIONAL_SALES_HEAD' 
+  AND r.AreaCode = @AreaCode 
   AND u.IsActive = 1
       `),
   };
@@ -401,3 +480,74 @@ WHERE u.Role = 'SECTOR_HEAD'
       `),
   };
 };
+
+export const isAreaInAreaSalesHeadScope = (userCode, areaCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, userCode);
+  request.input("AreaCode", sql.Int, Number(areaCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+        SELECT 1 AS InScope
+FROM banc.area_sales_head_areas
+WHERE UserCode = @UserCode AND AreaCode = @AreaCode
+      `),
+  };
+};
+
+export const isAshInRegionalScope = (rshUserCode, ashUserCode) => {
+  const request = new sql.Request();
+  request.input("RshUserCode", sql.NVarChar, rshUserCode);
+  request.input("AshUserCode", sql.NVarChar, ashUserCode);
+
+  return {
+    request,
+    run: () =>
+      request.query(`SELECT 1 AS InScope
+FROM banc.area_sales_head_areas a
+INNER JOIN banc.regional_sales_head_areas r ON a.AreaCode = r.AreaCode
+WHERE a.UserCode = @AshUserCode AND r.UserCode = @RshUserCode`),
+  };
+};
+
+
+export const getAccountOfficersForApproval = (ashUserCode, status) => {
+  const request = new sql.Request();
+  request.input("AshUserCode", sql.NVarChar, ashUserCode);
+  request.input("StatusFilter", sql.NVarChar, status);
+  return {
+    request, run: () => request.query(`
+      SELECT
+    UserId,
+    UserCode,
+    FirstName,
+    LastName,
+    Email,
+    MobileNumber,
+    Position,
+    Role,
+    IsActive,
+    CreatedAt,
+    CASE
+        WHEN IsActive = 1  THEN 'APPROVED'
+        WHEN IsActive = -1 THEN 'REJECTED'
+        ELSE 'PENDING'
+    END AS Status
+FROM banc.Users
+WHERE Role = 'ACCOUNT_OFFICER'
+AND AreaCode IN (
+    SELECT CAST(AreaCode AS NVARCHAR)
+    FROM banc.area_sales_head_areas
+    WHERE UserCode = @AshUserCode
+)
+AND (
+      @StatusFilter = 'ALL'
+   OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
+   OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
+   OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
+)
+ORDER BY CreatedAt DESC;
+      `)
+  }
+}

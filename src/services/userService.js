@@ -12,6 +12,7 @@ import {
   AREA_SALES_HEAD,
   BRANCH_HEAD,
   BRANCH_STAFF,
+  DEPARTMENT_HEAD,
   GROUP_HEAD,
   landBankRoles,
   minimumLengthPassword,
@@ -317,6 +318,15 @@ export const getUsersForApproval = async (user, status) => {
       .getGroupHeadsForApproval(user.UserId, status)
       .run();
     return result.recordset;
+  } else if (user.Role === DEPARTMENT_HEAD) {
+    const result = await userModel.getRegionalSalesHeadsForApproval(status).run();
+    return result.recordset;
+  } else if (user.Role === REGIONAL_SALES_HEAD) {
+    const result = await userModel.getAreaSalesHeadsForApproval(user.UserCode, status).run();
+    return result.recordset;
+  } else if(user.Role === AREA_SALES_HEAD) {
+    const result = await userModel.getAccountOfficersForApproval(user.UserCode, status).run();
+    return result.recordset;
   } else {
     throwHttpError(400, "Invalid Role");
   }
@@ -336,18 +346,14 @@ export const approveRejectUser = async (user, userId, action) => {
     ) {
       throwHttpError(403, "Forbidden");
     }
-  }
-
-  if (user.Role === GROUP_HEAD) {
+  } else if (user.Role === GROUP_HEAD) {
     if (
       targetUser.Role !== BRANCH_HEAD ||
       targetUser.AreaCode !== user.AreaCode
     ) {
       throwHttpError(403, "Forbidden");
     }
-  }
-
-  if (user.Role === SECTOR_HEAD) {
+  } else if (user.Role === SECTOR_HEAD) {
     if (targetUser.Role !== GROUP_HEAD) {
       throwHttpError(403, "Forbidden");
     }
@@ -359,7 +365,35 @@ export const approveRejectUser = async (user, userId, action) => {
     if (scopeCheck.recordset.length === 0) {
       throwHttpError(403, "Forbidden");
     }
+  } else if (user.Role === DEPARTMENT_HEAD) {
+    if(targetUser.Role !== REGIONAL_SALES_HEAD) {
+      throwHttpError(403, 'Forbidden');
+    }
+
+  } else if (user.Role === REGIONAL_SALES_HEAD) {
+    if(targetUser.Role !== AREA_SALES_HEAD) {
+      throwHttpError(403, 'Forbidden')
+    }
+
+    const scopeCheck = await userModel.isAshInRegionalScope(user.UserCode, targetUser.UserCode).run();
+    if(scopeCheck.recordset.length === 0) {
+      throwHttpError(403, 'Forbidden')
+    }
+  } else if (user.Role === AREA_SALES_HEAD) {
+    if(targetUser.Role !== ACCOUNT_OFFICER) {
+      throwHttpError(403, 'Forbidden')
+    }
+
+    const scopeCheck = await userModel.isAreaInAreaSalesHeadScope(user.UserCode, targetUser.AreaCode).run();
+    if(scopeCheck.recordset.length === 0) {
+      throwHttpError(403, 'Forbidden')
+    }
+  } else {
+    throwHttpError(403, "Forbidden");
   }
+
+  if (targetUser.IsActive !== 0)
+    throwHttpError(400, "This user has already been approved or rejected.");
 
   const result = await userModel.approveRejectUser(userId, action).run();
   const { Success, Message, FirstName, Email, UserCode } = result.recordset[0];
