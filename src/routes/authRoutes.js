@@ -2,13 +2,11 @@ import express from 'express'
 import {
     verifyOtp, loginStep1, changePassword,
     uploadProfilePhoto, getGroups, getBranches,
-    register, checkEmail, getUsersForApproval, approveRejectUser,
     logout
 } from '../controllers/authController.js'
-import { requireAuth, requireRole } from '../middleware/auth.js'
+import { requireAuth } from '../middleware/auth.js'
 import { photoUpload } from '../middleware/upload.js';
-import { strictLimiter, mediumLimiter } from '../middleware/rateLimiter.js';
-import { AREA_SALES_HEAD, BRANCH_HEAD, DEPARTMENT_HEAD, GROUP_HEAD, REGIONAL_SALES_HEAD, SECTOR_HEAD } from '../utils/constant.js';
+import { strictLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router()
 
@@ -16,16 +14,10 @@ router.post('/verify-otp', strictLimiter, verifyOtp)
 router.post('/login-step1', strictLimiter, loginStep1)
 router.get('/groups', getGroups)
 router.get('/branches', getBranches)
-router.get('/check-email', mediumLimiter, checkEmail)
-router.post('/register', mediumLimiter, register)
 
 // Authenticated
 router.post('/logout', requireAuth, logout)
 router.post('/change-password', requireAuth, changePassword)
 router.post('/upload-photo', requireAuth, photoUpload.single('photo'), uploadProfilePhoto)
-
-// Authenticated + Branch Head only
-router.get('/approvals', requireAuth, requireRole(BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD), getUsersForApproval)
-router.post('/approvals/action', requireAuth, requireRole(BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD), approveRejectUser)
 
 export default router
