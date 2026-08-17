@@ -8,14 +8,19 @@ import {
   sendApprovalEmail,
 } from "./emailService.js";
 import {
+  ACCOUNT_OFFICER,
+  AREA_SALES_HEAD,
   BRANCH_HEAD,
   BRANCH_STAFF,
   GROUP_HEAD,
   landBankRoles,
   minimumLengthPassword,
+  philLifeRoles,
+  REGIONAL_SALES_HEAD,
   SECTOR_HEAD,
 } from "../utils/constant.js";
 import { throwHttpError } from "../utils/error.js";
+import { safeNotify } from "./notificationService.js";
 
 const otpStore = {};
 
@@ -157,8 +162,90 @@ export const checkEmail = async (email) => {
 };
 
 export const register = async (fields) => {
-  if(!landBankRoles.includes(fields.role)) throwHttpError(400, 'Invalid LandBank role')
+  if (
+    !landBankRoles.includes(fields.role) &&
+    !philLifeRoles.includes(fields.role)
+  )
+    throwHttpError(400, "Invalid role");
   const tempPassword = crypto.randomBytes(12).toString("base64url");
+
+  if (fields.role === ACCOUNT_OFFICER || fields.role === AREA_SALES_HEAD) {
+    if (!fields.areaCode)
+      throwHttpError(400, "Group is required for this role");
+
+    if (fields.branchCode)
+      throwHttpError(
+        400,
+        "Branch is not selected at registration for this role",
+      );
+  }
+
+  if (fields.role === REGIONAL_SALES_HEAD) {
+    if (fields.areaCode || fields.branchCode)
+      throwHttpError(
+        400,
+        "Group is not selected at registration for this role",
+      );
+  }
+
+  if (fields.role === BRANCH_STAFF || fields.role === BRANCH_HEAD) {
+    if (!fields.branchCode)
+      throwHttpError(400, "Branch is required for this role");
+  }
+
+  let approvers;
+  let approverMessage;
+  let noApproverMessage;
+
+  if (fields.role === BRANCH_STAFF) {
+     approvers = await userModel
+      .getBranchHeadByBranch(fields.branchCode)
+      .run();
+     approverMessage = `New staff registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+     noApproverMessage = `No Branch Head is assigned to this branch yet. Please contact your administrator.`;
+
+  } else if (fields.role === BRANCH_HEAD) {
+     approvers = await userModel
+      .getGroupHeadByArea(fields.areaCode)
+      .run();
+    approverMessage = `New branch head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+    noApproverMessage = 'No Group Head is assigned to this group yet. Please contact your administrator.'
+
+  } else if (fields.role === GROUP_HEAD) {
+    approvers = await userModel
+      .getSectorHeadByArea(fields.areaCode)
+      .run();
+
+    approverMessage = `New group head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+
+    noApproverMessage = 'No Sector Head is assigned to this group yet. Please contact your administrator.'
+
+  } else if (fields.role === ACCOUNT_OFFICER) {
+    approvers = await userModel
+      .getAreaSalesHeadByArea(fields.areaCode)
+      .run();
+    approverMessage = `New account officer registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+
+    noApproverMessage = 'No Area Sales Head is assigned to this group yet. Please contact your administrator.'
+
+  } else if (fields.role === AREA_SALES_HEAD) {
+    approvers = await userModel.getRegionalSalesHeadByArea(fields.areaCode).run();
+    approverMessage = `New area sales head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+    noApproverMessage = 'No Regional Sales Head is assigned to this group yet. Please contact your administrator.';
+
+  } else if (fields.role === REGIONAL_SALES_HEAD) {
+    approvers = await userModel.getDepartmentHead().run();
+    approverMessage = `New regional sales head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+    noApproverMessage = 'No Department Head is assigned yet. Please contact your administrator.'
+  
+  } else {
+    throwHttpError(
+      400,
+      "No approver is assigned for this role. Please contact your administrator"
+    );
+  }
+
+  if (approvers.recordset.length === 0) throwHttpError(400, noApproverMessage)
 
   const checkEmployeeNo = await userModel
     .checkEmployeeNoExists(fields.employeeNo)
@@ -176,6 +263,7 @@ export const register = async (fields) => {
   const result = await userModel
     .checkOrRegisterUser({
       ...fields,
+      areaCode: fields.role === AREA_SALES_HEAD ? null : fields.areaCode,
       checkOnly: false,
       passwordHash,
     })
@@ -184,61 +272,28 @@ export const register = async (fields) => {
   const { Success, Message, UserCode } = result.recordset[0];
 
   if (Success === 1) {
-    await sendWelcomeEmail(
-      fields.email,
-      fields.firstName,
-      UserCode,
-      tempPassword,
-    );
-
-    if (fields.role === BRANCH_STAFF) {
-      const branchHeads = await userModel
-        .getBranchHeadByBranch(fields.branchCode)
-        .run();
-
-      if (branchHeads.recordset.length > 0) {
-        try {
-          const message = `New staff registration pending for approval: ${fields.firstName} ${fields.lastName}`;
-          for (let branchHead of branchHeads.recordset) {
-            await notificationModel.insert(branchHead.UserCode, message).run();
-          }
-        } catch (error) {
-          console.error(error);
-        }
-      }
-    } else if (fields.role === BRANCH_HEAD) {
-      const groupHeads = await userModel
-        .getGroupHeadByArea(fields.areaCode)
-        .run();
-
-      if (groupHeads.recordset.length > 0) {
-        try {
-          const message = `New branch head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
-          for (let groupHead of groupHeads.recordset) {
-            await notificationModel.insert(groupHead.UserCode, message).run();
-          }
-        } catch (error) {
-          console.error(error);
-        }
-      }
-    } else if (fields.role === GROUP_HEAD) {
-      const sectorHeads = await userModel
-        .getSectorHeadByArea(fields.areaCode)
-        .run();
-
-      if (sectorHeads.recordset.length > 0) {
-        try {
-          const message = `New group head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
-          for (let sectorHead of sectorHeads.recordset) {
-            await notificationModel.insert(sectorHead.UserCode, message).run();
-          }
-        } catch (error) {
-          console.error(error);
-        }
-      }
-    } else {
-      console.log("No approver for this role");
+    try {
+      await sendWelcomeEmail(
+        fields.email,
+        fields.firstName,
+        UserCode,
+        tempPassword,
+      );
+    } catch (error) {
+      console.error(error);
     }
+
+    if(fields.role === AREA_SALES_HEAD) {
+      await userModel.assignAreaSalesHeadArea(UserCode, fields.areaCode).run();
+    }
+
+    try {
+        for (let approver of approvers.recordset) {
+          await safeNotify(approver.UserCode, approverMessage)
+        }
+      } catch (error) {
+        console.error(error);
+      }
 
     return { success: true, message: Message, userCode: UserCode };
   }

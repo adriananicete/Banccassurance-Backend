@@ -36,5 +36,6 @@ export const underwritingTransitions = {
 export const validConsentStatus = ['CONFIRMED', 'UPLOADED'];
 
 export const landBankRoles = [BRANCH_STAFF, BRANCH_HEAD, GROUP_HEAD];
+export const philLifeRoles = [ACCOUNT_OFFICER, AREA_SALES_HEAD, REGIONAL_SALES_HEAD];
 
 export const minimumLengthPassword = 8;

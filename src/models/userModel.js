@@ -302,6 +302,65 @@ export const getBranchHeadByBranch = (branchCode) => {
   };
 };
 
+export const assignAreaSalesHeadArea = (userCode, areaCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, userCode);
+  request.input("AreaCode", sql.Int, Number(areaCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      INSERT INTO banc.area_sales_head_areas (UserCode, AreaCode)
+VALUES (@UserCode, @AreaCode)
+      `),
+  };
+};
+
+export const getAreaSalesHeadByArea = (areaCode) => {
+  const request = new sql.Request();
+  request.input("AreaCode", sql.Int, Number(areaCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+       SELECT u.UserCode
+FROM banc.Users u
+INNER JOIN banc.area_sales_head_areas a ON u.UserCode = a.UserCode
+WHERE u.Role = 'AREA_SALES_HEAD'
+  AND a.AreaCode = @AreaCode
+  AND u.IsActive = 1
+      `),
+  };
+};
+
+export const getRegionalSalesHeadByArea = (areaCode) => {
+  const request = new sql.Request();
+  request.input("AreaCode", sql.Int, Number(areaCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT u.UserCode
+FROM banc.Users u
+INNER JOIN banc.regional_sales_head_areas r ON u.UserCode = r.UserCode
+WHERE u.Role = 'REGIONAL_SALES_HEAD'
+  AND r.AreaCode = @AreaCode
+  AND u.IsActive = 1
+      `),
+  };
+};
+
+export const getDepartmentHead = () => {
+  const request = new sql.Request();
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT UserCode FROM banc.Users WHERE Role = 'DEPARTMENT_HEAD' AND IsActive = 1
+      `),
+  };
+};
+
 export const getAccountOfficerByCode = (aoCode) => {
   const request = new sql.Request();
   request.input("AOCode", sql.NVarChar, aoCode);
