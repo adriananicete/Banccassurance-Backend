@@ -551,3 +551,29 @@ ORDER BY CreatedAt DESC;
       `)
   }
 }
+
+export const replaceAccountOfficerBranches = (userCode, branchCodes) => {
+  return {
+    run: async () => {
+      const transaction = new sql.Transaction()
+      await transaction.begin();
+
+      try {
+        const request = new sql.Request(transaction);
+        request.input('UserCode', sql.NVarChar, userCode)
+        request.input('BranchCodes', sql.NVarChar, branchCodes)
+
+        await request.query(`DELETE FROM banc.account_officer_branches WHERE UserCode = @UserCode`)
+        await request.query(`INSERT INTO banc.account_officer_branches (UserCode, BranchCode)
+SELECT @UserCode, CAST(value AS INT)
+FROM STRING_SPLIT(@BranchCodes, ',')
+WHERE LTRIM(RTRIM(value)) <> ''`)
+
+          await transaction.commit()
+      } catch (error) {
+        await transaction.rollback()
+        throw error
+      }
+    }
+  }
+}
