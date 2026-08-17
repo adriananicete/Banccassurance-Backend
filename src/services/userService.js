@@ -19,53 +19,30 @@ import { throwHttpError } from "../utils/error.js";
 
 const otpStore = {};
 
-const generateOtp = () => crypto.randomInt(100000,1000000).toString();
-
-export const sendOtp = async (identifier) => {
-  const result = await userModel.validateUser(identifier).run();
-
-  if (result.recordset.length === 0) {
-    return { success: false, message: "Invalid user" };
-    throwHttpError(401, 'Invalid credentials');
-  }
-
-  const user = result.recordset[0];
-  const email = user.Email;
-  const otp = generateOtp();
-
-  otpStore[email] = { otp, expires: Date.now() + 5 * 60 * 1000, attempts: 0 };
-
-  console.log("Sending OTP to:", email);
-  console.log("Generated OTP:", otp);
-
-  await sendOtpEmail(email, otp);
-
-  return { success: true };
-};
+const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
 
 export const verifyOtp = async (identifier, otp) => {
   const result = await userModel.validateUser(identifier).run();
 
   if (result.recordset.length === 0) {
-        throwHttpError(401, 'Invalid credentials');
+    throwHttpError(401, "Invalid credentials");
   }
 
   const user = result.recordset[0];
-  const record = otpStore[user.Email];
+  const record = otpStore[user.UserCode];
 
-  if (!record) throwHttpError(401, 'No OTP found');
-  if (record.expires < Date.now())
-    throwHttpError(401, 'OTP expired');
+  if (!record) throwHttpError(401, "No OTP found");
+  if (record.expires < Date.now()) throwHttpError(401, "OTP expired");
   if (record.otp !== otp) {
     record.attempts++;
-    if(record.attempts >= 5) {
-      delete otpStore[user.Email];
-      throwHttpError(401, 'Too many incorrect attempts. Please log in again.')
+    if (record.attempts >= 5) {
+      delete otpStore[user.UserCode];
+      throwHttpError(401, "Too many incorrect attempts. Please log in again.");
     }
-    throwHttpError(401, 'Invalid OTP')
-  };
+    throwHttpError(401, "Invalid OTP");
+  }
 
-  delete otpStore[user.Email];
+  delete otpStore[user.UserCode];
 
   return { success: true, user };
 };
@@ -74,41 +51,49 @@ export const loginStep1 = async (identifier, password) => {
   const result = await userModel.validateUser(identifier).run();
 
   if (result.recordset.length === 0) {
-    throwHttpError(401, 'Invalid credentials');
+    throwHttpError(401, "Invalid credentials");
   }
 
   const user = result.recordset[0];
 
   if (!user.PasswordHash) {
-    throwHttpError(401, 'Invalid credentials')
+    throwHttpError(401, "Invalid credentials");
   }
 
   const isMatch = await bcrypt.compare(password, user.PasswordHash);
 
   if (!isMatch) {
-    throwHttpError(401, 'Invalid credentials');
+    throwHttpError(401, "Invalid credentials");
   }
 
-
   if (user.StatusCode === "NOT_FOUND") {
-    throwHttpError(401, 'Invalid credentials');
+    throwHttpError(401, "Invalid credentials");
   }
 
   if (user.StatusCode === "PENDING") {
-    throwHttpError(401, 'Your account is pending approval. Please wait for your Branch Head to approve your registration.');
+    throwHttpError(
+      401,
+      "Your account is pending approval. Please wait for your Branch Head to approve your registration.",
+    );
   }
 
   if (user.StatusCode === "DEACTIVATED") {
-    throwHttpError(401, 'Your account has been deactivated. Please contact your Branch Head.');
-
+    throwHttpError(
+      401,
+      "Your account has been deactivated. Please contact your Branch Head.",
+    );
   }
 
   const email = user.Email;
   const otp = generateOtp();
 
-  otpStore[email] = { otp, expires: Date.now() + 5 * 60 * 1000, attempts: 0 };
+  otpStore[user.UserCode] = {
+    otp,
+    expires: Date.now() + 5 * 60 * 1000,
+    attempts: 0,
+  };
 
-  console.log("2FA OTP:", otp);
+  if (process.env.NODE_ENV !== "production") console.log("2FA OTP:", otp);
 
   await sendOtpEmail(email, otp);
 
@@ -120,8 +105,8 @@ export const changePassword = async (
   currentPassword,
   newPassword,
 ) => {
-
-  if(!newPassword || newPassword.length < minimumLengthPassword) throwHttpError(400, 'Your password must be at least 8 characters.')
+  if (!newPassword || newPassword.length < minimumLengthPassword)
+    throwHttpError(400, "Your password must be at least 8 characters.");
 
   const result = await userModel.getPasswordHash(userCode).run();
 
@@ -136,7 +121,8 @@ export const changePassword = async (
     throwHttpError(400, "Current password is incorrect");
   }
 
-  if(newPassword === currentPassword) throwHttpError(400, 'Old password must be changed')
+  if (newPassword === currentPassword)
+    throwHttpError(400, "Old password must be changed");
 
   const newHash = await bcrypt.hash(newPassword, 10);
   await userModel.updatePassword(userCode, newHash).run();

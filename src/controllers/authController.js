@@ -3,16 +3,6 @@ import path from 'path'
 import fs from 'fs'
 import * as userService from '../services/userService.js'
 
-export const sendOtp = async (req, res, next) => {
-  try {
-    const identifier = req.body.identifier?.trim()
-    const result = await userService.sendOtp(identifier)
-    res.json(result)
-  } catch (error) {
-    next(error)
-  }
-}
-
 export const verifyOtp = async (req, res, next) => {
   try {
     const identifier = req.body.identifier?.trim()
@@ -30,7 +20,7 @@ export const verifyOtp = async (req, res, next) => {
       aoFullName = accountOfficer ? accountOfficer.FullName : null
     }
 
-    // ✅ 1. Generate a secure JWT payload
+
     const tokenPayload = {
       UserId: user.UserId,
       UserCode: user.UserCode,
@@ -40,14 +30,12 @@ export const verifyOtp = async (req, res, next) => {
       AOCode: user.AOCode
     }
 
-    // ✅ 2. Sign the token (Use a long random string in your backend .env file)
     const token = jwt.sign(
       tokenPayload,
       process.env.JWT_SECRET,
-      { expiresIn: '8h' } // Token expires in 8 hours
+      { expiresIn: '8h' } 
     )
 
-    // ✅ 3. Send token via secure, HTTP-Only Cookie
     res.cookie('auth_token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // Use true in production (requires HTTPS)
@@ -55,7 +43,6 @@ export const verifyOtp = async (req, res, next) => {
       maxAge: 8 * 60 * 60 * 1000              // Matches token expiration (8 hours)
     })
 
-    // Send only public non-sensitive details back in JSON
     res.json({
       success: true,
       user: {
@@ -171,7 +158,6 @@ export const getBranches = async (req, res, next) => {
   }
 }
 
-// ✅ CHECK EMAIL
 export const checkEmail = async (req, res, next) => {
   try {
     const { email } = req.query
@@ -184,7 +170,6 @@ export const checkEmail = async (req, res, next) => {
   }
 }
 
-// ✅ REGISTER USER
 export const register = async (req, res, next) => {
   try {
     const {
@@ -205,7 +190,7 @@ export const register = async (req, res, next) => {
   }
 }
 
-// ✅ GET USERS FOR APPROVAL (Branch Head only)
+
 export const getUsersForApproval = async (req, res, next) => {
   try {
     const { status = 'ALL' } = req.query
@@ -216,7 +201,7 @@ export const getUsersForApproval = async (req, res, next) => {
   }
 }
 
-// ✅ APPROVE OR REJECT USER (Branch Head only)
+
 export const approveRejectUser = async (req, res, next) => {
   try {
     const { userId, action } = req.body

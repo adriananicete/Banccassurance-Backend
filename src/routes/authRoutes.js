@@ -1,6 +1,6 @@
 import express from 'express'
 import {
-    sendOtp, verifyOtp, loginStep1, changePassword,
+    verifyOtp, loginStep1, changePassword,
     uploadProfilePhoto, getGroups, getBranches,
     register, checkEmail, getUsersForApproval, approveRejectUser,
     logout
@@ -11,10 +11,6 @@ import { strictLimiter, mediumLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router()
 
-// Public / pre-auth (registration flow)
-if(process.env.NODE_ENV !== 'production') {
-    router.post('/send-otp', strictLimiter, sendOtp)
-}
 router.post('/verify-otp', strictLimiter, verifyOtp)
 router.post('/login-step1', strictLimiter, loginStep1)
 router.get('/groups', getGroups)
