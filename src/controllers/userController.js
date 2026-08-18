@@ -51,3 +51,45 @@ export const approveRejectUser = async (req, res, next) => {
     next(error)
   }
 }
+
+export const replaceAccountOfficerBranches = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const { branchCodes } = req.body
+
+    const result = await userService.replaceAccountOfficerBranches(
+      req.user, userId, branchCodes
+    )
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const replaceAreaSalesHeadAreas = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const { areaCodes } = req.body
+
+    const result = await userService.replaceAreaSalesHeadAreas(
+      req.user, userId, areaCodes
+    )
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const replaceRegionalSalesHeadAreas = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const { areaCodes } = req.body
+
+    const result = await userService.replaceRegionalSalesHeadAreas(
+      req.user, userId, areaCodes
+    )
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}

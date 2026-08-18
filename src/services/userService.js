@@ -406,6 +406,177 @@ export const approveRejectUser = async (user, userId, action) => {
   return { success: false, message: Message };
 };
 
+// All three assign endpoints replace the whole set, so the caller sends the full
+// desired list and an empty array means "remove all".
+const normalizeCodes = (codes, field) => {
+  if (!Array.isArray(codes)) throwHttpError(400, `${field} must be an array`);
+
+  const normalized = [];
+  for (const code of codes) {
+    const value = Number(code);
+    if (!Number.isInteger(value) || value <= 0)
+      throwHttpError(400, `${field} must contain whole numbers`);
+    if (!normalized.includes(value)) normalized.push(value);
+  }
+  return normalized;
+};
+
+const loadAssignTarget = async (userId, expectedRole, roleLabel) => {
+  // userId arrives from the URL, so it is a string until proven otherwise.
+  const id = Number(userId);
+  if (!Number.isInteger(id) || id <= 0) throwHttpError(404, "Not Found");
+
+  const result = await userModel.getUserScopeById(id).run();
+  if (result.recordset.length === 0) throwHttpError(404, "Not Found");
+
+  const targetUser = result.recordset[0];
+
+  if (targetUser.Role !== expectedRole)
+    throwHttpError(400, `This user is not ${roleLabel}.`);
+
+  if (targetUser.IsActive !== 1)
+    throwHttpError(400, "This user has not been approved yet.");
+
+  return targetUser;
+};
+
+export const replaceAccountOfficerBranches = async (
+  user,
+  userId,
+  branchCodes,
+) => {
+  const branches = normalizeCodes(branchCodes, "branchCodes");
+  const targetUser = await loadAssignTarget(
+    userId,
+    ACCOUNT_OFFICER,
+    "an Account Officer",
+  );
+
+  // The AO's group is the one they picked at registration -- the same key the
+  // Area Sales Head approved them on.
+  const inScope = await userModel
+    .isAreaInAreaSalesHeadScope(user.UserCode, targetUser.AreaCode)
+    .run();
+  if (inScope.recordset.length === 0) throwHttpError(403, "Forbidden");
+
+  if (branches.length > 0) {
+    const joined = branches.join(",");
+
+    const outside = await userModel
+      .getBranchesOutsideAreaSalesHeadScope(user.UserCode, joined)
+      .run();
+    if (outside.recordset.length > 0)
+      throwHttpError(
+        403,
+        `These branches are outside your assigned groups: ${outside.recordset
+          .map((row) => row.BranchCode)
+          .join(", ")}`,
+      );
+
+    const taken = await userModel
+      .getBranchesAssignedToOtherAO(targetUser.UserCode, joined)
+      .run();
+    if (taken.recordset.length > 0)
+      throwHttpError(
+        409,
+        `These branches are already assigned to another Account Officer: ${taken.recordset
+          .map((row) => row.BranchCode)
+          .join(", ")}`,
+      );
+  }
+
+  await userModel
+    .replaceAccountOfficerBranches(targetUser.UserCode, branches.join(","))
+    .run();
+
+  return {
+    success: true,
+    data: {
+      userId: targetUser.UserId,
+      userCode: targetUser.UserCode,
+      branchCodes: branches,
+    },
+  };
+};
+
+export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
+  const areas = normalizeCodes(areaCodes, "areaCodes");
+  const targetUser = await loadAssignTarget(
+    userId,
+    AREA_SALES_HEAD,
+    "an Area Sales Head",
+  );
+
+  const inScope = await userModel
+    .isAshInRegionalScope(user.UserCode, targetUser.UserCode)
+    .run();
+  if (inScope.recordset.length === 0) throwHttpError(403, "Forbidden");
+
+  if (areas.length > 0) {
+    const outside = await userModel
+      .getAreasOutsideRegionalSalesHeadScope(user.UserCode, areas.join(","))
+      .run();
+    if (outside.recordset.length > 0)
+      throwHttpError(
+        403,
+        `These groups are outside your region: ${outside.recordset
+          .map((row) => row.AreaCode)
+          .join(", ")}`,
+      );
+  }
+
+  await userModel
+    .replaceAreaSalesHeadAreas(targetUser.UserCode, areas.join(","))
+    .run();
+
+  return {
+    success: true,
+    data: {
+      userId: targetUser.UserId,
+      userCode: targetUser.UserCode,
+      areaCodes: areas,
+    },
+  };
+};
+
+export const replaceRegionalSalesHeadAreas = async (
+  user,
+  userId,
+  areaCodes,
+) => {
+  const areas = normalizeCodes(areaCodes, "areaCodes");
+  const targetUser = await loadAssignTarget(
+    userId,
+    REGIONAL_SALES_HEAD,
+    "a Regional Sales Head",
+  );
+
+  // No caller scope check -- the Department Head sees the whole tenant.
+  if (areas.length > 0) {
+    const unknown = await userModel.getUnknownAreas(areas.join(",")).run();
+    if (unknown.recordset.length > 0)
+      throwHttpError(
+        400,
+        `These groups do not exist: ${unknown.recordset
+          .map((row) => row.AreaCode)
+          .join(", ")}`,
+      );
+  }
+
+  await userModel
+    .replaceRegionalSalesHeadAreas(targetUser.UserCode, areas.join(","))
+    .run();
+
+  return {
+    success: true,
+    data: {
+      userId: targetUser.UserId,
+      userCode: targetUser.UserCode,
+      areaCodes: areas,
+    },
+  };
+};
+
 export const findByUserCode = async (userCode) => {
   // Leverages the existing pattern in your service file
   const result = await userModel.validateUser(userCode).run();
