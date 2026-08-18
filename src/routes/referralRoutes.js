@@ -16,6 +16,8 @@ import {
 } from '../controllers/referralController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { consentUpload } from '../middleware/upload.js'
+import { verifyFileSignature } from '../middleware/verifyFileSignature.js'
+import { documentKinds } from '../utils/fileSignature.js'
 import { mediumLimiter, strictLimiter } from '../middleware/rateLimiter.js';
 import { BRANCH_HEAD, BRANCH_STAFF, referralCreatorRoles } from '../utils/constant.js';
 
@@ -32,7 +34,7 @@ router.post('/', requireAuth, requireRole(...referralCreatorRoles), createReferr
 router.post('/send-consent', mediumLimiter, requireAuth, sendConsent)
 router.post('/resend-consent', mediumLimiter, requireAuth, sendConsent)
 router.post('/confirm-consent', confirmConsentPost)
-router.post('/upload-consent', strictLimiter, requireAuth, consentUpload.single('consentFile'), uploadConsent)
+router.post('/upload-consent', strictLimiter, requireAuth, consentUpload.single('consentFile'), verifyFileSignature(documentKinds), uploadConsent)
 
 router.get('/:id', requireAuth, getReferralById)
 router.get('/referrer/:code', requireAuth, getReferrerByCode)

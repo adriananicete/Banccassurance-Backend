@@ -7,6 +7,8 @@ import {
 } from '../controllers/userController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { photoUpload } from '../middleware/upload.js';
+import { verifyFileSignature } from '../middleware/verifyFileSignature.js';
+import { imageKinds } from '../utils/fileSignature.js';
 import { mediumLimiter } from '../middleware/rateLimiter.js';
 import { AREA_SALES_HEAD, BRANCH_HEAD, DEPARTMENT_HEAD, GROUP_HEAD, REGIONAL_SALES_HEAD, SECTOR_HEAD } from '../utils/constant.js';
 
@@ -20,7 +22,7 @@ router.post('/register', mediumLimiter, register)
 
 // Own profile
 router.post('/change-password', requireAuth, changePassword)
-router.post('/upload-photo', requireAuth, photoUpload.single('photo'), uploadProfilePhoto)
+router.post('/upload-photo', requireAuth, photoUpload.single('photo'), verifyFileSignature(imageKinds), uploadProfilePhoto)
 
 // Approver-only
 router.get('/approvals', requireAuth, requireRole(...approverRoles), getUsersForApproval)
