@@ -577,3 +577,142 @@ WHERE LTRIM(RTRIM(value)) <> ''`)
     }
   }
 }
+
+export const replaceAreaSalesHeadAreas = (userCode, areaCodes) => {
+  return {
+    run: async () => {
+      const transaction = new sql.Transaction()
+      await transaction.begin();
+
+      try {
+        const request = new sql.Request(transaction);
+        request.input('UserCode', sql.NVarChar, userCode)
+        request.input('AreaCodes', sql.NVarChar, areaCodes)
+
+        await request.query(`DELETE FROM banc.area_sales_head_areas WHERE UserCode = @UserCode`)
+        await request.query(`INSERT INTO banc.area_sales_head_areas (UserCode, AreaCode)
+SELECT @UserCode, CAST(value AS INT)
+FROM STRING_SPLIT(@AreaCodes, ',')
+WHERE LTRIM(RTRIM(value)) <> ''`)
+
+        await transaction.commit()
+      } catch (error) {
+        await transaction.rollback()
+        throw error
+      }
+    }
+  }
+}
+
+export const replaceRegionalSalesHeadAreas = (userCode, areaCodes) => {
+  return {
+    run: async () => {
+      const transaction = new sql.Transaction()
+      await transaction.begin();
+
+      try {
+        const request = new sql.Request(transaction);
+        request.input('UserCode', sql.NVarChar, userCode)
+        request.input('AreaCodes', sql.NVarChar, areaCodes)
+
+        await request.query(`DELETE FROM banc.regional_sales_head_areas WHERE UserCode = @UserCode`)
+        await request.query(`INSERT INTO banc.regional_sales_head_areas (UserCode, AreaCode)
+SELECT @UserCode, CAST(value AS INT)
+FROM STRING_SPLIT(@AreaCodes, ',')
+WHERE LTRIM(RTRIM(value)) <> ''`)
+
+        await transaction.commit()
+      } catch (error) {
+        await transaction.rollback()
+        throw error
+      }
+    }
+  }
+}
+
+// Returns the requested branches the Area Sales Head may not assign: either the
+// branch sits in a group they do not hold, or the code does not exist at all.
+export const getBranchesOutsideAreaSalesHeadScope = (ashUserCode, branchCodes) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, ashUserCode);
+  request.input("BranchCodes", sql.NVarChar, branchCodes);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT DISTINCT CAST(s.value AS INT) AS BranchCode
+FROM STRING_SPLIT(@BranchCodes, ',') s
+WHERE LTRIM(RTRIM(s.value)) <> ''
+  AND NOT EXISTS (
+      SELECT 1
+      FROM banc.branches b
+      INNER JOIN banc.area_sales_head_areas a ON a.AreaCode = b.AreaCode
+      WHERE b.BranchCode = CAST(s.value AS INT)
+        AND a.UserCode = @UserCode
+  )
+      `),
+  };
+};
+
+// A branch belongs to exactly one Account Officer. Returns the requested codes
+// already held by someone other than the target user.
+export const getBranchesAssignedToOtherAO = (userCode, branchCodes) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, userCode);
+  request.input("BranchCodes", sql.NVarChar, branchCodes);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT DISTINCT aob.BranchCode
+FROM banc.account_officer_branches aob
+INNER JOIN STRING_SPLIT(@BranchCodes, ',') s
+        ON aob.BranchCode = CAST(s.value AS INT)
+WHERE aob.UserCode <> @UserCode
+      `),
+  };
+};
+
+// Returns the requested groups the Regional Sales Head does not hold themselves,
+// unknown codes included.
+export const getAreasOutsideRegionalSalesHeadScope = (rshUserCode, areaCodes) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, rshUserCode);
+  request.input("AreaCodes", sql.NVarChar, areaCodes);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT DISTINCT CAST(s.value AS INT) AS AreaCode
+FROM STRING_SPLIT(@AreaCodes, ',') s
+WHERE LTRIM(RTRIM(s.value)) <> ''
+  AND NOT EXISTS (
+      SELECT 1
+      FROM banc.regional_sales_head_areas r
+      WHERE r.UserCode = @UserCode
+        AND r.AreaCode = CAST(s.value AS INT)
+  )
+      `),
+  };
+};
+
+// The Department Head has no scope table — they see the whole tenant — so the
+// only thing left to reject is a code that is not a real group.
+export const getUnknownAreas = (areaCodes) => {
+  const request = new sql.Request();
+  request.input("AreaCodes", sql.NVarChar, areaCodes);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT DISTINCT CAST(s.value AS INT) AS AreaCode
+FROM STRING_SPLIT(@AreaCodes, ',') s
+WHERE LTRIM(RTRIM(s.value)) <> ''
+  AND NOT EXISTS (
+      SELECT 1
+      FROM banc.group_areas g
+      WHERE g.AreaCode = CAST(s.value AS INT)
+  )
+      `),
+  };
+};
