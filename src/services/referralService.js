@@ -373,7 +373,12 @@ export const canAccessReferral = async (referral, user) => {
     // The Department Head has no scope table -- they see their whole tenant.
     // They were previously checked against banc.user_area, which holds no rows
     // for them, so they could not open a single referral.
-    return getTenant(referral.ReferrerCode) === getTenant(user.UserCode);
+    //
+    // Tenant is read from AOCode, not ReferrerCode, to match the SPs. A Landbank
+    // staff member refers and a PhilLife AO handles it, so ReferrerCode is USR-
+    // on most of the PhilLife book -- keying on it would hide from the DH exactly
+    // the referrals their own AOs are working.
+    return getTenant(referral.AOCode) === getTenant(user.UserCode);
   } else if (user.Role === REGIONAL_SALES_HEAD) {
     const regionalSalesHead = await userModel
       .isAreaInRegionalScope(user.UserCode, referral.AreaCode)
