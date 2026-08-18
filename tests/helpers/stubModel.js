@@ -12,7 +12,9 @@ export const restoreStubs = () => {
   while (active.length) active.pop().restore();
 };
 
-export const withStubbedModules = async (mocks) => {
+const REFERRAL_SERVICE = "../../src/services/referralService.js";
+
+export const withStubbedModules = async (mocks, servicePath = REFERRAL_SERVICE) => {
   restoreStubs();
 
   const calls = [];
@@ -32,9 +34,7 @@ export const withStubbedModules = async (mocks) => {
   }
 
   generation += 1;
-  const service = await import(
-    `../../src/services/referralService.js?stub=${generation}`
-  );
+  const service = await import(`${servicePath}?stub=${generation}`);
 
   return { service, calls };
 };
