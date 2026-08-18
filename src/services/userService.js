@@ -510,6 +510,18 @@ export const replaceAccountOfficerBranches = async (
 
 export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
   const areas = normalizeCodes(areaCodes, "areaCodes");
+
+  // This endpoint alone refuses the empty set. A Regional Sales Head's authority over an
+  // Area Sales Head comes from `isAshInRegionalScope`, which works by finding an area the
+  // two hold in common -- so emptying the set is the one write that revokes the caller's own
+  // ability to undo it, and no other role can reach the user afterwards. `/branches` and
+  // `/groups` still accept it: neither takes its permission from the table it edits.
+  if (areas.length === 0)
+    throwHttpError(
+      400,
+      "An Area Sales Head must keep at least one group. Removing every group would leave no Regional Sales Head able to manage this user. Deactivate the account instead.",
+    );
+
   const targetUser = await loadAssignTarget(
     userId,
     AREA_SALES_HEAD,
