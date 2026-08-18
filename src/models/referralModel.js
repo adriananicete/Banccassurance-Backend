@@ -132,8 +132,9 @@ export const findActiveDuplicate = (email, tenantPrefix, planId) => {
   request.input('Prefix', sql.NVarChar, tenantPrefix + '-%')
   request.input('PlanId', sql.Int, planId)
   return { request, run: () => request.query(`
-      SELECT Id, ReferralNo, FirstName, LastName, MiddleName, Suffix, Email, MobileNumber, Status, StatusDate, ReferrerCode, ReferrerName, BranchCode, BranchName, AreaCode, AreaName, AOName, AOCode, CreatedAt FROM banc.Referrals
-      WHERE Email = @Email AND PlanId = @PlanId AND Status NOT IN ('Approved', 'Declined') 
+      SELECT ReferralNo, Status, StatusDate, ReferrerName, BranchName, AreaName, AOName
+      FROM banc.Referrals
+      WHERE Email = @Email AND PlanId = @PlanId AND Status NOT IN ('Approved', 'Declined')
       AND ReferrerCode LIKE @Prefix
     `)}
 }
