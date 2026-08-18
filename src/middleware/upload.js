@@ -12,7 +12,7 @@ const consentFileMap = {
   "image/png": ".png",
   "image/gif": ".gif",
   "image/webp": ".webp",
-  "application/pdf": ".pdf"
+  "application/pdf": ".pdf",
 };
 
 const photoStorage = multer.diskStorage({
@@ -27,7 +27,7 @@ const photoStorage = multer.diskStorage({
       cb(err);
       return;
     }
-    const ext = fileMap[file.mimetype]
+    const ext = fileMap[file.mimetype];
     const safeName = `${Date.now()}${ext}`;
     cb(null, safeName);
   },
@@ -57,7 +57,7 @@ const consentStorage = multer.diskStorage({
   },
 
   filename: (req, file, cb) => {
-    if(!consentFileMap[file.mimetype]) {
+    if (!consentFileMap[file.mimetype]) {
       const err = new Error("File type not allowed");
       err.statusCode = 400;
       cb(err);
@@ -73,7 +73,7 @@ export const consentUpload = multer({
   storage: consentStorage,
 
   fileFilter: (req, file, cb) => {
-    if(!consentFileMap[file.mimetype]) {
+    if (!consentFileMap[file.mimetype]) {
       const err = new Error("File type not allowed");
       err.statusCode = 400;
       cb(err);
