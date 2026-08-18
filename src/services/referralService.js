@@ -378,7 +378,14 @@ export const canAccessReferral = async (referral, user) => {
     // staff member refers and a PhilLife AO handles it, so ReferrerCode is USR-
     // on most of the PhilLife book -- keying on it would hide from the DH exactly
     // the referrals their own AOs are working.
-    return getTenant(referral.AOCode) === getTenant(user.UserCode);
+    //
+    // The prefix is taken by hand rather than through getTenant, which throws 400
+    // on anything that is not USR- or PHL-. banc.Referrals.AOCode has no foreign
+    // key and does contain junk (see §8C), and an access check must fail closed on
+    // bad data, not turn into a 400. UserCode comes from the JWT and is safe.
+    const referralTenant =
+      referral.AOCode?.toUpperCase().split("-")[0] ?? null;
+    return referralTenant !== null && referralTenant === getTenant(user.UserCode);
   } else if (user.Role === REGIONAL_SALES_HEAD) {
     const regionalSalesHead = await userModel
       .isAreaInRegionalScope(user.UserCode, referral.AreaCode)
