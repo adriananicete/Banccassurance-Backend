@@ -19,29 +19,28 @@ import { consentUpload } from '../middleware/upload.js'
 import { verifyFileSignature } from '../middleware/verifyFileSignature.js'
 import { documentKinds } from '../utils/fileSignature.js'
 import { mediumLimiter, strictLimiter } from '../middleware/rateLimiter.js';
-import { BRANCH_HEAD, BRANCH_STAFF, referralCreatorRoles } from '../utils/constant.js';
+import { ACCOUNT_OFFICER, BRANCH_HEAD, BRANCH_STAFF, referralCreatorRoles } from '../utils/constant.js';
 
 const router = express.Router();
-
 
 router.get('/', requireAuth, getReferrals)
 router.get('/counts', requireAuth, getReferralCounts)
 router.get('/confirm-consent', confirmConsent)
 router.get('/check-consent', requireAuth, checkConsent)
 router.get('/plans', requireAuth, getPlans)
+router.get('/referrer', requireAuth, getReferrerByCode)
 
 router.post('/', requireAuth, requireRole(...referralCreatorRoles), createReferral)
-router.post('/send-consent', mediumLimiter, requireAuth, sendConsent)
-router.post('/resend-consent', mediumLimiter, requireAuth, sendConsent)
+router.post('/send-consent', requireAuth, mediumLimiter, sendConsent)
+router.post('/resend-consent', requireAuth, mediumLimiter, sendConsent)
 router.post('/confirm-consent', confirmConsentPost)
-router.post('/upload-consent', strictLimiter, requireAuth, consentUpload.single('consentFile'), verifyFileSignature(documentKinds), uploadConsent)
+router.post('/upload-consent', requireAuth, strictLimiter, consentUpload.single('consentFile'), verifyFileSignature(documentKinds), uploadConsent)
+
+// Keep every static path above this line. Anything declared after /:id is
+// swallowed by the param match and surfaces as a 400 "invalid GUID".
 
 router.get('/:id', requireAuth, getReferralById)
-router.get('/referrer/:code', requireAuth, getReferrerByCode)
 router.put('/:id/profiling', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF), updateReferralProfiling)
-router.put('/:id/status', requireAuth, requireRole('ACCOUNT_OFFICER'), updateReferralStatus)
-
-
-
+router.put('/:id/status', requireAuth, requireRole(ACCOUNT_OFFICER), updateReferralStatus)
 
 export default router
