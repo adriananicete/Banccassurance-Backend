@@ -1,5 +1,11 @@
 import sql from "../config/db.js";
 
+const asText = (value) =>
+  value === null || value === undefined || value === "" ? null : String(value);
+
+const asInt = (value) =>
+  value === null || value === undefined || value === "" ? null : Number(value);
+
 export const validateUser = (identifier) => {
   const request = new sql.Request();
   request.input("Identifier", sql.NVarChar, identifier);
@@ -129,8 +135,8 @@ export const checkOrRegisterUser = ({
     request.input("MobileNumber", sql.NVarChar, mobileNumber);
     request.input("Position", sql.NVarChar, position);
     request.input("Role", sql.NVarChar, role);
-    request.input("AreaCode", sql.NVarChar, areaCode || null);
-    request.input("BranchCode", sql.Int, branchCode || null);
+    request.input("AreaCode", sql.NVarChar, asText(areaCode));
+    request.input("BranchCode", sql.Int, asInt(branchCode));
     request.input("PasswordHash", sql.NVarChar, passwordHash);
     request.input("EmployeeNo", sql.NVarChar, employeeNo || null);
   }
@@ -371,7 +377,7 @@ export const checkEmployeeNoExists = (employeeNo) => {
 
 export const getBranchHeadByBranch = (branchCode) => {
   const request = new sql.Request();
-  request.input("BranchCode", sql.Int, branchCode);
+  request.input("BranchCode", sql.Int, asInt(branchCode));
   return {
     request,
     run: () =>
@@ -454,7 +460,7 @@ export const getAccountOfficerByCode = (aoCode) => {
 
 export const getGroupHeadByArea = (areaCode) => {
   const request = new sql.Request();
-  request.input("AreaCode", sql.NVarChar, areaCode);
+  request.input("AreaCode", sql.NVarChar, asText(areaCode));
   return {
     request,
     run: () =>
