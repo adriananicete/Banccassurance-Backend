@@ -1,11 +1,8 @@
 import express from 'express'
 import {
-    verifyOtp, loginStep1, changePassword,
-    uploadProfilePhoto, getGroups, getBranches,
-    logout
+    verifyOtp, loginStep1, getGroups, getBranches, logout
 } from '../controllers/authController.js'
 import { requireAuth } from '../middleware/auth.js'
-import { photoUpload } from '../middleware/upload.js';
 import { strictLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router()
@@ -17,7 +14,5 @@ router.get('/branches', getBranches)
 
 // Authenticated
 router.post('/logout', requireAuth, logout)
-router.post('/change-password', requireAuth, changePassword)
-router.post('/upload-photo', requireAuth, photoUpload.single('photo'), uploadProfilePhoto)
 
 export default router

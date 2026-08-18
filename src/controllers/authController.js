@@ -1,6 +1,4 @@
 import jwt from 'jsonwebtoken'
-import path from 'path'
-import fs from 'fs'
 import * as userService from '../services/userService.js'
 
 export const verifyOtp = async (req, res, next) => {
@@ -87,53 +85,6 @@ export const logout = async (req, res, next) => {
       success: true,
       message: 'User logged out'
     })
-  } catch (error) {
-    next(error)
-  }
-}
-
-export const changePassword = async (req, res, next) => {
-  try {
-    const { currentPassword, newPassword } = req.body
-    const { UserCode } = req.user;
-
-    const result = await userService.changePassword(UserCode, currentPassword, newPassword)
-    res.json(result)
-  } catch (error) {
-    next(error)
-  }
-}
-
-export const uploadProfilePhoto = async (req, res, next) => {
-  try {
-    const { UserCode } = req.user;
-
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' })
-    }
-
-    const newFileName = req.file.filename
-    const { oldPhoto } = await userService.uploadProfilePhoto(UserCode, newFileName)
-
-    // ✅ DELETE OLD FILE (IF EXISTS)
-    if (oldPhoto) {
-      const oldPath = path.join('avatar_uploads', oldPhoto)
-
-      fs.unlink(oldPath, (err) => {
-        if (err) {
-          console.warn('⚠ Could not delete old file:', oldPhoto)
-        } else {
-          console.log('✅ Old photo deleted:', oldPhoto)
-        }
-      })
-    }
-
-    res.json({
-      success: true,
-      message: 'Profile photo updated',
-      file: newFileName
-    })
-
   } catch (error) {
     next(error)
   }
