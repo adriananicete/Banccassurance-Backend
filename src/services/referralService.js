@@ -11,6 +11,7 @@ import {
   DEPARTMENT_HEAD,
   GROUP_HEAD,
   REGIONAL_SALES_HEAD,
+  referralCreatorRoles,
   SECTOR_HEAD,
   statusTransitions,
   validConsentStatus,
@@ -42,6 +43,15 @@ export const getPlans = async () => {
 };
 
 export const createReferral = async (data, user) => {
+  // Authorisation first, before any lookup. Checking consent ahead of the role
+  // answered 403 to a role that may not refer at all, but with the consent
+  // message -- right status, wrong reason, and impossible to tell apart in a test.
+  if (!referralCreatorRoles.includes(user.Role))
+    throwHttpError(
+      403,
+      "Your role cannot create referrals. Only Branch Staff, Branch Heads, and Account Officers can.",
+    );
+
   const consent = await checkConsent(data.email)
   if(!validConsentStatus.includes(consent)) throwHttpError(403, 'Client consent is required before this referral can be submitted. Ask the client to confirm the consent email, or upload a signed consent form.')
   if (user.Role === BRANCH_STAFF || user.Role === BRANCH_HEAD) {
@@ -176,10 +186,10 @@ export const createReferral = async (data, user) => {
 
     return result.recordset[0];
   } else {
-    throwHttpError(
-      403,
-      "Your role cannot create referrals. Only Branch Staff, Branch Heads, and Account Officers can.",
-    );
+    // Unreachable while referralCreatorRoles and the branches above agree. Kept
+    // so that adding a role to that list without adding a branch here fails
+    // loudly instead of returning undefined the way it used to.
+    throwHttpError(500, "No referral path is defined for this role.");
   }
 };
 

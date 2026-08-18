@@ -38,4 +38,8 @@ export const validConsentStatus = ['CONFIRMED', 'UPLOADED'];
 export const landBankRoles = [BRANCH_STAFF, BRANCH_HEAD, GROUP_HEAD];
 export const philLifeRoles = [ACCOUNT_OFFICER, AREA_SALES_HEAD, REGIONAL_SALES_HEAD];
 
+// Three roles out of eight may create a referral. The heads above an Account
+// Officer supervise and are notified; they do not refer.
+export const referralCreatorRoles = [BRANCH_STAFF, BRANCH_HEAD, ACCOUNT_OFFICER];
+
 export const minimumLengthPassword = 8;
