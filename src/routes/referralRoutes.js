@@ -17,7 +17,7 @@ import {
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { consentUpload } from '../middleware/upload.js'
 import { mediumLimiter, strictLimiter } from '../middleware/rateLimiter.js';
-import { ACCOUNT_OFFICER, BRANCH_HEAD, BRANCH_STAFF } from '../utils/constant.js';
+import { BRANCH_HEAD, BRANCH_STAFF, referralCreatorRoles } from '../utils/constant.js';
 
 const router = express.Router();
 
@@ -28,7 +28,7 @@ router.get('/confirm-consent', confirmConsent)
 router.get('/check-consent', requireAuth, checkConsent)
 router.get('/plans', requireAuth, getPlans)
 
-router.post('/', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF, ACCOUNT_OFFICER), createReferral)
+router.post('/', requireAuth, requireRole(...referralCreatorRoles), createReferral)
 router.post('/send-consent', mediumLimiter, requireAuth, sendConsent)
 router.post('/resend-consent', mediumLimiter, requireAuth, sendConsent)
 router.post('/confirm-consent', confirmConsentPost)
