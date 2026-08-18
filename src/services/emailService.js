@@ -92,7 +92,7 @@ export const sendConsentEmail = async (toEmail, token, name, branchName, referre
 
   const confirmLink = `${process.env.BASE_URL}/api/referrals/confirm-consent?${params.toString()}`;
 
-  const emailBody = consentEmailTemplate(confirmLink);
+  const emailBody = consentEmailTemplate(confirmLink, name);
 
   await sendMail(toEmail,"Consent for Endorsement and Data Processing", emailBody);
 

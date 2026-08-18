@@ -78,34 +78,50 @@ export const consentFormTemplate = (token, name, branchName, referrerName) => `
         <div class="card">
           <h2>Consent for Endorsement and Data Processing</h2>
 
-          <p><strong>Dear Valued Client,</strong></p>
+          <p><strong>Dear Valued Client,${name ? ` ${escapeHtml(name)},` : ''}</strong></p>
 
           <p>Good day!</p>
 
           <p>
-            As part of our financial needs assessment and product presentation process,
-            we kindly request your consent to allow <span class="highlight">PHILLIFE</span> and its
-            authorized representatives to process your information for account servicing
-            and endorsement to the assigned Account Officer at your Landbank servicing branch.
+            As part of the Bancassurance financial needs assessment, client profiling, referral, and
+            product presentation process, Philippine Life Financial Assurance Corp. (<span class="highlight">&ldquo;PhilLife&rdquo;</span>)
+            may collect and process the personal information you provide in this form.
           </p>
 
           <p>
-            By providing your consent, you authorize the company and its authorized
-            representatives to collect, process, store, and use your information for the following purposes:
+            By providing your consent, you authorize PhilLife and its duly authorized representatives to
+            collect, use, store, disclose, and otherwise process your personal information, as applicable,
+            for the following purposes:
           </p>
 
           <ol>
-            <li>Evaluation of your financial and insurance needs</li>
-            <li>Product presentation and proposal preparation</li>
-            <li>Account servicing and client support</li>
-            <li>Policy processing and future claims evaluation</li>
-            <li>Communication regarding products, services, and updates</li>
+            <li>Conducting financial and insurance needs assessment and client profiling;</li>
+            <li>Identifying insurance products that may be appropriate for your stated needs and financial profile;</li>
+            <li>Preparing and presenting insurance product proposals;</li>
+            <li>Facilitating your referral or endorsement between the authorized LANDBANK personnel and PhilLife Account Officer handling your bancassurance transaction;</li>
+            <li>Processing and administering an insurance application or policy, should you decide to apply for a product;</li>
+            <li>Providing account servicing and client support; and</li>
+            <li>Complying with applicable legal, regulatory, audit, and record-keeping requirements.</li>
           </ol>
 
           <p>
-            Please be assured that your information will be handled in accordance
-            with the <span class="highlight">Data Privacy Act of 2012</span> and the company's
-            policies on confidentiality and data protection.
+            The personal information processed may include your identification and contact information,
+            employment or business information, financial profile, existing financial products, insurance
+            or banking needs and preferences, and other information you voluntarily provide for the
+            purposes stated above.
+          </p>
+
+          <p>
+            Your personal information may be disclosed, where necessary, to PhilLife, LANDBANK, their duly
+            authorized personnel and service providers, and government or regulatory authorities when
+            required by applicable law or regulation, subject to appropriate data privacy and security
+            safeguards.
+          </p>
+
+          <p>
+            Your personal information shall be retained only for as long as necessary to fulfill the
+            purposes stated above and applicable legal and regulatory requirements, after which it shall
+            be securely disposed of in accordance with applicable retention policies.
           </p>
 
           <p>
@@ -114,7 +130,23 @@ export const consentFormTemplate = (token, name, branchName, referrerName) => `
             incomplete or inaccurate information may affect the processing of your application or request.
           </p>
 
-          <p>This consent shall remain valid unless withdrawn in writing.</p>
+          <p>
+            You may withdraw your consent where processing is based on consent, subject to applicable
+            legal or contractual limitations. Withdrawal shall not affect processing lawfully undertaken
+            before such withdrawal or processing that PhilLife is otherwise required or permitted by law
+            to undertake.
+          </p>
+
+          <p>
+            You may exercise your rights under the <span class="highlight">Data Privacy Act</span>, including your rights to
+            access, object, rectify, erase or block your personal data, and file a complaint with the
+            National Privacy Commission.
+          </p>
+
+          <p>
+            Should you have any questions or concerns, please feel free to contact us: Email: bancassurance@phillife.com.ph,
+            Telephone: (02) 7798-5433, Mobile: 0998-xxxxxxxxx.
+          </p>
 
           <div class="form-section">
             <form method="POST" action="/api/referrals/confirm-consent">
