@@ -19,7 +19,18 @@ const updateUnderwritingStatus = async (id, status) => {
   const ref = referral.recordset[0];
 
   const allowed = underwritingTransitions[ref.Status];
-  if (!allowed || !allowed.includes(status)) throwHttpError(400, "Invalid Status");
+
+  if (!allowed)
+    throwHttpError(
+      400,
+      `This referral is "${ref.Status}", which underwriting cannot act on. Retrying will not help.`,
+    );
+
+  if (!allowed.includes(status))
+    throwHttpError(
+      400,
+      `"${ref.Status}" cannot move to "${status}". Allowed from here: ${allowed.join(", ") || "none"}.`,
+    );
 
   await referralModel.updateStatus(id, status).run();
   
