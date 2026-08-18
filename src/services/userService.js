@@ -27,6 +27,15 @@ const otpStore = {};
 
 const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
 
+// banc.Users.IsActive is a bit column, so mssql hands back a JavaScript boolean --
+// never the numbers these guards used to be compared against. `IsActive !== 0` was
+// therefore true even for a pending user, and `IsActive !== 1` true even for an
+// approved one. Accept both shapes so that changing the column to INT later (which a
+// real REJECTED state would need) does not silently break the guards a second time.
+// The column is nullable, and NULL is neither -- both helpers return false for it.
+const isApproved = (isActive) => isActive === true || isActive === 1;
+const isPending = (isActive) => isActive === false || isActive === 0;
+
 export const verifyOtp = async (identifier, otp) => {
   const result = await userModel.validateUser(identifier).run();
 
@@ -392,7 +401,7 @@ export const approveRejectUser = async (user, userId, action) => {
     throwHttpError(403, "Forbidden");
   }
 
-  if (targetUser.IsActive !== 0)
+  if (!isPending(targetUser.IsActive))
     throwHttpError(400, "This user has already been approved or rejected.");
 
   const result = await userModel.approveRejectUser(userId, action).run();
@@ -434,7 +443,7 @@ const loadAssignTarget = async (userId, expectedRole, roleLabel) => {
   if (targetUser.Role !== expectedRole)
     throwHttpError(400, `This user is not ${roleLabel}.`);
 
-  if (targetUser.IsActive !== 1)
+  if (!isApproved(targetUser.IsActive))
     throwHttpError(400, "This user has not been approved yet.");
 
   return targetUser;
