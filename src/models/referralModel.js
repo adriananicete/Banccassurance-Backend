@@ -181,8 +181,7 @@ export const getAOAttribution = (userCode) => {
       SELECT TOP (1)
           COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS ReferrerName,
           b.AreaCode,
-          a.AreaName,
-          ash.UserCode  AS ASHUserCode
+          a.AreaName
       FROM banc.Users u
       INNER JOIN banc.account_officer_branches aob
           ON u.UserCode = aob.UserCode
@@ -190,11 +189,8 @@ export const getAOAttribution = (userCode) => {
           ON aob.BranchCode = b.BranchCode
       INNER JOIN banc.group_areas a
           ON b.AreaCode = a.AreaCode
-      LEFT JOIN banc.Users ash
-          ON CAST(a.AreaCode AS NVARCHAR) = ash.AreaCode
-          AND ash.Role = 'AREA_SALES_HEAD'
-          AND ash.IsActive = 1
       WHERE u.UserCode = @UserCode
+      ORDER BY b.AreaCode, aob.BranchCode
       `)
   }
 }

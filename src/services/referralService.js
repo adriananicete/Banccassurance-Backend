@@ -158,12 +158,28 @@ export const createReferral = async (data, user) => {
     };
 
     const result = await referralModel.createReferral(referralData).run();
-    if (aoData.ASHUserCode) {
-     const message = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${aoData.ReferrerName}.`;
-        await safeNotify(aoData.ASHUserCode, message)
+
+    try {
+      const areaSalesHeads = await userModel
+        .getAreaSalesHeadByArea(aoData.AreaCode)
+        .run();
+
+      if (areaSalesHeads.recordset.length > 0) {
+        const message = `New referral assigned to you: ${data.firstName} ${data.lastName}, referred by ${aoData.ReferrerName}.`;
+        for (const areaSalesHead of areaSalesHeads.recordset) {
+          await safeNotify(areaSalesHead.UserCode, message)
+        }
+      }
+    } catch (error) {
+      console.error(error);
     }
 
     return result.recordset[0];
+  } else {
+    throwHttpError(
+      403,
+      "Your role cannot create referrals. Only Branch Staff, Branch Heads, and Account Officers can.",
+    );
   }
 };
 
@@ -327,14 +343,27 @@ export const canAccessReferral = async (referral, user) => {
     if (referral.BranchCode === user.BranchCode) return true;
   } else if (user.Role === ACCOUNT_OFFICER) {
     if (referral.AOCode === user.UserCode) return true;
-  } else if (user.Role === GROUP_HEAD || user.Role === AREA_SALES_HEAD) {
+  } else if (user.Role === GROUP_HEAD) {
     if (String(referral.AreaCode) === String(user.AreaCode)) return true;
-  } else if (user.Role === SECTOR_HEAD || user.Role === DEPARTMENT_HEAD) {
-    const sectorOrDepartmentHead = await userModel
+  } else if (user.Role === AREA_SALES_HEAD) {
+    // Users.AreaCode is NULL for every ASH -- their areas live in the junction
+    // table, so the scalar comparison above can never match for them.
+    const areaSalesHead = await userModel
+      .isAreaInAreaSalesHeadScope(user.UserCode, referral.AreaCode)
+      .run();
+
+    return areaSalesHead.recordset.length > 0;
+  } else if (user.Role === SECTOR_HEAD) {
+    const sectorHead = await userModel
       .isAreaInSectorScope(user.UserId, referral.AreaCode)
       .run();
 
-    return sectorOrDepartmentHead.recordset.length > 0;
+    return sectorHead.recordset.length > 0;
+  } else if (user.Role === DEPARTMENT_HEAD) {
+    // The Department Head has no scope table -- they see their whole tenant.
+    // They were previously checked against banc.user_area, which holds no rows
+    // for them, so they could not open a single referral.
+    return getTenant(referral.ReferrerCode) === getTenant(user.UserCode);
   } else if (user.Role === REGIONAL_SALES_HEAD) {
     const regionalSalesHead = await userModel
       .isAreaInRegionalScope(user.UserCode, referral.AreaCode)
