@@ -117,7 +117,7 @@ export const consentFormTemplate = (token, name, branchName, referrerName) => `
           <p>This consent shall remain valid unless withdrawn in writing.</p>
 
           <div class="form-section">
-            <form method="POST" action="/api/referrals/confirm-consent">
+            <form method="POST" action="/api/consent/confirm">
               <input type="hidden" name="token" value="${escapeHtml(token)}" />
               <input type="hidden" name="name" value="${escapeHtml(name)}" />
               <input type="hidden" name="branchName" value="${escapeHtml(branchName)}" />

@@ -90,7 +90,7 @@ export const sendConsentEmail = async (toEmail, token, name, branchName, referre
   if (branchName) params.set('branchName', branchName);
   if (referrerName) params.set('referrerName', referrerName);
 
-  const confirmLink = `${process.env.BASE_URL}/api/referrals/confirm-consent?${params.toString()}`;
+  const confirmLink = `${process.env.BASE_URL}/api/consent/confirm?${params.toString()}`;
 
   const emailBody = consentEmailTemplate(confirmLink);
 
