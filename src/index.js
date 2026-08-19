@@ -12,6 +12,7 @@ import { fileURLToPath } from "url";
 import { globalLimiter } from "./middleware/rateLimiter.js";
 import underwritingRoutes from "./routes/underwritingRoutes.js"
 import userRoutes from "./routes/userRoutes.js";
+import lookupRoutes from "./routes/lookupRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,6 +42,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/lookups", lookupRoutes);
 app.use("/api/underwriting/referrals", underwritingRoutes);
 
 app.use("/uploads", express.static(path.join(__dirname, "../avatar_uploads")));

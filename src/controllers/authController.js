@@ -90,22 +90,3 @@ export const logout = async (req, res, next) => {
   }
 }
 
-export const getGroups = async (req, res, next) => {
-  try {
-    const data = await userService.getGroups()
-    res.json({ success: true, data })
-  } catch (error) {
-    next(error)
-  }
-}
-
-export const getBranches = async (req, res, next) => {
-  try {
-    const { areaCode } = req.query
-    const data = await userService.getBranches(areaCode)
-    res.json({ success: true, data })
-  } catch (error) {
-    next(error)
-  }
-}
-

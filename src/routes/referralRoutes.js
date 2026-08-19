@@ -4,7 +4,6 @@ import {
   sendConsent,
   updateReferralProfiling,
   getReferrerByCode,
-  getPlans,
   confirmConsent,
   checkConsent,
   getReferrals,
@@ -27,7 +26,6 @@ router.get('/', requireAuth, getReferrals)
 router.get('/counts', requireAuth, getReferralCounts)
 router.get('/confirm-consent', confirmConsent)
 router.get('/check-consent', requireAuth, checkConsent)
-router.get('/plans', requireAuth, getPlans)
 router.get('/referrer', requireAuth, getReferrerByCode)
 
 router.post('/', requireAuth, requireRole(...referralCreatorRoles), createReferral)

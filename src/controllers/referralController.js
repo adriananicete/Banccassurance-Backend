@@ -21,19 +21,6 @@ export const getReferrerByCode = async (req, res, next) => {
   }
 };
 
-export const getPlans = async (req, res, next) => {
-  try {
-    const data = await referralService.getPlans();
-
-    res.status(200).json({
-      success: true,
-      data,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
 export const createReferral = async (req, res, next) => {
   try {
     const {
