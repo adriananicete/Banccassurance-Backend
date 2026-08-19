@@ -1,10 +1,6 @@
 import sql from "../config/db.js";
 
-const asText = (value) =>
-  value === null || value === undefined || value === "" ? null : String(value);
-
-const asInt = (value) =>
-  value === null || value === undefined || value === "" ? null : Number(value);
+import { asInt, asText } from "../utils/sqlValue.js";
 
 export const validateUser = (identifier) => {
   const request = new sql.Request();

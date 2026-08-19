@@ -1,0 +1,95 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { captureSql, restoreSqlCapture } from "./helpers/captureSql.js";
+
+const REFERRAL_MODEL = "../../src/models/referralModel.js";
+
+const OPTIONS = {
+  PageNumber: 1,
+  PageSize: 20,
+  Search: null,
+  Status: null,
+  Verified: null,
+  DateFrom: null,
+  DateTo: null,
+  SortBy: null,
+  SortDir: "DESC",
+};
+
+const paramsFor = async (build) => {
+  const { model, inputs } = await captureSql(REFERRAL_MODEL);
+  build(model);
+  restoreSqlCapture();
+
+  return Object.fromEntries(inputs.map(({ name, value }) => [name, value]));
+};
+
+const bothEntryPoints = [
+  ["getReferralsByRole", (model, user) => model.getReferralsByRole(user, OPTIONS)],
+  ["getReferralCountsByRole", (model, user) => model.getReferralCountsByRole(user)],
+];
+
+test("a numeric AreaCode is sent as a string, not a number", async () => {
+  // usp_sel_referrals_by_role_1 declares @AreaCode NVARCHAR. tedious refuses a
+  // number outright with EPARAM, which surfaced as a 500 on the referral list
+  // and the counts for any Account Officer whose JWT carried a numeric AreaCode.
+  for (const [name, call] of bothEntryPoints) {
+    const params = await paramsFor((model) =>
+      call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, AreaCode: 5 }),
+    );
+
+    assert.equal(typeof params.AreaCode, "string", name);
+    assert.equal(params.AreaCode, "5", name);
+  }
+});
+
+test("a string BranchCode is sent as a number", async () => {
+  // The mirror of the same defect: @BranchCode is INT, and a string is refused
+  // just as firmly. Not observed yet, only because Account Officers carry null.
+  for (const [name, call] of bothEntryPoints) {
+    const params = await paramsFor((model) =>
+      call(model, { Role: "BRANCH_STAFF", UserCode: "USR-STF-0115", BranchCode: "58", AreaCode: "1" }),
+    );
+
+    assert.equal(typeof params.BranchCode, "number", name);
+    assert.equal(params.BranchCode, 58, name);
+  }
+});
+
+test("the defaults for a missing scope are unchanged", async () => {
+  // The stored procedures treat 0 and '0' as "no scope". Coercing the types must
+  // not quietly turn those into NULL, which the procedures do not expect.
+  for (const [name, call] of bothEntryPoints) {
+    for (const missing of [null, undefined, ""]) {
+      const params = await paramsFor((model) =>
+        call(model, { Role: "DEPARTMENT_HEAD", UserCode: "PHL-DH-0001", BranchCode: missing, AreaCode: missing }),
+      );
+
+      assert.equal(params.BranchCode, 0, `${name} ${JSON.stringify(missing)}`);
+      assert.equal(params.AreaCode, "0", `${name} ${JSON.stringify(missing)}`);
+    }
+  }
+});
+
+test("every scope parameter is a type the procedure can accept", async () => {
+  // Whatever the JWT happens to hold, nothing may reach tedious as a type it
+  // will reject. This is the assertion that would have caught the defect
+  // regardless of which column the JWT got wrong.
+  const shapes = [
+    { BranchCode: null, AreaCode: 5 },
+    { BranchCode: "58", AreaCode: "1" },
+    { BranchCode: 58, AreaCode: 1 },
+    { BranchCode: undefined, AreaCode: undefined },
+  ];
+
+  for (const [name, call] of bothEntryPoints) {
+    for (const shape of shapes) {
+      const params = await paramsFor((model) =>
+        call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", ...shape }),
+      );
+
+      assert.equal(typeof params.BranchCode, "number", `${name} ${JSON.stringify(shape)}`);
+      assert.equal(typeof params.AreaCode, "string", `${name} ${JSON.stringify(shape)}`);
+    }
+  }
+});
