@@ -25,8 +25,34 @@ const formatArray = (arr) => {
   return Array.isArray(parsed) ? parsed.join(", ") : parsed;
 };
 
-export const getReferrerByCode = async (userCode) => {
-  const result = await referralModel.getReferrerAttribution(userCode).run();
+export const getReferrerByCode = async (user) => {
+  // An Account Officer has no BranchCode -- they belong to an area, and their
+  // branches live in account_officer_branches. getReferrerAttribution joins
+  // Users to branches on BranchCode, so it returns nothing for them. Use the
+  // same lookup createReferral already uses for this role, and return the row
+  // it would write.
+  if (user.Role === ACCOUNT_OFFICER) {
+    const aoResult = await referralModel.getAOAttribution(user.UserCode).run();
+
+    if (aoResult.recordset.length === 0) {
+      throwHttpError(400, "Your account has no assigned branches");
+    }
+
+    const ao = aoResult.recordset[0];
+
+    return {
+      ReferrerCode: user.UserCode,
+      ReferrerName: ao.ReferrerName,
+      AOCode: user.UserCode,
+      AOName: ao.ReferrerName,
+      BranchCode: null,
+      BranchName: null,
+      AreaCode: ao.AreaCode,
+      AreaName: ao.AreaName,
+    };
+  }
+
+  const result = await referralModel.getReferrerAttribution(user.UserCode).run();
 
   if (result.recordset.length === 0) {
     throwHttpError(404, "Referrer not found");

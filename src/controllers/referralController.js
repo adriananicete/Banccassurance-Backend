@@ -6,7 +6,7 @@ import { sortDirections, sortWhitelist } from "../utils/constant.js";
 export const getReferrerByCode = async (req, res, next) => {
   try {
     
-    const data = await referralService.getReferrerByCode(req.user.UserCode);
+    const data = await referralService.getReferrerByCode(req.user);
 
     res.status(200).json({
       success: true,
