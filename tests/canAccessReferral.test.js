@@ -1,4 +1,3 @@
-import "dotenv/config";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { canAccessReferral } from "../src/services/referralService.js";
