@@ -1,13 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
-import { API_LEGACY_PREFIX, API_VERSION_PREFIX } from "../src/utils/constant.js";
+import { API_VERSION_PREFIX } from "../src/utils/constant.js";
 import { consentFormTemplate } from "../src/templates/consentFormTemplate.js";
 
-test("the versioned prefix is the legacy one plus a version segment", () => {
-  assert.equal(API_LEGACY_PREFIX, "/api");
+test("there is one prefix and it carries a version", () => {
   assert.equal(API_VERSION_PREFIX, "/api/v1");
-  assert.ok(API_VERSION_PREFIX.startsWith(API_LEGACY_PREFIX));
 });
 
 test("the consent form submits to the versioned path, not the legacy one", () => {
