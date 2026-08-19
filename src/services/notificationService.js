@@ -22,11 +22,13 @@ export const clearUserNotifications = async (userCode) => {
 };
 
 export const markNotificationAsRead = async (id, userCode) => {
-  if (!id) {
-    throwHttpError(400, 'Notification ID is required')
+  const notificationId = Number(id)
+
+  if (!Number.isInteger(notificationId) || notificationId <= 0) {
+    throwHttpError(400, 'Notification ID must be a positive whole number.')
   }
 
-  await notificationModel.markAsRead(parseInt(id, 10), userCode).run()
+  await notificationModel.markAsRead(notificationId, userCode).run()
 
   return { success: true, message: 'Notification marked as read.' }
 };
