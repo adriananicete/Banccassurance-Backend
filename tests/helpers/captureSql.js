@@ -1,6 +1,17 @@
 import { mock } from "node:test";
 
-const types = new Proxy({}, { get: (_target, name) => String(name) });
+// Types are callable so a model may write either sql.NVarChar or the sized form
+// sql.NVarChar(sql.MAX). Nothing here inspects the type, only the value.
+const types = new Proxy(
+  {},
+  {
+    get: (_target, name) => {
+      const type = () => type;
+      type.toString = () => String(name);
+      return type;
+    },
+  },
+);
 
 let active = null;
 let generation = 0;

@@ -164,6 +164,7 @@ test("the Department Head assigns groups with no scope check of their own", asyn
     "getUserScopeById",
     "getUnknownAreas",
     "replaceRegionalSalesHeadAreas",
+    "record",
   ]);
 });
 

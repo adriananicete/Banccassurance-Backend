@@ -22,6 +22,7 @@ import {
 } from "../utils/constant.js";
 import { throwHttpError } from "../utils/error.js";
 import { safeNotify } from "./notificationService.js";
+import { record } from "./auditService.js";
 
 const otpStore = {};
 
@@ -408,6 +409,14 @@ export const approveRejectUser = async (user, userId, action) => {
   const { Success, Message, FirstName, Email, UserCode } = result.recordset[0];
 
   if (Success === 1) {
+    await record({
+      actorUserCode: user.UserCode,
+      action: action === "APPROVE" ? "USER_APPROVED" : "USER_REJECTED",
+      entityType: "USER",
+      entityId: targetUser.UserCode,
+      detail: targetUser.Role,
+    });
+
     await sendApprovalEmail(Email, FirstName, UserCode, action);
     return { success: true, message: Message };
   }
@@ -498,6 +507,14 @@ export const replaceAccountOfficerBranches = async (
     .replaceAccountOfficerBranches(targetUser.UserCode, branches.join(","))
     .run();
 
+  await record({
+    actorUserCode: user.UserCode,
+    action: "BRANCHES_ASSIGNED",
+    entityType: "SCOPE",
+    entityId: targetUser.UserCode,
+    detail: branches.join(","),
+  });
+
   return {
     success: true,
     data: {
@@ -550,6 +567,14 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
     .replaceAreaSalesHeadAreas(targetUser.UserCode, areas.join(","))
     .run();
 
+  await record({
+    actorUserCode: user.UserCode,
+    action: "AREAS_ASSIGNED",
+    entityType: "SCOPE",
+    entityId: targetUser.UserCode,
+    detail: areas.join(","),
+  });
+
   return {
     success: true,
     data: {
@@ -587,6 +612,14 @@ export const replaceRegionalSalesHeadAreas = async (
   await userModel
     .replaceRegionalSalesHeadAreas(targetUser.UserCode, areas.join(","))
     .run();
+
+  await record({
+    actorUserCode: user.UserCode,
+    action: "GROUPS_ASSIGNED",
+    entityType: "SCOPE",
+    entityId: targetUser.UserCode,
+    detail: areas.join(","),
+  });
 
   return {
     success: true,

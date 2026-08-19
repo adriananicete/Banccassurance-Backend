@@ -3,6 +3,7 @@ import { withStubbedModules, rows } from "./stubModel.js";
 const USER_MODEL = "../../src/models/userModel.js";
 const EMAIL_SERVICE = "../../src/services/emailService.js";
 const NOTIFICATION_SERVICE = "../../src/services/notificationService.js";
+const AUDIT_SERVICE = "../../src/services/auditService.js";
 const USER_SERVICE = "../../src/services/userService.js";
 
 const silentEmail = {
@@ -17,6 +18,7 @@ export const withUserService = (userModel, overrides = {}) =>
       [USER_MODEL]: userModel,
       [EMAIL_SERVICE]: { ...silentEmail, ...overrides.email },
       [NOTIFICATION_SERVICE]: { safeNotify: async () => {}, ...overrides.notifications },
+      [AUDIT_SERVICE]: { record: async () => {}, ...overrides.audit },
     },
     USER_SERVICE,
   );

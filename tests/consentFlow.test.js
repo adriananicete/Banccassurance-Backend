@@ -118,9 +118,12 @@ test("a valid token returns the row, including the status the pages branch on", 
 
 // -------------------------------------------------------------- uploadConsent
 
-test("an uploaded file with no pending request is a 404", async () => {
-  // usp_upload_consent_file only matches a pending row, so zero rows means the
-  // email had no request behind it -- or one that was already satisfied.
+test("an uploaded file with no consent request at all is a 404", async () => {
+  // usp_upload_consent_file has no status filter -- it updates every row for the
+  // address -- so zero rows means the email has no consent request whatsoever.
+  // The message says "no pending consent request", which is narrower than what
+  // the procedure actually checks. Item 24 of the DBA request would make the two
+  // agree by adding the filter; until then, read the message as approximate.
   const { service } = await withConsent({ uploadConsentFile: affected(0) });
 
   const error = await captureThrown(() => service.uploadConsent(CLIENT, "1787038740554.pdf"));

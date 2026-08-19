@@ -1,12 +1,6 @@
 import sql from '../config/db.js'
 import { asInt, asText } from '../utils/sqlValue.js'
 
-export const getReferrerByCode = (code) => {
-  const request = new sql.Request()
-  request.input('UserCode', sql.NVarChar, code)
-  return { request, run: () => request.execute('[banc].[usp_sel_referrer_by_code]') }
-}
-
 export const getPlans = () => {
   const request = new sql.Request()
   return { request, run: () => request.execute('[banc].[usp_sel_plans]') }
