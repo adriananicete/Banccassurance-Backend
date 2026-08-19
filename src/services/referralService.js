@@ -219,11 +219,11 @@ export const createReferral = async (data, user) => {
   }
 };
 
-export const sendConsent = async (email, token, name, branchName, referrerName) => {
+export const sendConsent = async (email, token, name, branchName, referrerName, fullName) => {
   if(!email || !isValidEmail(email)) throwHttpError(400, 'Invalid Email')
-    
+
   await referralModel.insertConsentRequest(email, token).run();
-  await sendConsentEmail(email, token, name, branchName, referrerName);
+  await sendConsentEmail(email, token, name, branchName, referrerName, fullName);
 };
 
 export const updateReferralProfiling = async (id, data, user) => {

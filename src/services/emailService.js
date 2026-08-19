@@ -84,12 +84,13 @@ const sendMail = async (toEmail, subject, htmlBody) => {
 };
 
 // ✅ Send email
-export const sendConsentEmail = async (toEmail, token, name, branchName, referrerName) => {
+export const sendConsentEmail = async (toEmail, token, name, branchName, referrerName, fullName) => {
 
   const params = new URLSearchParams({ token });
   if (name) params.set('name', name);
   if (branchName) params.set('branchName', branchName);
   if (referrerName) params.set('referrerName', referrerName);
+  if (fullName) params.set('fullName', fullName);
 
   const confirmLink = `${process.env.BASE_URL}${API_VERSION_PREFIX}/consent/confirm?${params.toString()}`;
 
