@@ -37,6 +37,7 @@ app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/referrals/notifications", notificationRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/auth", authRoutes);
