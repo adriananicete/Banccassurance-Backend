@@ -38,7 +38,6 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/referrals/notifications", notificationRoutes);
 app.use("/api/referrals", referralRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
