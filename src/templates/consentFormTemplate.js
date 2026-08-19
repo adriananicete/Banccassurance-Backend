@@ -4,7 +4,7 @@ export const consentFormTemplate = (token, name, branchName, referrerName) => `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Recording Your Consent</title>
+        <title>Confirm Consent</title>
         <link rel="icon" type="image/x-icon" href="/favicon.ico">
         <style>
           body {
@@ -24,38 +24,38 @@ export const consentFormTemplate = (token, name, branchName, referrerName) => `
             padding: 40px;
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            max-width: 480px;
+            max-width: 600px;
             width: 100%;
-            text-align: center;
           }
 
           h2 {
             color: #333;
-            margin: 0 0 12px;
+            margin-bottom: 16px;
+            text-align: center;
           }
 
           p {
             color: #555;
             line-height: 1.6;
-            margin: 0 0 12px;
+            margin-bottom: 12px;
           }
 
-          #working { display: none; }
-
-          .spinner {
-            width: 36px;
-            height: 36px;
-            margin: 0 auto 20px;
-            border: 4px solid #e0e0e0;
-            border-top-color: #1e3a8a;
-            border-radius: 50%;
-            animation: spin 0.9s linear infinite;
+          ol {
+            color: #555;
+            line-height: 1.8;
+            padding-left: 20px;
+            margin-bottom: 16px;
           }
 
-          @keyframes spin { to { transform: rotate(360deg); } }
+          .highlight {
+            font-weight: bold;
+          }
 
-          @media (prefers-reduced-motion: reduce) {
-            .spinner { animation: none; }
+          .form-section {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
           }
 
           .confirm-btn {
@@ -67,40 +67,66 @@ export const consentFormTemplate = (token, name, branchName, referrerName) => `
             border-radius: 6px;
             font-size: 16px;
             cursor: pointer;
-            margin-top: 8px;
           }
 
-          .confirm-btn:hover { background-color: #162d6e; }
+          .confirm-btn:hover {
+            background-color: #162d6e;
+          }
         </style>
       </head>
       <body>
         <div class="card">
-          <form id="consentForm" method="POST" action="/api/consent/confirm">
-            <input type="hidden" name="token" value="${escapeHtml(token)}" />
-            <input type="hidden" name="name" value="${escapeHtml(name)}" />
-            <input type="hidden" name="branchName" value="${escapeHtml(branchName)}" />
-            <input type="hidden" name="referrerName" value="${escapeHtml(referrerName)}" />
+          <h2>Consent for Endorsement and Data Processing</h2>
 
-            <div id="working">
-              <div class="spinner"></div>
-              <h2>Recording your consent</h2>
-              <p>One moment please. Do not close this window.</p>
-            </div>
+          <p><strong>Dear Valued Client,</strong></p>
 
-            <noscript>
-              <h2>Confirm Your Consent</h2>
-              <p>
-                You have already read and agreed to the consent notice in the email.
-                Press the button below to record it.
-              </p>
-              <button type="submit" class="confirm-btn">Record My Consent</button>
-            </noscript>
-          </form>
+          <p>Good day!</p>
 
-        <script>
-          document.getElementById('working').style.display = 'block';
-          document.getElementById('consentForm').submit();
-        </script>
+          <p>
+            As part of our financial needs assessment and product presentation process,
+            we kindly request your consent to allow <span class="highlight">PHILLIFE</span> and its
+            authorized representatives to process your information for account servicing
+            and endorsement to the assigned Account Officer at your Landbank servicing branch.
+          </p>
+
+          <p>
+            By providing your consent, you authorize the company and its authorized
+            representatives to collect, process, store, and use your information for the following purposes:
+          </p>
+
+          <ol>
+            <li>Evaluation of your financial and insurance needs</li>
+            <li>Product presentation and proposal preparation</li>
+            <li>Account servicing and client support</li>
+            <li>Policy processing and future claims evaluation</li>
+            <li>Communication regarding products, services, and updates</li>
+          </ol>
+
+          <p>
+            Please be assured that your information will be handled in accordance
+            with the <span class="highlight">Data Privacy Act of 2012</span> and the company's
+            policies on confidentiality and data protection.
+          </p>
+
+          <p>
+            By clicking the button below, you confirm that the information you provided
+            is true and complete to the best of your knowledge. You also understand that
+            incomplete or inaccurate information may affect the processing of your application or request.
+          </p>
+
+          <p>This consent shall remain valid unless withdrawn in writing.</p>
+
+          <div class="form-section">
+            <p><strong>This is the final step. Your consent is recorded when you press the button below.</strong></p>
+
+            <form method="POST" action="/api/consent/confirm">
+              <input type="hidden" name="token" value="${escapeHtml(token)}" />
+              <input type="hidden" name="name" value="${escapeHtml(name)}" />
+              <input type="hidden" name="branchName" value="${escapeHtml(branchName)}" />
+              <input type="hidden" name="referrerName" value="${escapeHtml(referrerName)}" />
+              <button type="submit" class="confirm-btn">I Agree</button>
+            </form>
+          </div>
         </div>
       </body>
       </html>`

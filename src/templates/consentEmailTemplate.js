@@ -30,16 +30,23 @@ export const consentEmailTemplate = (confirmLink) => `
     </p>
 
     <p>
-      By clicking the button below, you confirm that the information you provided
-      is true and complete to the best of your knowledge. You also understand that
-      incomplete or inaccurate information may affect the processing of your application or request.
+      To give your consent, please open the secure page below. You will see this
+      notice again in full and can record your consent there. By doing so you
+      confirm that the information you provided is true and complete to the best
+      of your knowledge, and you understand that incomplete or inaccurate
+      information may affect the processing of your application or request.
     </p>
 
     <p>
       <a href="${confirmLink}"
           style="display:inline-block; padding:10px 20px; background-color:#1e3a8a; color:white; text-decoration:none; border-radius:5px;">
-          Confirm Consent
+          Review and Give Consent
       </a>
+    </p>
+
+    <p style="color:#666; font-size:13px;">
+      Opening this link does not record anything on its own. Your consent is
+      recorded only when you press <strong>I Agree</strong> on that page.
     </p>
 
     <p>
