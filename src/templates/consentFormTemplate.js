@@ -1,4 +1,5 @@
 import { escapeHtml } from '../utils/validators.js'
+import { API_VERSION_PREFIX } from '../utils/constant.js'
 
 export const consentFormTemplate = (token, name, branchName, referrerName) => `
       <!DOCTYPE html>
@@ -119,7 +120,7 @@ export const consentFormTemplate = (token, name, branchName, referrerName) => `
           <div class="form-section">
             <p><strong>This is the final step. Your consent is recorded when you press the button below.</strong></p>
 
-            <form method="POST" action="/api/consent/confirm">
+            <form method="POST" action="${API_VERSION_PREFIX}/consent/confirm">
               <input type="hidden" name="token" value="${escapeHtml(token)}" />
               <input type="hidden" name="name" value="${escapeHtml(name)}" />
               <input type="hidden" name="branchName" value="${escapeHtml(branchName)}" />

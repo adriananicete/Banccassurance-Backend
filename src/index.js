@@ -14,6 +14,7 @@ import underwritingRoutes from "./routes/underwritingRoutes.js"
 import userRoutes from "./routes/userRoutes.js";
 import lookupRoutes from "./routes/lookupRoutes.js";
 import consentRoutes from "./routes/consentRoutes.js";
+import { API_LEGACY_PREFIX, API_VERSION_PREFIX } from "./utils/constant.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,13 +40,18 @@ app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/referrals", referralRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/lookups", lookupRoutes);
-app.use("/api/consent", consentRoutes);
-app.use("/api/underwriting/referrals", underwritingRoutes);
+const mountRouters = (prefix) => {
+  app.use(`${prefix}/notifications`, notificationRoutes);
+  app.use(`${prefix}/referrals`, referralRoutes);
+  app.use(`${prefix}/auth`, authRoutes);
+  app.use(`${prefix}/users`, userRoutes);
+  app.use(`${prefix}/lookups`, lookupRoutes);
+  app.use(`${prefix}/consent`, consentRoutes);
+  app.use(`${prefix}/underwriting/referrals`, underwritingRoutes);
+};
+
+mountRouters(API_VERSION_PREFIX);
+mountRouters(API_LEGACY_PREFIX);
 
 app.use("/uploads", express.static(path.join(__dirname, "../avatar_uploads")));
 
