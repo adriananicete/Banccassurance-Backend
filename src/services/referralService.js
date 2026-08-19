@@ -240,7 +240,14 @@ export const confirmConsentRequest = async (token) => {
   if(!token || !isValidGuid(token)) throwHttpError(404, 'Invalid consent token')
 
   const confirmConsent = await referralModel.confirmConsentRequest(token).run();
-  if(confirmConsent.rowsAffected[0] === 0) throwHttpError(404, 'Consent request not found or already confirmed')
+  if(confirmConsent.rowsAffected[0] > 0) return;
+
+  // usp_confirm_consent_request only moves PENDING -> CONFIRMED, so zero rows
+  // means either the token does not exist or consent is already recorded.
+  // A client who confirms twice has done nothing wrong; only the first is an error.
+  const existing = await validateConsentToken(token);
+  if(!validConsentStatus.includes(existing.Status))
+    throwHttpError(404, `This consent request is ${existing.Status} and cannot be confirmed.`)
 };
 
 export const checkConsent = async (email) => {

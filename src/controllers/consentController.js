@@ -3,6 +3,7 @@ import * as referralService from "../services/referralService.js";
 import { consentConfirmedTemplate } from "../templates/consentConfirmedTemplate.js";
 import { consentInvalidTemplate } from "../templates/consentInvalidTemplate.js";
 import { consentFormTemplate } from "../templates/consentFormTemplate.js";
+import { validConsentStatus } from "../utils/constant.js";
 
 export const sendConsent = async (req, res, next) => {
   try {
@@ -25,7 +26,12 @@ export const confirmConsent = async (req, res) => {
   try {
     const { token, name, branchName, referrerName } = req.query;
 
-    await referralService.validateConsentToken(token)
+    const consent = await referralService.validateConsentToken(token)
+
+    // Already recorded, by this link or by an uploaded form. Show the result
+    // rather than submitting again into a failure the client cannot act on.
+    if (validConsentStatus.includes(consent.Status))
+      return res.send(consentConfirmedTemplate(null, { name, branchName, referrerName }))
 
     res.send(consentFormTemplate(token, name, branchName, referrerName))
 
