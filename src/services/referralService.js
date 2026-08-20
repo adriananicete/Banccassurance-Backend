@@ -321,7 +321,11 @@ export const updateReferralStatus = async (id, status, user) => {
   if (referral.AOCode !== user.UserCode) throwHttpError(403, "Forbidden");
 
   const allowedStatus = statusTransitions[referral.Status];
-  if(!allowedStatus) throwHttpError(400, 'This referral has an unrecognized status (${referral.Status}) and cannot be updated. Please contact support.')
+  if (!allowedStatus)
+    throwHttpError(
+      400,
+      `This referral has an unrecognized status (${referral.Status}) and cannot be updated. Please contact support.`,
+    );
 
   if (allowedStatus.length === 0)
     throwHttpError(400, `Status cannot be changed from ${referral.Status}`);
