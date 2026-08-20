@@ -14,17 +14,15 @@ export const insert = (userCode, message) => {
   }
 }
 
-export const getByUserCode = (userCode) => {
+export const getByUserCode = (userCode, options = {}) => {
   const request = new sql.Request()
-  request.input('CleanUserCode', sql.NVarChar, userCode)
+  request.input('UserCode', sql.NVarChar, userCode)
+  request.input('PageNumber', sql.Int, options.PageNumber)
+  request.input('PageSize', sql.Int, options.PageSize)
+  request.input('UnreadOnly', sql.Bit, options.UnreadOnly)
   return {
     request,
-    run: () => request.query(`
-      SELECT [Id], [UserCode], [Message], [IsRead], [CreatedAt]
-      FROM [banc].[Notifications]
-      WHERE [UserCode] = @CleanUserCode
-      ORDER BY [CreatedAt] DESC
-    `)
+    run: () => request.execute('banc.usp_sel_notifications_by_user')
   }
 }
 
