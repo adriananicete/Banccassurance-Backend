@@ -2,7 +2,6 @@ import * as referralService from "../services/referralService.js";
 import { isValidGuid } from "../utils/validators.js";
 import { sortDirections, sortWhitelist } from "../utils/constant.js";
 
-// GET REFERRER INFO BY CODE (AUTO-FILL)
 export const getReferrerByCode = async (req, res, next) => {
   try {
     
@@ -136,7 +135,6 @@ export const updateReferralStatus = async (req, res, next) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    // ✅ Validate that the incoming id parameter is structurally a valid 36-character GUID
     if (!id || !isValidGuid(id)) {
       console.warn(
         `⚠️ Blocked status update attempt due to invalid GUID format: "${id}"`,
@@ -162,7 +160,6 @@ export const getReferralById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // ✅ Safe Check: Verifies if the incoming string matches a valid 36-character GUID pattern
     if (!id || !isValidGuid(id)) {
       console.warn(
         `⚠️ Blocked an invalid lookup attempt with ID format: "${id}"`,

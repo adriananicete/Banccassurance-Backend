@@ -10,7 +10,6 @@ const router = express.Router()
 router.post('/verify-otp', strictLimiter, verifyOtp)
 router.post('/login-step1', strictLimiter, loginStep1)
 
-// Authenticated
 router.post('/logout', requireAuth, logout)
 
 export default router

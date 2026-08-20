@@ -79,10 +79,6 @@ export const getBranches = (areaCode, search) => {
   const request = new sql.Request();
   const area = asInt(areaCode);
 
-  // /lookups/branches takes no session, so both filters arrive from an
-  // unauthenticated query string. A non-numeric areaCode used to reach sql.Int
-  // and 500; it now reads as absent, which is what an omitted filter already
-  // means.
   request.input("AreaCode", sql.Int, Number.isFinite(area) ? area : null);
   request.input("Search", sql.NVarChar, asText(search));
 
@@ -276,10 +272,6 @@ ORDER BY CreatedAt DESC;
   };
 };
 
-// Every active superadmin. The approver lookup for SECTOR_HEAD and
-// DEPARTMENT_HEAD, and the reason those two can now self-register at all.
-// Looped like every other approver lookup -- never TOP 1, or a second superadmin
-// is silently never told.
 export const getSuperadmins = () => {
   const request = new sql.Request();
   return {
@@ -294,9 +286,6 @@ export const getSuperadmins = () => {
   };
 };
 
-// usp_ins_register_user returns the UserCode it generated but not the UserId,
-// and usp_ins_approve_reject_user is keyed by UserId. Only the superadmin's
-// create-and-approve path needs the bridge.
 export const findUserIdByCode = (userCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
@@ -309,11 +298,6 @@ export const findUserIdByCode = (userCode) => {
   };
 };
 
-// The superadmin's approval list: the two roles nobody else can approve, from
-// both tenants at once. usp_sel_users_for_approval cannot serve this -- it
-// filters on BranchCode, which is NULL for both -- so this follows the three
-// PhilLife branches and stays an application SELECT until the procedures asked
-// for in DBA items 20b and 28 arrive.
 export const getTopLevelHeadsForApproval = (status) => {
   const request = new sql.Request();
   request.input("StatusFilter", sql.NVarChar, status);
@@ -619,11 +603,6 @@ ORDER BY CreatedAt DESC;
   }
 }
 
-// The three replace* functions take the audit entry rather than leaving the
-// service to write it afterwards. The row goes in on the same transaction, so a
-// scope change that commits is always logged and one that rolls back leaves
-// nothing behind. Before this, a crash between the two left the change applied
-// and invisible -- the exact thing banc.AuditLog exists to prevent.
 export const replaceAccountOfficerBranches = (userCode, branchCodes, audit) => {
   return {
     run: async () => {
@@ -708,8 +687,6 @@ WHERE LTRIM(RTRIM(value)) <> ''`)
   }
 }
 
-// Returns the requested branches the Area Sales Head may not assign: either the
-// branch sits in a group they do not hold, or the code does not exist at all.
 export const getBranchesOutsideAreaSalesHeadScope = (ashUserCode, branchCodes) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, ashUserCode);
@@ -732,8 +709,6 @@ WHERE LTRIM(RTRIM(s.value)) <> ''
   };
 };
 
-// A branch belongs to exactly one Account Officer. Returns the requested codes
-// already held by someone other than the target user.
 export const getBranchesAssignedToOtherAO = (userCode, branchCodes) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
@@ -751,8 +726,6 @@ WHERE aob.UserCode <> @UserCode
   };
 };
 
-// Returns the requested groups the Regional Sales Head does not hold themselves,
-// unknown codes included.
 export const getAreasOutsideRegionalSalesHeadScope = (rshUserCode, areaCodes) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, rshUserCode);
@@ -774,8 +747,6 @@ WHERE LTRIM(RTRIM(s.value)) <> ''
   };
 };
 
-// The Department Head has no scope table — they see the whole tenant — so the
-// only thing left to reject is a code that is not a real group.
 export const getUnknownAreas = (areaCodes) => {
   const request = new sql.Request();
   request.input("AreaCodes", sql.NVarChar, areaCodes);

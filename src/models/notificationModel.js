@@ -6,7 +6,6 @@ export const insert = (userCode, message) => {
   request.input('Message', sql.NVarChar, message)
   return {
     request,
-    // Store creation time in UTC.
     run: () => request.query(`
       INSERT INTO [banc].[Notifications] ([UserCode], [Message], [IsRead], [CreatedAt])
       VALUES (@UserCode, @Message, 0, SYSUTCDATETIME())

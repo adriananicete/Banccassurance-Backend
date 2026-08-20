@@ -16,7 +16,6 @@ const SENDER_EMAIL = process.env.GRAPH_SENDER_EMAIL;
 let cachedToken = null;
 let tokenExpiry = 0;
 
-// ✅ Get token
 const getAccessToken = async () => {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
 
@@ -83,7 +82,6 @@ const sendMail = async (toEmail, subject, htmlBody) => {
     }
 };
 
-// ✅ Send email
 export const sendConsentEmail = async (toEmail, token, name, branchName, referrerName, fullName) => {
 
   const params = new URLSearchParams({ token });

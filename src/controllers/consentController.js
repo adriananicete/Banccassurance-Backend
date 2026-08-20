@@ -29,8 +29,6 @@ export const confirmConsent = async (req, res) => {
 
     const consent = await referralService.validateConsentToken(token)
 
-    // Already recorded, by this link or by an uploaded form. Show the result
-    // rather than submitting again into a failure the client cannot act on.
     if (validConsentStatus.includes(consent.Status))
       return res.send(consentConfirmedTemplate(null, { name, branchName, referrerName }))
 

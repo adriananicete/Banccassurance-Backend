@@ -26,11 +26,6 @@ const formatArray = (arr) => {
 };
 
 export const getReferrerByCode = async (user) => {
-  // An Account Officer has no BranchCode -- they belong to an area, and their
-  // branches live in account_officer_branches. getReferrerAttribution joins
-  // Users to branches on BranchCode, so it returns nothing for them. Use the
-  // same lookup createReferral already uses for this role, and return the row
-  // it would write.
   if (user.Role === ACCOUNT_OFFICER) {
     const aoResult = await referralModel.getAOAttribution(user.UserCode).run();
 
@@ -69,9 +64,6 @@ export const getPlans = async () => {
 };
 
 export const createReferral = async (data, user) => {
-  // Authorisation first, before any lookup. Checking consent ahead of the role
-  // answered 403 to a role that may not refer at all, but with the consent
-  // message -- right status, wrong reason, and impossible to tell apart in a test.
   if (!referralCreatorRoles.includes(user.Role))
     throwHttpError(
       403,
@@ -212,9 +204,6 @@ export const createReferral = async (data, user) => {
 
     return result.recordset[0];
   } else {
-    // Unreachable while referralCreatorRoles and the branches above agree. Kept
-    // so that adding a role to that list without adding a branch here fails
-    // loudly instead of returning undefined the way it used to.
     throwHttpError(500, "No referral path is defined for this role.");
   }
 };
@@ -268,9 +257,6 @@ export const confirmConsentRequest = async (token) => {
   const confirmConsent = await referralModel.confirmConsentRequest(token).run();
   if(confirmConsent.rowsAffected[0] > 0) return;
 
-  // usp_confirm_consent_request only moves PENDING -> CONFIRMED, so zero rows
-  // means either the token does not exist or consent is already recorded.
-  // A client who confirms twice has done nothing wrong; only the first is an error.
   const existing = await validateConsentToken(token);
   if(!validConsentStatus.includes(existing.Status))
     throwHttpError(404, `This consent request is ${existing.Status} and cannot be confirmed.`)
@@ -400,8 +386,6 @@ export const canAccessReferral = async (referral, user) => {
   } else if (user.Role === GROUP_HEAD) {
     if (String(referral.AreaCode) === String(user.AreaCode)) return true;
   } else if (user.Role === AREA_SALES_HEAD) {
-    // Users.AreaCode is NULL for every ASH -- their areas live in the junction
-    // table, so the scalar comparison above can never match for them.
     const areaSalesHead = await userModel
       .isAreaInAreaSalesHeadScope(user.UserCode, referral.AreaCode)
       .run();
@@ -414,19 +398,6 @@ export const canAccessReferral = async (referral, user) => {
 
     return sectorHead.recordset.length > 0;
   } else if (user.Role === DEPARTMENT_HEAD) {
-    // The Department Head has no scope table -- they see their whole tenant.
-    // They were previously checked against banc.user_area, which holds no rows
-    // for them, so they could not open a single referral.
-    //
-    // Tenant is read from AOCode, not ReferrerCode, to match the SPs. A Landbank
-    // staff member refers and a PhilLife AO handles it, so ReferrerCode is USR-
-    // on most of the PhilLife book -- keying on it would hide from the DH exactly
-    // the referrals their own AOs are working.
-    //
-    // The prefix is taken by hand rather than through getTenant, which throws 400
-    // on anything that is not USR- or PHL-. banc.Referrals.AOCode has no foreign
-    // key and does contain junk (see §8C), and an access check must fail closed on
-    // bad data, not turn into a 400. UserCode comes from the JWT and is safe.
     const referralTenant =
       referral.AOCode?.toUpperCase().split("-")[0] ?? null;
     return referralTenant !== null && referralTenant === getTenant(user.UserCode);

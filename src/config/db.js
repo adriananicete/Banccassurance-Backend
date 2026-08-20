@@ -1,4 +1,3 @@
-// Pre-existing TLS/SNI compatibility workaround for this DB host — kept as-is.
 process.env.NODE_NO_DEP_TLS_SNI = '1';
 import sql from 'mssql'
 

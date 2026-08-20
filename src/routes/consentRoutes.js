@@ -14,8 +14,6 @@ import { mediumLimiter, strictLimiter } from '../middleware/rateLimiter.js'
 
 const router = express.Router();
 
-// Rendered for the client's own browser from the consent email. Public, the
-// token is the credential, and both answer HTML rather than reaching errorHandler.
 router.get('/confirm', confirmConsent)
 router.post('/confirm', confirmConsentPost)
 

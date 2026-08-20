@@ -97,7 +97,6 @@ export const uploadProfilePhoto = async (req, res, next) => {
     const newFileName = req.file.filename
     const { oldPhoto } = await userService.uploadProfilePhoto(UserCode, newFileName)
 
-    // ✅ DELETE OLD FILE (IF EXISTS)
     if (oldPhoto) {
       const oldPath = path.join('avatar_uploads', oldPhoto)
 

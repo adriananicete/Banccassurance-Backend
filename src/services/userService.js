@@ -31,12 +31,6 @@ const otpStore = {};
 
 const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
 
-// banc.Users.IsActive is a bit column, so mssql hands back a JavaScript boolean --
-// never the numbers these guards used to be compared against. `IsActive !== 0` was
-// therefore true even for a pending user, and `IsActive !== 1` true even for an
-// approved one. Accept both shapes so that changing the column to INT later (which a
-// real REJECTED state would need) does not silently break the guards a second time.
-// The column is nullable, and NULL is neither -- both helpers return false for it.
 const isApproved = (isActive) => isActive === true || isActive === 1;
 const isPending = (isActive) => isActive === false || isActive === 0;
 
@@ -175,9 +169,6 @@ export const checkEmail = async (email) => {
   return result.recordset[0].exists === 1;
 };
 
-// `createdBySuperadmin` is a second parameter rather than a field, so it can
-// never arrive from a request body: the caller is the one thing about a
-// registration that must not be settable by the person registering.
 export const register = async (fields, { createdBySuperadmin = false } = {}) => {
   if (
     !landBankRoles.includes(fields.role) &&
@@ -215,8 +206,6 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
   let noApproverMessage;
 
   if (createdBySuperadmin) {
-    // The creator is the approver and is approving in the same breath, so there
-    // is nobody to look up and nobody to tell that something is pending.
     approvers = { recordset: [] };
   } else if (fields.role === BRANCH_STAFF) {
      approvers = await userModel
@@ -260,9 +249,6 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
     noApproverMessage = 'No Department Head is assigned yet. Please contact your administrator.'
 
   } else if (topLevelRoles.includes(fields.role)) {
-    // These two sit at the top of their hierarchies with nobody above them, so
-    // until SUPERADMIN existed they could only be inserted by hand. The
-    // superadmin is their approver and the reason this branch can exist.
     approvers = await userModel.getSuperadmins().run();
     approverMessage =
       fields.role === SECTOR_HEAD
@@ -425,11 +411,6 @@ export const approveRejectUser = async (user, userId, action) => {
       throwHttpError(403, 'Forbidden')
     }
   } else if (user.Role === SUPERADMIN) {
-    // The only branch here that does not narrow by the caller's scope, because
-    // the role has none. It narrows by action instead: APPROVE is limited to the
-    // two roles nobody else can approve, while REJECT -- which is how a user is
-    // deactivated -- may reach anyone. Every other branch runs one guard for
-    // both actions, so this asymmetry is easy to flatten by accident.
     if (action === "APPROVE" && !superadminApprovableRoles.includes(targetUser.Role)) {
       throwHttpError(
         403,
@@ -466,12 +447,6 @@ export const approveRejectUser = async (user, userId, action) => {
   return { success: false, message: Message };
 };
 
-// The superadmin creates a Sector Head or Department Head outright, rather than
-// waiting for that person to register and then approving them. Two writes rather
-// than one: usp_ins_register_user hardcodes IsActive = 0, so the row is created
-// pending and approved immediately afterwards. An @IsActive parameter would
-// collapse it into a single call and is requested as DBA item 30 -- until then
-// this reuses two procedures that are already tested rather than blocking on one.
 export const createTopLevelUser = async (actor, fields) => {
   if (!superadminApprovableRoles.includes(fields.role))
     throwHttpError(
@@ -506,8 +481,6 @@ export const createTopLevelUser = async (actor, fields) => {
   };
 };
 
-// All three assign endpoints replace the whole set, so the caller sends the full
-// desired list and an empty array means "remove all".
 const normalizeCodes = (codes, field) => {
   if (!Array.isArray(codes)) throwHttpError(400, `${field} must be an array`);
 
@@ -522,7 +495,6 @@ const normalizeCodes = (codes, field) => {
 };
 
 const loadAssignTarget = async (userId, expectedRole, roleLabel) => {
-  // userId arrives from the URL, so it is a string until proven otherwise.
   const id = Number(userId);
   if (!Number.isInteger(id) || id <= 0) throwHttpError(404, "Not Found");
 
@@ -555,8 +527,6 @@ export const replaceAccountOfficerBranches = async (
   const unscoped = user.Role === SUPERADMIN;
 
   if (!unscoped) {
-    // The AO's group is the one they picked at registration -- the same key the
-    // Area Sales Head approved them on.
     const inScope = await userModel
       .isAreaInAreaSalesHeadScope(user.UserCode, targetUser.AreaCode)
       .run();
@@ -579,8 +549,6 @@ export const replaceAccountOfficerBranches = async (
         );
     }
 
-    // Not a caller-scope check and therefore not bypassed: a branch belongs to
-    // exactly one Account Officer, and that stays true whoever is assigning.
     const taken = await userModel
       .getBranchesAssignedToOtherAO(targetUser.UserCode, joined)
       .run();
@@ -618,15 +586,6 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
 
   const unscoped = user.Role === SUPERADMIN;
 
-  // This endpoint alone refuses the empty set. A Regional Sales Head's authority over an
-  // Area Sales Head comes from `isAshInRegionalScope`, which works by finding an area the
-  // two hold in common -- so emptying the set is the one write that revokes the caller's own
-  // ability to undo it, and no other role can reach the user afterwards. `/branches` and
-  // `/groups` still accept it: neither takes its permission from the table it edits.
-  //
-  // The superadmin is the exception the guard was waiting for: its reach does not come from
-  // a shared area, so emptying the set strands nobody. It is also the only role that can
-  // recover an account already stranded this way.
   if (areas.length === 0 && !unscoped)
     throwHttpError(
       400,
@@ -659,8 +618,6 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
       );
   }
 
-  // The superadmin skips the region check above but not this one -- an area that
-  // does not exist is wrong for everybody.
   if (areas.length > 0 && unscoped) {
     const unknown = await userModel.getUnknownAreas(areas.join(",")).run();
     if (unknown.recordset.length > 0)
@@ -704,7 +661,6 @@ export const replaceRegionalSalesHeadAreas = async (
     "a Regional Sales Head",
   );
 
-  // No caller scope check -- the Department Head sees the whole tenant.
   if (areas.length > 0) {
     const unknown = await userModel.getUnknownAreas(areas.join(",")).run();
     if (unknown.recordset.length > 0)
@@ -737,7 +693,6 @@ export const replaceRegionalSalesHeadAreas = async (
 };
 
 export const findByUserCode = async (userCode) => {
-  // Leverages the existing pattern in your service file
   const result = await userModel.validateUser(userCode).run();
 
   if (result.recordset.length === 0) {
