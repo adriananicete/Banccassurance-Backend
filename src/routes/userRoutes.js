@@ -10,11 +10,11 @@ import { photoUpload } from '../middleware/upload.js';
 import { verifyFileSignature } from '../middleware/verifyFileSignature.js';
 import { imageKinds } from '../utils/fileSignature.js';
 import { mediumLimiter } from '../middleware/rateLimiter.js';
-import { AREA_SALES_HEAD, BRANCH_HEAD, DEPARTMENT_HEAD, GROUP_HEAD, REGIONAL_SALES_HEAD, SECTOR_HEAD } from '../utils/constant.js';
+import { AREA_SALES_HEAD, BRANCH_HEAD, DEPARTMENT_HEAD, GROUP_HEAD, REGIONAL_SALES_HEAD, SECTOR_HEAD, SUPERADMIN } from '../utils/constant.js';
 
 const router = express.Router()
 
-const approverRoles = [BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD];
+const approverRoles = [BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD, SUPERADMIN];
 
 // Public / pre-auth (registration flow)
 router.get('/check-email', mediumLimiter, checkEmail)
@@ -33,8 +33,8 @@ router.post('/approvals/action', requireAuth, requireRole(...approverRoles), app
 
 // Scope assignment. Each one replaces the whole set -- the caller sends the
 // full desired list, and an empty array removes everything.
-router.put('/:userId/branches', requireAuth, requireRole(AREA_SALES_HEAD), replaceAccountOfficerBranches)
-router.put('/:userId/areas', requireAuth, requireRole(REGIONAL_SALES_HEAD), replaceAreaSalesHeadAreas)
-router.put('/:userId/groups', requireAuth, requireRole(DEPARTMENT_HEAD), replaceRegionalSalesHeadAreas)
+router.put('/:userId/branches', requireAuth, requireRole(AREA_SALES_HEAD, SUPERADMIN), replaceAccountOfficerBranches)
+router.put('/:userId/areas', requireAuth, requireRole(REGIONAL_SALES_HEAD, SUPERADMIN), replaceAreaSalesHeadAreas)
+router.put('/:userId/groups', requireAuth, requireRole(DEPARTMENT_HEAD, SUPERADMIN), replaceRegionalSalesHeadAreas)
 
 export default router

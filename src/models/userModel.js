@@ -275,6 +275,48 @@ ORDER BY CreatedAt DESC;
   };
 };
 
+// The superadmin's approval list: the two roles nobody else can approve, from
+// both tenants at once. usp_sel_users_for_approval cannot serve this -- it
+// filters on BranchCode, which is NULL for both -- so this follows the three
+// PhilLife branches and stays an application SELECT until the procedures asked
+// for in DBA items 20b and 28 arrive.
+export const getTopLevelHeadsForApproval = (status) => {
+  const request = new sql.Request();
+  request.input("StatusFilter", sql.NVarChar, status);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT
+    UserId,
+    UserCode,
+    FullName,
+    FirstName,
+    LastName,
+    Email,
+    MobileNumber,
+    Position,
+    Role,
+    IsActive,
+    CreatedAt,
+    CASE
+        WHEN IsActive = 1  THEN 'APPROVED'
+        WHEN IsActive = -1 THEN 'REJECTED'
+        ELSE 'PENDING'
+    END AS Status
+FROM banc.Users
+  WHERE Role IN ('SECTOR_HEAD', 'DEPARTMENT_HEAD')
+  AND (
+        @StatusFilter = 'ALL'
+     OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
+     OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
+     OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
+  )
+ORDER BY CreatedAt DESC, UserId DESC;
+      `),
+  };
+};
+
 export const getAreaSalesHeadsForApproval = (rshUserCode, status) => {
   const request = new sql.Request();
   request.input("RshUserCode", sql.NVarChar, rshUserCode)

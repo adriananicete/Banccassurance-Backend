@@ -19,6 +19,8 @@ import {
   philLifeRoles,
   REGIONAL_SALES_HEAD,
   SECTOR_HEAD,
+  SUPERADMIN,
+  superadminApprovableRoles,
 } from "../utils/constant.js";
 import { throwHttpError } from "../utils/error.js";
 import { safeNotify } from "./notificationService.js";
@@ -337,6 +339,9 @@ export const getUsersForApproval = async (user, status) => {
   } else if(user.Role === AREA_SALES_HEAD) {
     const result = await userModel.getAccountOfficersForApproval(user.UserCode, status).run();
     return result.recordset;
+  } else if (user.Role === SUPERADMIN) {
+    const result = await userModel.getTopLevelHeadsForApproval(status).run();
+    return result.recordset;
   } else {
     throwHttpError(400, "Invalid Role");
   }
@@ -397,6 +402,22 @@ export const approveRejectUser = async (user, userId, action) => {
     const scopeCheck = await userModel.isAreaInAreaSalesHeadScope(user.UserCode, targetUser.AreaCode).run();
     if(scopeCheck.recordset.length === 0) {
       throwHttpError(403, 'Forbidden')
+    }
+  } else if (user.Role === SUPERADMIN) {
+    // The only branch here that does not narrow by the caller's scope, because
+    // the role has none. It narrows by action instead: APPROVE is limited to the
+    // two roles nobody else can approve, while REJECT -- which is how a user is
+    // deactivated -- may reach anyone. Every other branch runs one guard for
+    // both actions, so this asymmetry is easy to flatten by accident.
+    if (action === "APPROVE" && !superadminApprovableRoles.includes(targetUser.Role)) {
+      throwHttpError(
+        403,
+        "A superadmin approves Sector Heads and Department Heads. Every other role is approved by the role above it.",
+      );
+    }
+
+    if (targetUser.UserCode === user.UserCode) {
+      throwHttpError(400, "You cannot deactivate your own account.");
     }
   } else {
     throwHttpError(403, "Forbidden");
@@ -470,27 +491,35 @@ export const replaceAccountOfficerBranches = async (
     "an Account Officer",
   );
 
-  // The AO's group is the one they picked at registration -- the same key the
-  // Area Sales Head approved them on.
-  const inScope = await userModel
-    .isAreaInAreaSalesHeadScope(user.UserCode, targetUser.AreaCode)
-    .run();
-  if (inScope.recordset.length === 0) throwHttpError(403, "Forbidden");
+  const unscoped = user.Role === SUPERADMIN;
+
+  if (!unscoped) {
+    // The AO's group is the one they picked at registration -- the same key the
+    // Area Sales Head approved them on.
+    const inScope = await userModel
+      .isAreaInAreaSalesHeadScope(user.UserCode, targetUser.AreaCode)
+      .run();
+    if (inScope.recordset.length === 0) throwHttpError(403, "Forbidden");
+  }
 
   if (branches.length > 0) {
     const joined = branches.join(",");
 
-    const outside = await userModel
-      .getBranchesOutsideAreaSalesHeadScope(user.UserCode, joined)
-      .run();
-    if (outside.recordset.length > 0)
-      throwHttpError(
-        403,
-        `These branches are outside your assigned groups: ${outside.recordset
-          .map((row) => row.BranchCode)
-          .join(", ")}`,
-      );
+    if (!unscoped) {
+      const outside = await userModel
+        .getBranchesOutsideAreaSalesHeadScope(user.UserCode, joined)
+        .run();
+      if (outside.recordset.length > 0)
+        throwHttpError(
+          403,
+          `These branches are outside your assigned groups: ${outside.recordset
+            .map((row) => row.BranchCode)
+            .join(", ")}`,
+        );
+    }
 
+    // Not a caller-scope check and therefore not bypassed: a branch belongs to
+    // exactly one Account Officer, and that stays true whoever is assigning.
     const taken = await userModel
       .getBranchesAssignedToOtherAO(targetUser.UserCode, joined)
       .run();
@@ -528,12 +557,18 @@ export const replaceAccountOfficerBranches = async (
 export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
   const areas = normalizeCodes(areaCodes, "areaCodes");
 
+  const unscoped = user.Role === SUPERADMIN;
+
   // This endpoint alone refuses the empty set. A Regional Sales Head's authority over an
   // Area Sales Head comes from `isAshInRegionalScope`, which works by finding an area the
   // two hold in common -- so emptying the set is the one write that revokes the caller's own
   // ability to undo it, and no other role can reach the user afterwards. `/branches` and
   // `/groups` still accept it: neither takes its permission from the table it edits.
-  if (areas.length === 0)
+  //
+  // The superadmin is the exception the guard was waiting for: its reach does not come from
+  // a shared area, so emptying the set strands nobody. It is also the only role that can
+  // recover an account already stranded this way.
+  if (areas.length === 0 && !unscoped)
     throwHttpError(
       400,
       "An Area Sales Head must keep at least one group. Removing every group would leave no Regional Sales Head able to manage this user. Deactivate the account instead.",
@@ -545,12 +580,14 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
     "an Area Sales Head",
   );
 
-  const inScope = await userModel
-    .isAshInRegionalScope(user.UserCode, targetUser.UserCode)
-    .run();
-  if (inScope.recordset.length === 0) throwHttpError(403, "Forbidden");
+  if (!unscoped) {
+    const inScope = await userModel
+      .isAshInRegionalScope(user.UserCode, targetUser.UserCode)
+      .run();
+    if (inScope.recordset.length === 0) throwHttpError(403, "Forbidden");
+  }
 
-  if (areas.length > 0) {
+  if (areas.length > 0 && !unscoped) {
     const outside = await userModel
       .getAreasOutsideRegionalSalesHeadScope(user.UserCode, areas.join(","))
       .run();
@@ -558,6 +595,19 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
       throwHttpError(
         403,
         `These groups are outside your region: ${outside.recordset
+          .map((row) => row.AreaCode)
+          .join(", ")}`,
+      );
+  }
+
+  // The superadmin skips the region check above but not this one -- an area that
+  // does not exist is wrong for everybody.
+  if (areas.length > 0 && unscoped) {
+    const unknown = await userModel.getUnknownAreas(areas.join(",")).run();
+    if (unknown.recordset.length > 0)
+      throwHttpError(
+        400,
+        `These groups do not exist: ${unknown.recordset
           .map((row) => row.AreaCode)
           .join(", ")}`,
       );
