@@ -97,10 +97,11 @@ test("codes are deduplicated and normalised before they reach SQL", async () => 
   const result = await service.replaceAccountOfficerBranches(ash, 1784, [40, "41", 40, 41, 43]);
 
   assert.deepEqual(result.data.branchCodes, [40, 41, 43]);
-  assert.deepEqual(
-    calls.find((call) => call.name === "replaceAccountOfficerBranches").args,
-    ["PHL-AO-1168", "40,41,43"],
-  );
+
+  const args = calls.find((call) => call.name === "replaceAccountOfficerBranches").args;
+  assert.deepEqual(args.slice(0, 2), ["PHL-AO-1168", "40,41,43"]);
+  // Third argument is the audit entry, written on the same transaction.
+  assert.equal(args[2].action, "BRANCHES_ASSIGNED");
 });
 
 test("a body that is not an array, or holds something that is not a whole number, is a 400", async () => {
@@ -160,11 +161,12 @@ test("the Department Head assigns groups with no scope check of their own", asyn
   const { service, calls } = await withUserService(groupsModel());
   await service.replaceRegionalSalesHeadAreas(dh, 1784, [1, 2, 3]);
 
+  // No `record` at the end any more -- the audit row is written inside
+  // replaceRegionalSalesHeadAreas, on its transaction.
   assert.deepEqual(calls.map((call) => call.name), [
     "getUserScopeById",
     "getUnknownAreas",
     "replaceRegionalSalesHeadAreas",
-    "record",
   ]);
 });
 

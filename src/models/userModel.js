@@ -1,5 +1,6 @@
 import sql from "../config/db.js";
 
+import * as auditModel from "./auditModel.js";
 import { asInt, asText } from "../utils/sqlValue.js";
 
 export const validateUser = (identifier) => {
@@ -618,7 +619,12 @@ ORDER BY CreatedAt DESC;
   }
 }
 
-export const replaceAccountOfficerBranches = (userCode, branchCodes) => {
+// The three replace* functions take the audit entry rather than leaving the
+// service to write it afterwards. The row goes in on the same transaction, so a
+// scope change that commits is always logged and one that rolls back leaves
+// nothing behind. Before this, a crash between the two left the change applied
+// and invisible -- the exact thing banc.AuditLog exists to prevent.
+export const replaceAccountOfficerBranches = (userCode, branchCodes, audit) => {
   return {
     run: async () => {
       const transaction = new sql.Transaction()
@@ -635,7 +641,9 @@ SELECT @UserCode, CAST(value AS INT)
 FROM STRING_SPLIT(@BranchCodes, ',')
 WHERE LTRIM(RTRIM(value)) <> ''`)
 
-          await transaction.commit()
+        await auditModel.insert(audit, transaction).run()
+
+        await transaction.commit()
       } catch (error) {
         await transaction.rollback()
         throw error
@@ -644,7 +652,7 @@ WHERE LTRIM(RTRIM(value)) <> ''`)
   }
 }
 
-export const replaceAreaSalesHeadAreas = (userCode, areaCodes) => {
+export const replaceAreaSalesHeadAreas = (userCode, areaCodes, audit) => {
   return {
     run: async () => {
       const transaction = new sql.Transaction()
@@ -661,6 +669,8 @@ SELECT @UserCode, CAST(value AS INT)
 FROM STRING_SPLIT(@AreaCodes, ',')
 WHERE LTRIM(RTRIM(value)) <> ''`)
 
+        await auditModel.insert(audit, transaction).run()
+
         await transaction.commit()
       } catch (error) {
         await transaction.rollback()
@@ -670,7 +680,7 @@ WHERE LTRIM(RTRIM(value)) <> ''`)
   }
 }
 
-export const replaceRegionalSalesHeadAreas = (userCode, areaCodes) => {
+export const replaceRegionalSalesHeadAreas = (userCode, areaCodes, audit) => {
   return {
     run: async () => {
       const transaction = new sql.Transaction()
@@ -686,6 +696,8 @@ export const replaceRegionalSalesHeadAreas = (userCode, areaCodes) => {
 SELECT @UserCode, CAST(value AS INT)
 FROM STRING_SPLIT(@AreaCodes, ',')
 WHERE LTRIM(RTRIM(value)) <> ''`)
+
+        await auditModel.insert(audit, transaction).run()
 
         await transaction.commit()
       } catch (error) {

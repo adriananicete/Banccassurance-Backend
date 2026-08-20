@@ -28,24 +28,50 @@ export const captureSql = async (modulePath, rowsToReturn = []) => {
 
   const queries = [];
   const inputs = [];
+  const transactions = [];
+
+  // `events` is the interesting part: begin, every statement issued on this
+  // transaction in order, then commit or rollback. Asserting on that sequence is
+  // how a test shows a write happened *inside* the transaction rather than
+  // beside it.
+  class FakeTransaction {
+    constructor() {
+      this.events = [];
+      transactions.push(this);
+    }
+    async begin() {
+      this.events.push("begin");
+    }
+    async commit() {
+      this.events.push("commit");
+    }
+    async rollback() {
+      this.events.push("rollback");
+    }
+  }
 
   class FakeRequest {
+    constructor(transaction) {
+      this.transaction = transaction;
+    }
     input(name, type, value) {
       inputs.push({ name, value });
       return this;
     }
     async query(text) {
       queries.push(text);
+      if (this.transaction) this.transaction.events.push(text);
       return { recordset: rowsToReturn, rowsAffected: [rowsToReturn.length] };
     }
     async execute(name) {
       queries.push(`EXEC ${name}`);
+      if (this.transaction) this.transaction.events.push(`EXEC ${name}`);
       return { recordset: rowsToReturn, rowsAffected: [rowsToReturn.length] };
     }
   }
 
   const fakeSql = new Proxy(
-    { Request: FakeRequest },
+    { Request: FakeRequest, Transaction: FakeTransaction },
     { get: (target, name) => (name in target ? target[name] : types[name]) },
   );
 
@@ -56,7 +82,7 @@ export const captureSql = async (modulePath, rowsToReturn = []) => {
   generation += 1;
   const model = await import(`${modulePath}?sqlcapture=${generation}`);
 
-  return { model, queries, inputs };
+  return { model, queries, inputs, transactions };
 };
 
 export const selectedColumns = (text) => {

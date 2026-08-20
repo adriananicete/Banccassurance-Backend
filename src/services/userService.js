@@ -594,16 +594,14 @@ export const replaceAccountOfficerBranches = async (
   }
 
   await userModel
-    .replaceAccountOfficerBranches(targetUser.UserCode, branches.join(","))
+    .replaceAccountOfficerBranches(targetUser.UserCode, branches.join(","), {
+      actorUserCode: user.UserCode,
+      action: "BRANCHES_ASSIGNED",
+      entityType: "SCOPE",
+      entityId: targetUser.UserCode,
+      detail: branches.join(","),
+    })
     .run();
-
-  await record({
-    actorUserCode: user.UserCode,
-    action: "BRANCHES_ASSIGNED",
-    entityType: "SCOPE",
-    entityId: targetUser.UserCode,
-    detail: branches.join(","),
-  });
 
   return {
     success: true,
@@ -675,16 +673,14 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
   }
 
   await userModel
-    .replaceAreaSalesHeadAreas(targetUser.UserCode, areas.join(","))
+    .replaceAreaSalesHeadAreas(targetUser.UserCode, areas.join(","), {
+      actorUserCode: user.UserCode,
+      action: "AREAS_ASSIGNED",
+      entityType: "SCOPE",
+      entityId: targetUser.UserCode,
+      detail: areas.join(","),
+    })
     .run();
-
-  await record({
-    actorUserCode: user.UserCode,
-    action: "AREAS_ASSIGNED",
-    entityType: "SCOPE",
-    entityId: targetUser.UserCode,
-    detail: areas.join(","),
-  });
 
   return {
     success: true,
@@ -721,16 +717,14 @@ export const replaceRegionalSalesHeadAreas = async (
   }
 
   await userModel
-    .replaceRegionalSalesHeadAreas(targetUser.UserCode, areas.join(","))
+    .replaceRegionalSalesHeadAreas(targetUser.UserCode, areas.join(","), {
+      actorUserCode: user.UserCode,
+      action: "GROUPS_ASSIGNED",
+      entityType: "SCOPE",
+      entityId: targetUser.UserCode,
+      detail: areas.join(","),
+    })
     .run();
-
-  await record({
-    actorUserCode: user.UserCode,
-    action: "GROUPS_ASSIGNED",
-    entityType: "SCOPE",
-    entityId: targetUser.UserCode,
-    detail: areas.join(","),
-  });
 
   return {
     success: true,

@@ -165,22 +165,32 @@ const assignModel = (role) => ({
   replaceRegionalSalesHeadAreas: () => ({ run: async () => ({}) }),
 });
 
-test("each scope assignment records its own action with the codes it applied", async () => {
+// A scope assignment no longer calls auditService.record. The entry travels as
+// the third argument to the replace* model function, which writes it on the same
+// transaction as the DELETE and INSERT -- so the change and its log commit
+// together or not at all. These read the entry from where it now goes.
+const assigned = (calls, name) => calls.find((c) => c.name === name)?.args[2];
+
+test("each scope assignment carries its own action with the codes it applied", async () => {
   const cases = [
-    ["ACCOUNT_OFFICER", (s) => s.replaceAccountOfficerBranches(ASH, 1, [40, 41]), "BRANCHES_ASSIGNED", "40,41"],
-    ["AREA_SALES_HEAD", (s) => s.replaceAreaSalesHeadAreas(RSH, 1, [5, 6]), "AREAS_ASSIGNED", "5,6"],
-    ["REGIONAL_SALES_HEAD", (s) => s.replaceRegionalSalesHeadAreas(DH, 1, [1, 2]), "GROUPS_ASSIGNED", "1,2"],
+    ["ACCOUNT_OFFICER", (s) => s.replaceAccountOfficerBranches(ASH, 1, [40, 41]), "replaceAccountOfficerBranches", "BRANCHES_ASSIGNED", "40,41"],
+    ["AREA_SALES_HEAD", (s) => s.replaceAreaSalesHeadAreas(RSH, 1, [5, 6]), "replaceAreaSalesHeadAreas", "AREAS_ASSIGNED", "5,6"],
+    ["REGIONAL_SALES_HEAD", (s) => s.replaceRegionalSalesHeadAreas(DH, 1, [1, 2]), "replaceRegionalSalesHeadAreas", "GROUPS_ASSIGNED", "1,2"],
   ];
 
-  for (const [role, call, action, detail] of cases) {
+  for (const [role, call, modelFn, action, detail] of cases) {
     const { service, calls } = await withUserService(assignModel(role));
     await call(service);
 
-    const [entry] = logged(calls);
+    const entry = assigned(calls, modelFn);
+    assert.ok(entry, `${role} passed no audit entry`);
     assert.equal(entry.action, action, role);
     assert.equal(entry.entityType, "SCOPE", role);
     assert.equal(entry.entityId, "PHL-TGT-0001", role);
     assert.equal(entry.detail, detail, role);
+
+    // The separate write is gone; if both fire the row lands twice.
+    assert.equal(logged(calls).length, 0, `${role} also called record`);
   }
 });
 
@@ -188,7 +198,7 @@ test("the actor is the caller, never the target, on every assignment", async () 
   const { service, calls } = await withUserService(assignModel("AREA_SALES_HEAD"));
   await service.replaceAreaSalesHeadAreas(RSH, 1, [5]);
 
-  const [entry] = logged(calls);
+  const entry = assigned(calls, "replaceAreaSalesHeadAreas");
   assert.equal(entry.actorUserCode, "PHL-RSH-1164");
   assert.notEqual(entry.actorUserCode, entry.entityId);
 });
@@ -200,19 +210,19 @@ test("the log records the new set, not the previous one", async () => {
   const { service, calls } = await withUserService(assignModel("AREA_SALES_HEAD"));
   await service.replaceAreaSalesHeadAreas(RSH, 1, [7]);
 
-  assert.equal(logged(calls)[0].detail, "7");
+  assert.equal(assigned(calls, "replaceAreaSalesHeadAreas").detail, "7");
 });
 
 test("an empty branch set is still recorded, since removing scope is an action", async () => {
   const { service, calls } = await withUserService(assignModel("ACCOUNT_OFFICER"));
   await service.replaceAccountOfficerBranches(ASH, 1, []);
 
-  const [entry] = logged(calls);
+  const entry = assigned(calls, "replaceAccountOfficerBranches");
   assert.equal(entry.action, "BRANCHES_ASSIGNED");
   assert.equal(entry.detail, "");
 });
 
-test("a refused assignment writes no audit row", async () => {
+test("a refused assignment never reaches the model, so nothing is written or logged", async () => {
   const { service, calls } = await withUserService({
     ...assignModel("ACCOUNT_OFFICER"),
     getBranchesAssignedToOtherAO: rows({ BranchCode: 58 }),
@@ -221,5 +231,6 @@ test("a refused assignment writes no audit row", async () => {
   const error = await captureThrown(() => service.replaceAccountOfficerBranches(ASH, 1, [58]));
 
   assert.equal(error?.statusCode, 409);
+  assert.equal(calls.some((c) => c.name === "replaceAccountOfficerBranches"), false);
   assert.equal(logged(calls).length, 0);
 });
