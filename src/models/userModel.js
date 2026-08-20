@@ -74,31 +74,20 @@ export const getGroups = () => {
   };
 };
 
-export const getBranches = (areaCode) => {
+export const getBranches = (areaCode, search) => {
   const request = new sql.Request();
+  const area = asInt(areaCode);
 
-  if (areaCode) {
-    request.input("AreaCode", sql.Int, areaCode);
-    return {
-      request,
-      run: () =>
-        request.query(`
-        SELECT BranchCode, BranchName, AreaCode
-        FROM banc.branches
-        WHERE AreaCode = @AreaCode
-        ORDER BY BranchName
-      `),
-    };
-  }
+  // /lookups/branches takes no session, so both filters arrive from an
+  // unauthenticated query string. A non-numeric areaCode used to reach sql.Int
+  // and 500; it now reads as absent, which is what an omitted filter already
+  // means.
+  request.input("AreaCode", sql.Int, Number.isFinite(area) ? area : null);
+  request.input("Search", sql.NVarChar, asText(search));
 
   return {
     request,
-    run: () =>
-      request.query(`
-      SELECT BranchCode, BranchName, AreaCode
-      FROM banc.branches
-      ORDER BY BranchName
-    `),
+    run: () => request.execute("banc.usp_sel_branches"),
   };
 };
 

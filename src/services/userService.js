@@ -160,8 +160,8 @@ export const getGroups = async () => {
   return result.recordset;
 };
 
-export const getBranches = async (areaCode) => {
-  const result = await userModel.getBranches(areaCode).run();
+export const getBranches = async (areaCode, search) => {
+  const result = await userModel.getBranches(areaCode, search).run();
   return result.recordset;
 };
 

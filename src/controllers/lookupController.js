@@ -12,8 +12,8 @@ export const getGroups = async (req, res, next) => {
 
 export const getBranches = async (req, res, next) => {
   try {
-    const { areaCode } = req.query
-    const data = await userService.getBranches(areaCode)
+    const { areaCode, search } = req.query
+    const data = await userService.getBranches(areaCode, search)
     res.json({ success: true, data })
   } catch (error) {
     next(error)
