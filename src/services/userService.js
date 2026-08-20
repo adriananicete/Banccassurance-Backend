@@ -21,6 +21,7 @@ import {
   SECTOR_HEAD,
   SUPERADMIN,
   superadminApprovableRoles,
+  topLevelRoles,
 } from "../utils/constant.js";
 import { throwHttpError } from "../utils/error.js";
 import { safeNotify } from "./notificationService.js";
@@ -174,7 +175,10 @@ export const checkEmail = async (email) => {
   return result.recordset[0].exists === 1;
 };
 
-export const register = async (fields) => {
+// `createdBySuperadmin` is a second parameter rather than a field, so it can
+// never arrive from a request body: the caller is the one thing about a
+// registration that must not be settable by the person registering.
+export const register = async (fields, { createdBySuperadmin = false } = {}) => {
   if (
     !landBankRoles.includes(fields.role) &&
     !philLifeRoles.includes(fields.role)
@@ -193,7 +197,7 @@ export const register = async (fields) => {
       );
   }
 
-  if (fields.role === REGIONAL_SALES_HEAD) {
+  if (fields.role === REGIONAL_SALES_HEAD || topLevelRoles.includes(fields.role)) {
     if (fields.areaCode || fields.branchCode)
       throwHttpError(
         400,
@@ -210,7 +214,11 @@ export const register = async (fields) => {
   let approverMessage;
   let noApproverMessage;
 
-  if (fields.role === BRANCH_STAFF) {
+  if (createdBySuperadmin) {
+    // The creator is the approver and is approving in the same breath, so there
+    // is nobody to look up and nobody to tell that something is pending.
+    approvers = { recordset: [] };
+  } else if (fields.role === BRANCH_STAFF) {
      approvers = await userModel
       .getBranchHeadByBranch(fields.branchCode)
       .run();
@@ -250,7 +258,19 @@ export const register = async (fields) => {
     approvers = await userModel.getDepartmentHead().run();
     approverMessage = `New regional sales head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
     noApproverMessage = 'No Department Head is assigned yet. Please contact your administrator.'
-  
+
+  } else if (topLevelRoles.includes(fields.role)) {
+    // These two sit at the top of their hierarchies with nobody above them, so
+    // until SUPERADMIN existed they could only be inserted by hand. The
+    // superadmin is their approver and the reason this branch can exist.
+    approvers = await userModel.getSuperadmins().run();
+    approverMessage =
+      fields.role === SECTOR_HEAD
+        ? `New sector head registration pending for approval: ${fields.firstName} ${fields.lastName}`
+        : `New department head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
+    noApproverMessage =
+      'No superadmin account is active, so this registration cannot be approved by anyone. Please contact IT.';
+
   } else {
     throwHttpError(
       400,
@@ -258,7 +278,8 @@ export const register = async (fields) => {
     );
   }
 
-  if (approvers.recordset.length === 0) throwHttpError(400, noApproverMessage)
+  if (!createdBySuperadmin && approvers.recordset.length === 0)
+    throwHttpError(400, noApproverMessage)
 
   const checkEmployeeNo = await userModel
     .checkEmployeeNoExists(fields.employeeNo)
@@ -443,6 +464,46 @@ export const approveRejectUser = async (user, userId, action) => {
   }
 
   return { success: false, message: Message };
+};
+
+// The superadmin creates a Sector Head or Department Head outright, rather than
+// waiting for that person to register and then approving them. Two writes rather
+// than one: usp_ins_register_user hardcodes IsActive = 0, so the row is created
+// pending and approved immediately afterwards. An @IsActive parameter would
+// collapse it into a single call and is requested as DBA item 30 -- until then
+// this reuses two procedures that are already tested rather than blocking on one.
+export const createTopLevelUser = async (actor, fields) => {
+  if (!superadminApprovableRoles.includes(fields.role))
+    throwHttpError(
+      400,
+      "A superadmin creates Sector Heads and Department Heads. Every other role registers and is approved by the role above it.",
+    );
+
+  if (fields.areaCode || fields.branchCode)
+    throwHttpError(400, "Group is not selected at registration for this role");
+
+  const created = await register(fields, { createdBySuperadmin: true });
+  if (!created.success) return created;
+
+  const found = await userModel.findUserIdByCode(created.userCode).run();
+  if (found.recordset.length === 0)
+    throwHttpError(500, "The account was created but could not be approved. Please approve it from the approvals list.");
+
+  await userModel.approveRejectUser(found.recordset[0].UserId, "APPROVE").run();
+
+  await record({
+    actorUserCode: actor.UserCode,
+    action: "USER_CREATED",
+    entityType: "USER",
+    entityId: created.userCode,
+    detail: fields.role,
+  });
+
+  return {
+    success: true,
+    message: "Account created and approved.",
+    userCode: created.userCode,
+  };
 };
 
 // All three assign endpoints replace the whole set, so the caller sends the full

@@ -1,6 +1,6 @@
 import express from 'express'
 import {
-    register, checkEmail, getUsersForApproval, approveRejectUser,
+    register, checkEmail, getUsersForApproval, approveRejectUser, createTopLevelUser,
     changePassword, uploadProfilePhoto,
     replaceAccountOfficerBranches, replaceAreaSalesHeadAreas,
     replaceRegionalSalesHeadAreas
@@ -27,6 +27,10 @@ router.post('/upload-photo', requireAuth, photoUpload.single('photo'), verifyFil
 // Approver-only
 router.get('/approvals', requireAuth, requireRole(...approverRoles), getUsersForApproval)
 router.post('/approvals/action', requireAuth, requireRole(...approverRoles), approveRejectUser)
+
+// Superadmin-only. Creates a Sector Head or Department Head already approved,
+// so the two top roles no longer need a hand-written database row.
+router.post('/', requireAuth, requireRole(SUPERADMIN), createTopLevelUser)
 
 // Keep every static path above this line. Once a /:userId route is added
 // below it, anything declared after it is swallowed by the param match.

@@ -44,6 +44,26 @@ export const getUsersForApproval = async (req, res, next) => {
   }
 }
 
+export const createTopLevelUser = async (req, res, next) => {
+  try {
+    const {
+      firstName, middleName, lastName, suffix,
+      birthday, email, mobileNumber, position,
+      role, employeeNo
+    } = req.body
+
+    const result = await userService.createTopLevelUser(req.user, {
+      firstName, middleName, lastName, suffix,
+      birthday, email, mobileNumber, position,
+      role, employeeNo
+    })
+
+    return res.status(201).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const approveRejectUser = async (req, res, next) => {
   try {
     const { userId, action } = req.body

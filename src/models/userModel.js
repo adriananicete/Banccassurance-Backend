@@ -275,6 +275,39 @@ ORDER BY CreatedAt DESC;
   };
 };
 
+// Every active superadmin. The approver lookup for SECTOR_HEAD and
+// DEPARTMENT_HEAD, and the reason those two can now self-register at all.
+// Looped like every other approver lookup -- never TOP 1, or a second superadmin
+// is silently never told.
+export const getSuperadmins = () => {
+  const request = new sql.Request();
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT UserCode
+      FROM banc.Users
+      WHERE Role = 'SUPERADMIN' AND IsActive = 1
+      ORDER BY UserCode
+    `),
+  };
+};
+
+// usp_ins_register_user returns the UserCode it generated but not the UserId,
+// and usp_ins_approve_reject_user is keyed by UserId. Only the superadmin's
+// create-and-approve path needs the bridge.
+export const findUserIdByCode = (userCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, userCode);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT UserId FROM banc.Users WHERE UserCode = @UserCode
+    `),
+  };
+};
+
 // The superadmin's approval list: the two roles nobody else can approve, from
 // both tenants at once. usp_sel_users_for_approval cannot serve this -- it
 // filters on BranchCode, which is NULL for both -- so this follows the three
