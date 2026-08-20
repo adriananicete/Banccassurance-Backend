@@ -63,8 +63,17 @@ export const consentEmailTemplate = (confirmLink, name) => `
     <p>
       <a href="${confirmLink}"
           style="display:inline-block; padding:10px 20px; background-color:#1e3a8a; color:white; text-decoration:none; border-radius:5px;">
-          Confirm Consent
+          Review and Give Consent
       </a>
+    </p>
+
+    <p style="color:#666; font-size:13px;">
+      Opening this link does not record anything on its own. Your consent is
+      recorded only when you press <strong>I Agree</strong> on that page.
+    </p>
+
+    <p>
+      This consent shall remain valid unless withdrawn in writing.
     </p>
 
     <p>
@@ -85,4 +94,4 @@ export const consentEmailTemplate = (confirmLink, name) => `
       <strong>Best regards,</strong><br/>
       PHILLIFE BANCASSURANCE
     </p>
-  `
+  `;

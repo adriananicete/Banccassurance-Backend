@@ -4,6 +4,7 @@ import { consentEmailTemplate } from "../templates/consentEmailTemplate.js";
 import { otpEmailTemplate } from "../templates/otpEmailTemplate.js";
 import { welcomeEmailTemplate } from "../templates/welcomeEmailTemplate.js";
 import { approvalEmailTemplate } from "../templates/approvalEmailTemplate.js";
+import { API_VERSION_PREFIX } from "../utils/constant.js";
 
 const tlsAgent = new https.Agent({ rejectUnauthorized: false });
 
@@ -83,14 +84,15 @@ const sendMail = async (toEmail, subject, htmlBody) => {
 };
 
 // ✅ Send email
-export const sendConsentEmail = async (toEmail, token, name, branchName, referrerName) => {
+export const sendConsentEmail = async (toEmail, token, name, branchName, referrerName, fullName) => {
 
   const params = new URLSearchParams({ token });
   if (name) params.set('name', name);
   if (branchName) params.set('branchName', branchName);
   if (referrerName) params.set('referrerName', referrerName);
+  if (fullName) params.set('fullName', fullName);
 
-  const confirmLink = `${process.env.BASE_URL}/api/referrals/confirm-consent?${params.toString()}`;
+  const confirmLink = `${process.env.BASE_URL}${API_VERSION_PREFIX}/consent/confirm?${params.toString()}`;
 
   const emailBody = consentEmailTemplate(confirmLink, name);
 

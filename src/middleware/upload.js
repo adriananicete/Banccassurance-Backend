@@ -1,88 +1,61 @@
 import multer from "multer";
+import path from "path";
 
-const fileMap = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/gif": ".gif",
-  "image/webp": ".webp",
+const photoExtensions = {
+  ".jpg": ".jpg",
+  ".jpeg": ".jpg",
+  ".png": ".png",
+  ".gif": ".gif",
+  ".webp": ".webp",
 };
 
-const consentFileMap = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/gif": ".gif",
-  "image/webp": ".webp",
-  "application/pdf": ".pdf"
+const consentExtensions = { ...photoExtensions, ".pdf": ".pdf" };
+
+const rejectExtension = (extensions, received) => {
+  const allowed = [...new Set(Object.keys(extensions))].join(", ");
+  const error = new Error(
+    received
+      ? `File type ${received} is not allowed. Accepted types: ${allowed}`
+      : `The file has no extension. Accepted types: ${allowed}`,
+  );
+  error.statusCode = 400;
+  return error;
 };
 
-const photoStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "avatar_uploads/");
-  },
+const storageFor = (destination, extensions) =>
+  multer.diskStorage({
+    destination: (req, file, cb) => cb(null, destination),
 
-  filename: (req, file, cb) => {
-    if (!fileMap[file.mimetype]) {
-      const err = new Error("File type not allowed");
-      err.statusCode = 400;
-      cb(err);
-      return;
-    }
-    const ext = fileMap[file.mimetype]
-    const safeName = `${Date.now()}${ext}`;
-    cb(null, safeName);
-  },
-});
+    filename: (req, file, cb) => {
+      const received = path.extname(file.originalname || "").toLowerCase();
+      const ext = extensions[received];
+
+      if (!ext) return cb(rejectExtension(extensions, received));
+
+      cb(null, `${Date.now()}${ext}`);
+    },
+  });
+
+const filterFor = (extensions) => (req, file, cb) => {
+  const received = path.extname(file.originalname || "").toLowerCase();
+
+  if (!extensions[received]) return cb(rejectExtension(extensions, received));
+
+  cb(null, true);
+};
 
 export const photoUpload = multer({
-  storage: photoStorage,
-
-  fileFilter: (req, file, cb) => {
-    if (!fileMap[file.mimetype]) {
-      const err = new Error("File type not allowed");
-      err.statusCode = 400;
-      cb(err);
-      return;
-    }
-    cb(null, true);
-  },
-
+  storage: storageFor("avatar_uploads/", photoExtensions),
+  fileFilter: filterFor(photoExtensions),
   limits: {
-    fileSize: 2 * 1024 * 1024, // ✅ 2MB
-  },
-});
-
-const consentStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "uploads/");
-  },
-
-  filename: (req, file, cb) => {
-    if(!consentFileMap[file.mimetype]) {
-      const err = new Error("File type not allowed");
-      err.statusCode = 400;
-      cb(err);
-      return;
-    }
-    const ext = consentFileMap[file.mimetype];
-    const safeName = `${Date.now()}${ext}`;
-    cb(null, safeName);
+    fileSize: 2 * 1024 * 1024,
   },
 });
 
 export const consentUpload = multer({
-  storage: consentStorage,
-
-  fileFilter: (req, file, cb) => {
-    if(!consentFileMap[file.mimetype]) {
-      const err = new Error("File type not allowed");
-      err.statusCode = 400;
-      cb(err);
-      return;
-    }
-    cb(null, true);
-  },
-
+  storage: storageFor("uploads/", consentExtensions),
+  fileFilter: filterFor(consentExtensions),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024,
   },
 });

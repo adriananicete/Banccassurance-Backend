@@ -11,6 +11,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { globalLimiter } from "./middleware/rateLimiter.js";
 import underwritingRoutes from "./routes/underwritingRoutes.js"
+import userRoutes from "./routes/userRoutes.js";
+import lookupRoutes from "./routes/lookupRoutes.js";
+import consentRoutes from "./routes/consentRoutes.js";
+import { API_VERSION_PREFIX } from "./utils/constant.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,10 +40,13 @@ app.get("/", (req, res) => {
   res.send("API is running...");
 });
 
-app.use("/api/referrals/notifications", notificationRoutes);
-app.use("/api/referrals", referralRoutes);
-app.use("/api/auth", authRoutes);
-app.use("/api/underwriting/referrals", underwritingRoutes);
+app.use(`${API_VERSION_PREFIX}/notifications`, notificationRoutes);
+app.use(`${API_VERSION_PREFIX}/referrals`, referralRoutes);
+app.use(`${API_VERSION_PREFIX}/auth`, authRoutes);
+app.use(`${API_VERSION_PREFIX}/users`, userRoutes);
+app.use(`${API_VERSION_PREFIX}/lookups`, lookupRoutes);
+app.use(`${API_VERSION_PREFIX}/consent`, consentRoutes);
+app.use(`${API_VERSION_PREFIX}/underwriting/referrals`, underwritingRoutes);
 
 app.use("/uploads", express.static(path.join(__dirname, "../avatar_uploads")));
 

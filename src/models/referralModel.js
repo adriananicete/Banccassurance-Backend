@@ -1,10 +1,5 @@
 import sql from '../config/db.js'
-
-export const getReferrerByCode = (code) => {
-  const request = new sql.Request()
-  request.input('UserCode', sql.NVarChar, code)
-  return { request, run: () => request.execute('[banc].[usp_sel_referrer_by_code]') }
-}
+import { asInt, asText } from '../utils/sqlValue.js'
 
 export const getPlans = () => {
   const request = new sql.Request()
@@ -85,8 +80,8 @@ export const getReferralsByRole = (user,options) => {
   const request = new sql.Request()
   request.input('Role', sql.NVarChar, user.Role)
   request.input('UserCode', sql.NVarChar, user.UserCode)
-  request.input('BranchCode', sql.Int, user.BranchCode || 0)
-  request.input('AreaCode', sql.NVarChar, user.AreaCode || '0')
+  request.input('BranchCode', sql.Int, asInt(user.BranchCode) ?? 0)
+  request.input('AreaCode', sql.NVarChar, asText(user.AreaCode) ?? '0')
   request.input('PageNumber', sql.Int, options.PageNumber)
   request.input('PageSize', sql.Int, options?.PageSize)
   request.input('Search', sql.NVarChar, options.Search)
@@ -168,8 +163,9 @@ export const findActiveDuplicate = (email, tenantPrefix, planId) => {
   request.input('Prefix', sql.NVarChar, tenantPrefix + '-%')
   request.input('PlanId', sql.Int, planId)
   return { request, run: () => request.query(`
-      SELECT Id, ReferralNo, FirstName, LastName, MiddleName, Suffix, Email, MobileNumber, Status, StatusDate, ReferrerCode, ReferrerName, BranchCode, BranchName, AreaCode, AreaName, AOName, AOCode, CreatedAt FROM banc.Referrals
-      WHERE Email = @Email AND PlanId = @PlanId AND Status NOT IN ('Approved', 'Declined') 
+      SELECT ReferralNo, Status, StatusDate, ReferrerName, BranchName, AreaName, AOName
+      FROM banc.Referrals
+      WHERE Email = @Email AND PlanId = @PlanId AND Status NOT IN ('Approved', 'Declined')
       AND ReferrerCode LIKE @Prefix
     `)}
 }
@@ -217,8 +213,7 @@ export const getAOAttribution = (userCode) => {
       SELECT TOP (1)
           COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS ReferrerName,
           b.AreaCode,
-          a.AreaName,
-          ash.UserCode  AS ASHUserCode
+          a.AreaName
       FROM banc.Users u
       INNER JOIN banc.account_officer_branches aob
           ON u.UserCode = aob.UserCode
@@ -226,11 +221,8 @@ export const getAOAttribution = (userCode) => {
           ON aob.BranchCode = b.BranchCode
       INNER JOIN banc.group_areas a
           ON b.AreaCode = a.AreaCode
-      LEFT JOIN banc.Users ash
-          ON CAST(a.AreaCode AS NVARCHAR) = ash.AreaCode
-          AND ash.Role = 'AREA_SALES_HEAD'
-          AND ash.IsActive = 1
       WHERE u.UserCode = @UserCode
+      ORDER BY b.AreaCode, aob.BranchCode
       `)
   }
 }
@@ -239,8 +231,8 @@ export const getReferralCountsByRole = (user) => {
   const request = new sql.Request()
   request.input('Role', sql.NVarChar, user.Role)
   request.input('UserCode', sql.NVarChar, user.UserCode)
-  request.input('BranchCode', sql.Int, user.BranchCode || 0)
-  request.input('AreaCode', sql.NVarChar, user.AreaCode || '0')
+  request.input('BranchCode', sql.Int, asInt(user.BranchCode) ?? 0)
+  request.input('AreaCode', sql.NVarChar, asText(user.AreaCode) ?? '0')
   return {
     request, run: () => request.execute('[banc].[usp_sel_referral_counts_by_role]')
   }

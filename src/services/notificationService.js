@@ -1,14 +1,44 @@
 import * as notificationModel from '../models/notificationModel.js'
 import { throwHttpError } from '../utils/error.js'
 
-export const getUserNotifications = async (userCode) => {
+const emptyPage = (options) => ({
+  success: true,
+  notifications: [],
+  unreadCount: 0,
+  pagination: {
+    page: options.PageNumber,
+    pageSize: options.PageSize,
+    totalCount: 0,
+    totalPages: 0
+  }
+})
+
+export const getUserNotifications = async (userCode, options) => {
   if (!userCode || userCode === 'undefined' || userCode === 'null') {
-    return { success: true, notifications: [] }
+    return emptyPage(options)
   }
 
-  const result = await notificationModel.getByUserCode(String(userCode).trim()).run()
+  const result = await notificationModel
+    .getByUserCode(String(userCode).trim(), options)
+    .run()
 
-  return { success: true, notifications: result.recordset }
+  const totalCount = result.recordset[0]?.TotalCount ?? 0
+  const unreadCount = result.recordset[0]?.UnreadCount ?? 0
+  const notifications = result.recordset.map(
+    ({ TotalCount, UnreadCount, ...rest }) => rest
+  )
+
+  return {
+    success: true,
+    notifications,
+    unreadCount,
+    pagination: {
+      page: options.PageNumber,
+      pageSize: options.PageSize,
+      totalCount,
+      totalPages: Math.ceil(totalCount / options.PageSize)
+    }
+  }
 };
 
 export const clearUserNotifications = async (userCode) => {
@@ -22,11 +52,13 @@ export const clearUserNotifications = async (userCode) => {
 };
 
 export const markNotificationAsRead = async (id, userCode) => {
-  if (!id) {
-    throwHttpError(400, 'Notification ID is required')
+  const notificationId = Number(id)
+
+  if (!Number.isInteger(notificationId) || notificationId <= 0) {
+    throwHttpError(400, 'Notification ID must be a positive whole number.')
   }
 
-  await notificationModel.markAsRead(parseInt(id, 10), userCode).run()
+  await notificationModel.markAsRead(notificationId, userCode).run()
 
   return { success: true, message: 'Notification marked as read.' }
 };

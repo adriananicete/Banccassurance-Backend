@@ -6,6 +6,7 @@ export const ACCOUNT_OFFICER = 'ACCOUNT_OFFICER';
 export const AREA_SALES_HEAD = 'AREA_SALES_HEAD';
 export const DEPARTMENT_HEAD = 'DEPARTMENT_HEAD';
 export const REGIONAL_SALES_HEAD = 'REGIONAL_SALES_HEAD';
+export const SUPERADMIN = 'SUPERADMIN';
 
 export const validStatus = ["Referred","Presented","Closed Pending","Approved","Declined", "Deferred","Lost","Postponed",];
 
@@ -35,6 +36,31 @@ export const underwritingTransitions = {
 
 export const validConsentStatus = ['CONFIRMED', 'UPLOADED'];
 
-export const landBankRoles = [BRANCH_STAFF, BRANCH_HEAD, GROUP_HEAD];
+// These two are the roles that may SELF-REGISTER, not the roles belonging to
+// each tenant. SECTOR_HEAD and DEPARTMENT_HEAD joined them once SUPERADMIN
+// existed to approve them -- until then they had no approver and could only be
+// inserted into the database by hand. SUPERADMIN itself stays out: it is the one
+// account that must be seeded, because nobody exists to approve the first one.
+export const landBankRoles = [BRANCH_STAFF, BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD];
+export const philLifeRoles = [ACCOUNT_OFFICER, AREA_SALES_HEAD, REGIONAL_SALES_HEAD, DEPARTMENT_HEAD];
+
+// SUPERADMIN exists to approve the two roles that have no approver above them,
+// and to reach any user regardless of the caller's own scope. It never creates
+// or reads a referral, which is why its UserCode carries no tenant prefix.
+// The same two roles it may approve are the two it may create outright --
+// SUPERADMIN is deliberately not among them, so the role cannot mint itself.
+export const superadminApprovableRoles = [SECTOR_HEAD, DEPARTMENT_HEAD];
+
+// Neither role picks a branch or a group at registration: one sees its whole
+// tenant, the other is assigned groups afterwards.
+export const topLevelRoles = [SECTOR_HEAD, DEPARTMENT_HEAD];
+
+// Three roles out of eight may create a referral. The heads above an Account
+// Officer supervise and are notified; they do not refer.
+export const referralCreatorRoles = [BRANCH_STAFF, BRANCH_HEAD, ACCOUNT_OFFICER];
 
 export const minimumLengthPassword = 8;
+
+// The only prefix. Every route lives under it, and anything the backend
+// generates must build from it rather than writing a path by hand.
+export const API_VERSION_PREFIX = '/api/v1';

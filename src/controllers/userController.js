@@ -1,0 +1,164 @@
+import path from 'path'
+import fs from 'fs'
+import * as userService from '../services/userService.js'
+
+export const checkEmail = async (req, res, next) => {
+  try {
+    const { email } = req.query
+    if (!email) return res.json({ exists: false })
+
+    const exists = await userService.checkEmail(email.trim())
+    return res.json({ exists })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const register = async (req, res, next) => {
+  try {
+    const {
+      firstName, middleName, lastName, suffix,
+      birthday, email, mobileNumber, position,
+      role, areaCode, branchCode, employeeNo
+    } = req.body
+
+    const result = await userService.register({
+      firstName, middleName, lastName, suffix,
+      birthday, email, mobileNumber, position,
+      role, areaCode, branchCode, employeeNo
+    })
+
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getUsersForApproval = async (req, res, next) => {
+  try {
+    const { status = 'ALL' } = req.query
+    const data = await userService.getUsersForApproval(req.user, status)
+    return res.json({ success: true, data })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const createTopLevelUser = async (req, res, next) => {
+  try {
+    const {
+      firstName, middleName, lastName, suffix,
+      birthday, email, mobileNumber, position,
+      role, employeeNo
+    } = req.body
+
+    const result = await userService.createTopLevelUser(req.user, {
+      firstName, middleName, lastName, suffix,
+      birthday, email, mobileNumber, position,
+      role, employeeNo
+    })
+
+    return res.status(201).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const approveRejectUser = async (req, res, next) => {
+  try {
+    const { userId, action } = req.body
+    const result = await userService.approveRejectUser(req.user, userId, action)
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    const { UserCode } = req.user;
+
+    const result = await userService.changePassword(UserCode, currentPassword, newPassword)
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const uploadProfilePhoto = async (req, res, next) => {
+  try {
+    const { UserCode } = req.user;
+
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' })
+    }
+
+    const newFileName = req.file.filename
+    const { oldPhoto } = await userService.uploadProfilePhoto(UserCode, newFileName)
+
+    // ✅ DELETE OLD FILE (IF EXISTS)
+    if (oldPhoto) {
+      const oldPath = path.join('avatar_uploads', oldPhoto)
+
+      fs.unlink(oldPath, (err) => {
+        if (err) {
+          console.warn('⚠ Could not delete old file:', oldPhoto)
+        } else {
+          console.log('✅ Old photo deleted:', oldPhoto)
+        }
+      })
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile photo updated',
+      file: newFileName
+    })
+
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const replaceAccountOfficerBranches = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const { branchCodes } = req.body
+
+    const result = await userService.replaceAccountOfficerBranches(
+      req.user, userId, branchCodes
+    )
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const replaceAreaSalesHeadAreas = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const { areaCodes } = req.body
+
+    const result = await userService.replaceAreaSalesHeadAreas(
+      req.user, userId, areaCodes
+    )
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const replaceRegionalSalesHeadAreas = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const { areaCodes } = req.body
+
+    const result = await userService.replaceRegionalSalesHeadAreas(
+      req.user, userId, areaCodes
+    )
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}

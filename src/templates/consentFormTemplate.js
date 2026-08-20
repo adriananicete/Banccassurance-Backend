@@ -1,6 +1,7 @@
 import { escapeHtml } from '../utils/validators.js'
+import { API_VERSION_PREFIX } from '../utils/constant.js'
 
-export const consentFormTemplate = (token, name, branchName, referrerName) => `
+export const consentFormTemplate = (token, name, branchName, referrerName, fullName) => `
       <!DOCTYPE html>
       <html>
       <head>
@@ -78,7 +79,7 @@ export const consentFormTemplate = (token, name, branchName, referrerName) => `
         <div class="card">
           <h2>Consent for Endorsement and Data Processing</h2>
 
-          <p><strong>Dear Valued Client,${name ? ` ${escapeHtml(name)},` : ''}</strong></p>
+          <p>Dear Valued Client, <strong>${escapeHtml(fullName)}</strong></p>
 
           <p>Good day!</p>
 
@@ -149,12 +150,14 @@ export const consentFormTemplate = (token, name, branchName, referrerName) => `
           </p>
 
           <div class="form-section">
-            <form method="POST" action="/api/referrals/confirm-consent">
+            <p><strong>This is the final step. Your consent is recorded when you press the button below.</strong></p>
+
+            <form method="POST" action="${API_VERSION_PREFIX}/consent/confirm">
               <input type="hidden" name="token" value="${escapeHtml(token)}" />
               <input type="hidden" name="name" value="${escapeHtml(name)}" />
               <input type="hidden" name="branchName" value="${escapeHtml(branchName)}" />
               <input type="hidden" name="referrerName" value="${escapeHtml(referrerName)}" />
-              <button type="submit" class="confirm-btn">Confirm Consent</button>
+              <button type="submit" class="confirm-btn">I Agree</button>
             </form>
           </div>
         </div>
