@@ -104,7 +104,7 @@ test("each role is routed to its own approver lookup", async () => {
   const routes = [
     [BRANCH_STAFF, { branchCode: 58 }, "getBranchHeadByBranch"],
     [BRANCH_HEAD, { branchCode: 58, areaCode: 5 }, "getGroupHeadByArea"],
-    [GROUP_HEAD, { areaCode: 5 }, "getSectorHeadByArea"],
+    [GROUP_HEAD, { areaCode: 5 }, "getSectorHead"],
     [ACCOUNT_OFFICER, { areaCode: 5 }, "getAreaSalesHeadByArea"],
     [AREA_SALES_HEAD, { areaCode: 5 }, "getRegionalSalesHeadByArea"],
     [REGIONAL_SALES_HEAD, { areaCode: null, branchCode: null }, "getDepartmentHead"],
@@ -114,7 +114,7 @@ test("each role is routed to its own approver lookup", async () => {
     const model = happyPath({
       getBranchHeadByBranch: approverFound,
       getGroupHeadByArea: approverFound,
-      getSectorHeadByArea: approverFound,
+      getSectorHead: approverFound,
       getAreaSalesHeadByArea: approverFound,
       getRegionalSalesHeadByArea: approverFound,
       getDepartmentHead: approverFound,

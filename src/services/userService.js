@@ -222,13 +222,11 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
     noApproverMessage = 'No Group Head is assigned to this group yet. Please contact your administrator.'
 
   } else if (fields.role === GROUP_HEAD) {
-    approvers = await userModel
-      .getSectorHeadByArea(fields.areaCode)
-      .run();
+    approvers = await userModel.getSectorHead().run();
 
     approverMessage = `New group head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
 
-    noApproverMessage = 'No Sector Head is assigned to this group yet. Please contact your administrator.'
+    noApproverMessage = 'No Sector Head account is active, so this registration cannot be approved by anyone. Please contact your administrator.'
 
   } else if (fields.role === ACCOUNT_OFFICER) {
     approvers = await userModel
@@ -324,18 +322,16 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
 export const getUsersForApproval = async (user, status) => {
   if (user.Role === BRANCH_HEAD) {
     const result = await userModel
-      .getUsersForApproval(Number(user.BranchCode), status)
+      .getUsersForApproval(BRANCH_STAFF, user.BranchCode, status)
       .run();
-    return result.recordset;
+    return result.recordset.map(({ TotalCount, ...rest }) => rest);
   } else if (user.Role === GROUP_HEAD) {
     const result = await userModel
       .getBranchHeadsForApproval(user.AreaCode, status)
       .run();
     return result.recordset;
   } else if (user.Role === SECTOR_HEAD) {
-    const result = await userModel
-      .getGroupHeadsForApproval(user.UserId, status)
-      .run();
+    const result = await userModel.getGroupHeadsForApproval(status).run();
     return result.recordset;
   } else if (user.Role === DEPARTMENT_HEAD) {
     const result = await userModel.getRegionalSalesHeadsForApproval(status).run();
@@ -377,14 +373,6 @@ export const approveRejectUser = async (user, userId, action) => {
     }
   } else if (user.Role === SECTOR_HEAD) {
     if (targetUser.Role !== GROUP_HEAD) {
-      throwHttpError(403, "Forbidden");
-    }
-
-    const scopeCheck = await userModel
-      .isAreaInSectorScope(user.UserId, targetUser.AreaCode)
-      .run();
-
-    if (scopeCheck.recordset.length === 0) {
       throwHttpError(403, "Forbidden");
     }
   } else if (user.Role === DEPARTMENT_HEAD) {

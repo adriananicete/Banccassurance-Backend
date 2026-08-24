@@ -392,11 +392,9 @@ export const canAccessReferral = async (referral, user) => {
 
     return areaSalesHead.recordset.length > 0;
   } else if (user.Role === SECTOR_HEAD) {
-    const sectorHead = await userModel
-      .isAreaInSectorScope(user.UserId, referral.AreaCode)
-      .run();
-
-    return sectorHead.recordset.length > 0;
+    const referralTenant =
+      referral.ReferrerCode?.toUpperCase().split("-")[0] ?? null;
+    return referralTenant !== null && referralTenant === getTenant(user.UserCode);
   } else if (user.Role === DEPARTMENT_HEAD) {
     const referralTenant =
       referral.AOCode?.toUpperCase().split("-")[0] ?? null;

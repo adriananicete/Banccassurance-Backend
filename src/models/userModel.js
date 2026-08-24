@@ -126,10 +126,13 @@ export const checkOrRegisterUser = ({
   return { request, run: () => request.execute("banc.usp_ins_register_user") };
 };
 
-export const getUsersForApproval = (branchCode, statusFilter) => {
+export const getUsersForApproval = (role, branchCode, statusFilter) => {
   const request = new sql.Request();
-  request.input("BranchCode", sql.Int, branchCode);
+  request.input("Role", sql.NVarChar, role);
+  request.input("BranchCode", sql.Int, asInt(branchCode));
   request.input("StatusFilter", sql.NVarChar, statusFilter);
+  request.input("PageNumber", sql.Int, 1);
+  request.input("PageSize", sql.Int, 100);
   return {
     request,
     run: () => request.execute("banc.usp_sel_users_for_approval"),
@@ -196,9 +199,8 @@ ORDER BY CreatedAt DESC;`,
   };
 };
 
-export const getGroupHeadsForApproval = (userId, status) => {
+export const getGroupHeadsForApproval = (status) => {
   const request = new sql.Request();
-  request.input("UserId", sql.Int, userId);
   request.input("StatusFilter", sql.NVarChar, status);
   return {
     request,
@@ -222,16 +224,13 @@ export const getGroupHeadsForApproval = (userId, status) => {
     END AS Status
 FROM banc.Users
   WHERE Role = 'GROUP_HEAD'
-  AND AreaCode IN (
-  SELECT CAST(AreaCode AS NVARCHAR) FROM banc.user_area WHERE UserId = @UserId
-)
   AND (
-        @StatusFilter = 'ALL' 
+        @StatusFilter = 'ALL'
      OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
      OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
      OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
   )
-ORDER BY CreatedAt DESC;
+ORDER BY CreatedAt DESC, UserId DESC;
       `),
   };
 };
@@ -378,21 +377,6 @@ ORDER BY CreatedAt DESC;
   };
 };
 
-export const isAreaInSectorScope = (sectorHeadUserId, areaCode) => {
-  const request = new sql.Request();
-  request.input("UserId", sql.Int, sectorHeadUserId);
-  request.input("AreaCode", sql.Int, Number(areaCode));
-  return {
-    request,
-    run: () =>
-      request.query(`
-        SELECT 1 AS InScope
-FROM banc.user_area
-WHERE UserId = @UserId AND AreaCode = @AreaCode
-      `),
-  };
-};
-
 export const isAreaInRegionalScope = (userCode, areaCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
@@ -515,19 +499,13 @@ export const getGroupHeadByArea = (areaCode) => {
   };
 };
 
-export const getSectorHeadByArea = (areaCode) => {
+export const getSectorHead = () => {
   const request = new sql.Request();
-  request.input("AreaCode", sql.Int, Number(areaCode));
   return {
     request,
     run: () =>
       request.query(`
-      SELECT u.UserCode 
-FROM banc.Users u
-INNER JOIN banc.user_area ua ON u.UserId = ua.UserId
-WHERE u.Role = 'SECTOR_HEAD' 
-  AND ua.AreaCode = @AreaCode 
-  AND u.IsActive = 1
+      SELECT UserCode FROM banc.Users WHERE Role = 'SECTOR_HEAD' AND IsActive = 1
       `),
   };
 };

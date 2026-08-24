@@ -7,7 +7,9 @@ import {
   AREA_SALES_HEAD,
   BRANCH_HEAD,
   BRANCH_STAFF,
+  GROUP_HEAD,
   REGIONAL_SALES_HEAD,
+  SECTOR_HEAD,
 } from "../src/utils/constant.js";
 
 const areaSalesHead = { Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-1167" };
@@ -114,6 +116,47 @@ test("a Branch Head may only approve Branch Staff in their own branch", async ()
     otherBranch.service.approveRejectUser(branchHead, 1784, "APPROVE"),
   );
   assert.equal(error?.statusCode, 403);
+});
+
+const sectorHead = { Role: SECTOR_HEAD, UserId: 42, UserCode: "USR-SEC-0001" };
+
+test("a Sector Head approves a Group Head from any group, consulting no scope lookup", async () => {
+  // One Sector Head holds all of Landbank. This branch used to read
+  // banc.user_area — the Group Heads' own table — where the Sector Head has no
+  // rows, so every approval was a 403 and sixteen Group Heads sat pending with
+  // nobody able to act on them.
+  for (const AreaCode of [1, 9, 15]) {
+    const { service, calls } = await withUserService({
+      getUserScopeById: target({ Role: GROUP_HEAD, AreaCode }),
+      approveRejectUser: approved,
+    });
+
+    const result = await service.approveRejectUser(sectorHead, 1784, "APPROVE");
+
+    assert.equal(result.success, true, `area ${AreaCode}`);
+    assert.deepEqual(
+      calls.filter((call) => call.name.startsWith("isArea")),
+      [],
+      `area ${AreaCode}`,
+    );
+  }
+});
+
+test("a Sector Head may only approve Group Heads", async () => {
+  // The role check and the scope check were adjacent and only the scope one was
+  // wrong. Removing both would let a Sector Head approve a Branch Head, which
+  // is the level below the one they own.
+  for (const role of [BRANCH_HEAD, BRANCH_STAFF, ACCOUNT_OFFICER]) {
+    const { service } = await withUserService({
+      getUserScopeById: target({ Role: role }),
+      approveRejectUser: approved,
+    });
+
+    const error = await captureThrown(() =>
+      service.approveRejectUser(sectorHead, 1784, "APPROVE"),
+    );
+    assert.equal(error?.statusCode, 403, role);
+  }
 });
 
 test("a role with no approval branch at all is refused", async () => {
