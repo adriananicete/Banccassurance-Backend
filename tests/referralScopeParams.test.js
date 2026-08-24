@@ -71,6 +71,26 @@ test("the defaults for a missing scope are unchanged", async () => {
   }
 });
 
+test("the overseer list carries a tenant guard on the column that side scopes by", async () => {
+  // This query had no WHERE clause at all, so a PhilLife Department Head listed
+  // Landbank referrals and the reverse. Stubbing the model cannot catch that —
+  // only reading the SQL the model actually builds can. Landbank scopes on who
+  // created the referral, PhilLife on who handles it.
+  const { model, queries } = await captureSql(REFERRAL_MODEL);
+  await model
+    .getReferralsForSectorOrDepartmentHead("SECTOR_HEAD", "USR-%", OPTIONS)
+    .run();
+  restoreSqlCapture();
+
+  const [text] = queries;
+
+  assert.match(text, /SECTOR_HEAD'\s+AND r\.ReferrerCode\s+LIKE @TenantPrefix/i);
+  assert.match(text, /DEPARTMENT_HEAD'\s+AND r\.AOCode\s+LIKE @TenantPrefix/i);
+  assert.doesNotMatch(text, /ConsentToken/);
+  assert.match(text, /COUNT\(\*\) OVER\(\) AS TotalCount/i);
+  assert.match(text, /ORDER BY r\.CreatedAt DESC, r\.ReferralNo DESC/i);
+});
+
 test("every scope parameter is a type the procedure can accept", async () => {
   // Whatever the JWT happens to hold, nothing may reach tedious as a type it
   // will reject. This is the assertion that would have caught the defect

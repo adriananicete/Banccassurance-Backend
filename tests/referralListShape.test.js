@@ -14,6 +14,9 @@ const listing = (...records) =>
       [REFERRAL_MODEL]: {
         getReferralsByRole: () => ({ run: async () => ({ recordset: records }) }),
         getReferralCountsByRole: () => ({ run: async () => ({ recordset: records }) }),
+        getReferralsForSectorOrDepartmentHead: () => ({
+          run: async () => ({ recordset: records }),
+        }),
       },
     },
     REFERRAL_SERVICE,
@@ -30,10 +33,9 @@ const referralRow = (overrides = {}) => ({
 });
 
 test("the consent token never reaches the response", async () => {
-  // usp_sel_referrals_by_role_1 returns SELECT r.*, which includes ConsentToken.
-  // Stripping it here is the only thing keeping it out of the API, and item 8 of
-  // the DBA request exists because that defence sits in the wrong layer. Until
-  // the procedure names its columns, this destructure is the whole protection.
+  // The procedure names its columns now and no longer returns ConsentToken, so
+  // this destructure is defence in depth rather than the only protection. It
+  // stays because the column list is the DBA's and can widen without notice.
   const { service } = await listing(referralRow(), referralRow({ FirstName: "Maria" }));
 
   const result = await service.getReferralsByRole(USER, PAGE);
@@ -88,6 +90,56 @@ test("an empty page answers zero rather than throwing on recordset[0]", async ()
   assert.deepEqual(result.data, []);
   assert.equal(result.pagination.totalCount, 0);
   assert.equal(result.pagination.totalPages, 0);
+});
+
+const overseers = [
+  { Role: "SECTOR_HEAD", UserCode: "USR-SEC-0001" },
+  { Role: "DEPARTMENT_HEAD", UserCode: "PHL-DH-0001" },
+];
+
+test("an overseer's list is the same shape as every other role's", async () => {
+  // These two take a different query, and it used to return a bare array while
+  // every other role got { data, pagination }. The controller then spread it
+  // into an object literal, so the caller received { success, 0: {…}, 1: {…} } —
+  // numeric keys, no data, no pagination. The shapes have to match or deleting
+  // this path later becomes a second breaking change for the frontend.
+  for (const user of overseers) {
+    const { service } = await listing(referralRow(), referralRow());
+
+    const result = await service.getReferralsByRole(user, PAGE);
+
+    assert.equal(Array.isArray(result), false, user.Role);
+    assert.ok(Array.isArray(result.data), user.Role);
+    assert.equal(result.data.length, 2, user.Role);
+    assert.deepEqual(
+      result.pagination,
+      { page: 2, pageSize: 20, totalCount: 57, totalPages: 3 },
+      user.Role,
+    );
+  }
+});
+
+test("an overseer is scoped to their own tenant, on the column their side uses", async () => {
+  // Landbank scopes on who created the referral, PhilLife on who handles it.
+  // The query had no WHERE clause at all, so a PhilLife Department Head listed
+  // Landbank referrals and the reverse.
+  const expected = [
+    [{ Role: "SECTOR_HEAD", UserCode: "USR-SEC-0001" }, "USR-%"],
+    [{ Role: "DEPARTMENT_HEAD", UserCode: "PHL-DH-0001" }, "PHL-%"],
+  ];
+
+  for (const [user, prefix] of expected) {
+    const { service, calls } = await listing(referralRow());
+
+    await service.getReferralsByRole(user, PAGE);
+
+    const call = calls.find(
+      (entry) => entry.name === "getReferralsForSectorOrDepartmentHead",
+    );
+    assert.ok(call, user.Role);
+    assert.equal(call.args[0], user.Role);
+    assert.equal(call.args[1], prefix);
+  }
 });
 
 test("the counts total is the sum of the per-status rows", async () => {

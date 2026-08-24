@@ -270,12 +270,17 @@ export const checkConsent = async (email) => {
 export const getReferralsByRole = async (user, pagination) => {
   const role = String(user.Role || '').trim().toUpperCase();
 
-  if (role === SECTOR_HEAD || role === DEPARTMENT_HEAD) {
-    const result = await referralModel.getReferralsForSectorOrDepartmentHead(user.UserId).run();
-    return result.recordset.map(({ ConsentToken, ...rest }) => rest);
-  }
+  const result =
+    role === SECTOR_HEAD || role === DEPARTMENT_HEAD
+      ? await referralModel
+          .getReferralsForSectorOrDepartmentHead(
+            role,
+            `${getTenant(user.UserCode)}-%`,
+            pagination,
+          )
+          .run()
+      : await referralModel.getReferralsByRole(user, pagination).run();
 
-  const result = await referralModel.getReferralsByRole(user, pagination).run();
   const totalCount = result.recordset[0]?.TotalCount ?? 0;
   const rows = result.recordset.map(({ ConsentToken, TotalCount, ...rest }) => rest);
 
