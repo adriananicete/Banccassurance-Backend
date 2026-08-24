@@ -323,35 +323,28 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
   return { success: false, message: Message };
 };
 
+const approvalListFor = {
+  [BRANCH_HEAD]: (user, status) =>
+    userModel.getUsersForApproval(BRANCH_STAFF, user.BranchCode, status),
+  [GROUP_HEAD]: (user, status) =>
+    userModel.getBranchHeadsForApproval(user.AreaCode, status),
+  [SECTOR_HEAD]: (user, status) => userModel.getGroupHeadsForApproval(status),
+  [DEPARTMENT_HEAD]: (user, status) =>
+    userModel.getRegionalSalesHeadsForApproval(status),
+  [REGIONAL_SALES_HEAD]: (user, status) =>
+    userModel.getAreaSalesHeadsForApproval(user.UserCode, status),
+  [AREA_SALES_HEAD]: (user, status) =>
+    userModel.getAccountOfficersForApproval(user.UserCode, status),
+  [SUPERADMIN]: (user, status) => userModel.getTopLevelHeadsForApproval(status),
+};
+
 export const getUsersForApproval = async (user, status) => {
-  if (user.Role === BRANCH_HEAD) {
-    const result = await userModel
-      .getUsersForApproval(BRANCH_STAFF, user.BranchCode, status)
-      .run();
-    return result.recordset.map(({ TotalCount, ...rest }) => rest);
-  } else if (user.Role === GROUP_HEAD) {
-    const result = await userModel
-      .getBranchHeadsForApproval(user.AreaCode, status)
-      .run();
-    return result.recordset;
-  } else if (user.Role === SECTOR_HEAD) {
-    const result = await userModel.getGroupHeadsForApproval(status).run();
-    return result.recordset;
-  } else if (user.Role === DEPARTMENT_HEAD) {
-    const result = await userModel.getRegionalSalesHeadsForApproval(status).run();
-    return result.recordset;
-  } else if (user.Role === REGIONAL_SALES_HEAD) {
-    const result = await userModel.getAreaSalesHeadsForApproval(user.UserCode, status).run();
-    return result.recordset;
-  } else if(user.Role === AREA_SALES_HEAD) {
-    const result = await userModel.getAccountOfficersForApproval(user.UserCode, status).run();
-    return result.recordset;
-  } else if (user.Role === SUPERADMIN) {
-    const result = await userModel.getTopLevelHeadsForApproval(status).run();
-    return result.recordset;
-  } else {
-    throwHttpError(400, "Invalid Role");
-  }
+  const lookup = approvalListFor[user.Role];
+  if (!lookup) throwHttpError(400, "Invalid Role");
+
+  const result = await lookup(user, status).run();
+
+  return result.recordset.map(({ TotalCount, ...rest }) => rest);
 };
 
 export const approveRejectUser = async (user, userId, action) => {

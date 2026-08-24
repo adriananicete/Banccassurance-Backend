@@ -45,6 +45,8 @@ export const topLevelRoles = [SECTOR_HEAD, DEPARTMENT_HEAD];
 
 export const referralCreatorRoles = [BRANCH_STAFF, BRANCH_HEAD, ACCOUNT_OFFICER];
 
+export const approverRoles = [BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD, SUPERADMIN];
+
 export const minimumLengthPassword = 8;
 
 export const API_VERSION_PREFIX = '/api/v1';

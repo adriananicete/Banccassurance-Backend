@@ -10,11 +10,9 @@ import { photoUpload } from '../middleware/upload.js';
 import { verifyFileSignature } from '../middleware/verifyFileSignature.js';
 import { imageKinds } from '../utils/fileSignature.js';
 import { mediumLimiter } from '../middleware/rateLimiter.js';
-import { AREA_SALES_HEAD, BRANCH_HEAD, DEPARTMENT_HEAD, GROUP_HEAD, REGIONAL_SALES_HEAD, SECTOR_HEAD, SUPERADMIN } from '../utils/constant.js';
+import { approverRoles, AREA_SALES_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, SUPERADMIN } from '../utils/constant.js';
 
 const router = express.Router()
-
-const approverRoles = [BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD, SUPERADMIN];
 
 router.get('/check-email', mediumLimiter, checkEmail)
 router.post('/register', mediumLimiter, register)
