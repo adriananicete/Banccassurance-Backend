@@ -8,7 +8,7 @@ export const requireAuth = (req, res, next) => {
   }
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET) // { UserId, UserCode, Role }
+    req.user = jwt.verify(token, process.env.JWT_SECRET)
     next()
   } catch {
     return res.status(401).json({ success: false, message: 'Invalid or expired session' })

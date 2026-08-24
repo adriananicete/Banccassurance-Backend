@@ -96,7 +96,7 @@ test("the Area Sales Head scope lookup is given the caller's code and the target
 
   assert.deepEqual(
     calls.find((call) => call.name === "isAreaInAreaSalesHeadScope").args,
-    ["PHL-ASH-1167", "5"],
+    ["PHL-ASH-1167", 5],
   );
 });
 

@@ -21,11 +21,17 @@ test("filter values are bound as parameters, never written into the SQL", async 
   const { sql, inputs } = await build({ areaCode: injection, aoCode: injection });
 
   assert.doesNotMatch(sql, /DROP TABLE/i);
-  assert.match(sql, /@AreaCode/);
   assert.match(sql, /@AOCode/);
+
+  // A non-numeric areaCode is dropped rather than bound. Referrals.AreaCode is
+  // INT, so a string reached the driver and surfaced as a 500 - the same defect
+  // already guarded in userModel.getBranches, where ?areaCode=abc now means
+  // "no filter" rather than an error.
+  assert.doesNotMatch(sql, /@AreaCode/);
+
   assert.deepEqual(
     inputs.map((i) => i.value),
-    [injection, injection],
+    [injection],
   );
 });
 

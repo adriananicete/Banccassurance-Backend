@@ -1,12 +1,15 @@
 import sql from "../config/db.js";
+import { asInt } from "../utils/sqlValue.js";
 
 const getUnderwritingReferrals = (filters = {}) => {
   let whereClause = [];
 
   const request = new sql.Request();
 
-  if (filters.areaCode) {
-      request.input("AreaCode", sql.NVarChar, filters.areaCode);
+  const areaCode = asInt(filters.areaCode);
+
+  if (Number.isFinite(areaCode)) {
+      request.input("AreaCode", sql.Int, areaCode);
       whereClause.push("AND AreaCode = @AreaCode");
     }
 

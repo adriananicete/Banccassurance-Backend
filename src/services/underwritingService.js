@@ -36,11 +36,10 @@ const updateUnderwritingStatus = async (id, status) => {
   
   const message = `Your referral for ${ref.FirstName} ${ref.LastName} has been ${status}.`;
 
-  if (ref.ReferrerCode !== ref.AOCode) {
-    await safeNotify(ref.ReferrerCode, message);
-    await safeNotify(ref.AOCode, message)
-  } else {
-    await safeNotify(ref.ReferrerCode, message)
+  const recipients = [...new Set([ref.ReferrerCode, ref.AOCode].filter(Boolean))];
+
+  for (const recipient of recipients) {
+    await safeNotify(recipient, message);
   }
 };
 

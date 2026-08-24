@@ -163,7 +163,7 @@ export const getUserScopeById = (userId) => {
 
 export const getBranchHeadsForApproval = (areaCode, status) => {
   const request = new sql.Request();
-  request.input("AreaCode", sql.NVarChar, areaCode);
+  request.input("AreaCode", sql.Int, asInt(areaCode));
   request.input("StatusFilter", sql.NVarChar, status);
   return {
     request,
@@ -489,7 +489,7 @@ export const getAccountOfficerByCode = (aoCode) => {
 
 export const getGroupHeadByArea = (areaCode) => {
   const request = new sql.Request();
-  request.input("AreaCode", sql.NVarChar, asText(areaCode));
+  request.input("AreaCode", sql.Int, asInt(areaCode));
   return {
     request,
     run: () =>
@@ -566,7 +566,7 @@ export const getAccountOfficersForApproval = (ashUserCode, status) => {
 FROM banc.Users
 WHERE Role = 'ACCOUNT_OFFICER'
 AND AreaCode IN (
-    SELECT CAST(AreaCode AS NVARCHAR)
+    SELECT AreaCode
     FROM banc.area_sales_head_areas
     WHERE UserCode = @AshUserCode
 )

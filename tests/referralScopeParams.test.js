@@ -29,17 +29,20 @@ const bothEntryPoints = [
   ["getReferralCountsByRole", (model, user) => model.getReferralCountsByRole(user)],
 ];
 
-test("a numeric AreaCode is sent as a string, not a number", async () => {
-  // usp_sel_referrals_by_role_1 declares @AreaCode NVARCHAR. tedious refuses a
-  // number outright with EPARAM, which surfaced as a 500 on the referral list
-  // and the counts for any Account Officer whose JWT carried a numeric AreaCode.
+test("AreaCode is sent as a number, whichever way the JWT carried it", async () => {
+  // Both procedures declare @AreaCode INT. They were NVARCHAR(50) until the DBA
+  // rebuilt Users and Referrals, and the coercion added then now points the
+  // wrong way: a string only reaches the column through an implicit conversion,
+  // and BranchCode two lines above already does this correctly.
   for (const [name, call] of bothEntryPoints) {
-    const params = await paramsFor((model) =>
-      call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, AreaCode: 5 }),
-    );
+    for (const AreaCode of [5, "5"]) {
+      const params = await paramsFor((model) =>
+        call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, AreaCode }),
+      );
 
-    assert.equal(typeof params.AreaCode, "string", name);
-    assert.equal(params.AreaCode, "5", name);
+      assert.equal(typeof params.AreaCode, "number", `${name} ${JSON.stringify(AreaCode)}`);
+      assert.equal(params.AreaCode, 5, `${name} ${JSON.stringify(AreaCode)}`);
+    }
   }
 });
 
@@ -57,8 +60,9 @@ test("a string BranchCode is sent as a number", async () => {
 });
 
 test("the defaults for a missing scope are unchanged", async () => {
-  // The stored procedures treat 0 and '0' as "no scope". Coercing the types must
-  // not quietly turn those into NULL, which the procedures do not expect.
+  // The stored procedures treat 0 as "no scope". Coercing the types must not
+  // quietly turn that into NULL, which the procedures do not expect. Every
+  // PhilLife head reaches here with both columns null.
   for (const [name, call] of bothEntryPoints) {
     for (const missing of [null, undefined, ""]) {
       const params = await paramsFor((model) =>
@@ -66,7 +70,7 @@ test("the defaults for a missing scope are unchanged", async () => {
       );
 
       assert.equal(params.BranchCode, 0, `${name} ${JSON.stringify(missing)}`);
-      assert.equal(params.AreaCode, "0", `${name} ${JSON.stringify(missing)}`);
+      assert.equal(params.AreaCode, 0, `${name} ${JSON.stringify(missing)}`);
     }
   }
 });
@@ -109,7 +113,7 @@ test("every scope parameter is a type the procedure can accept", async () => {
       );
 
       assert.equal(typeof params.BranchCode, "number", `${name} ${JSON.stringify(shape)}`);
-      assert.equal(typeof params.AreaCode, "string", `${name} ${JSON.stringify(shape)}`);
+      assert.equal(typeof params.AreaCode, "number", `${name} ${JSON.stringify(shape)}`);
     }
   }
 });
