@@ -57,31 +57,61 @@ test("an unknown role is refused before anything is looked up", async () => {
   assert.deepEqual(calls, []);
 });
 
-const belongsToAGroup = [ACCOUNT_OFFICER, AREA_SALES_HEAD, GROUP_HEAD];
-const belongsToABranch = [BRANCH_STAFF, BRANCH_HEAD];
-const belongsToNeither = [REGIONAL_SALES_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD];
+// The contract every self-registering role is held to. Each says what the role
+// must send and what it must not - "optional" is a deliberate third answer, not
+// a gap: a Branch Staff's group is derivable from their branch and nothing
+// reads it, so requiring or forbidding it would both be inventions.
+const contract = {
+  [BRANCH_STAFF]: { group: "optional", branch: "required" },
+  [BRANCH_HEAD]: { group: "required", branch: "required" },
+  [GROUP_HEAD]: { group: "required", branch: "forbidden" },
+  [SECTOR_HEAD]: { group: "forbidden", branch: "forbidden" },
+  [ACCOUNT_OFFICER]: { group: "required", branch: "forbidden" },
+  [AREA_SALES_HEAD]: { group: "required", branch: "forbidden" },
+  [REGIONAL_SALES_HEAD]: { group: "forbidden", branch: "forbidden" },
+  [DEPARTMENT_HEAD]: { group: "forbidden", branch: "forbidden" },
+};
 
-test("every self-registering role has a field rule", () => {
-  // GROUP_HEAD had none. It matched no branch of the validation, so a
+const withRule = (field, value) =>
+  Object.entries(contract)
+    .filter(([, rule]) => rule[field] === value)
+    .map(([role]) => role);
+
+test("every self-registering role has a field rule, and the rule is complete", () => {
+  // GROUP_HEAD had none at all: it matched no branch of the validation, so a
   // registration with no areaCode was accepted and produced a Group Head
-  // belonging to no group - an account that can never approve anyone, because
-  // getBranchHeadsForApproval filters on exactly the column left null. It shows
-  // up as an empty list rather than an error. USR-GRH-0030 is that account.
+  // belonging to no group - an account that can never approve anyone, since its
+  // approvals query filters on the column left null. USR-GRH-0030 is that row.
   //
-  // A missing rule cannot be caught by exercising the rules that exist, because
-  // nothing throws and nothing fails. This asserts the set instead, so a role
-  // added to landBankRoles or philLifeRoles without a rule fails here.
+  // BRANCH_HEAD had one that was incomplete: branchCode required, areaCode
+  // silently not. That failed loudly but blamed the wrong thing.
+  //
+  // Neither shape can be caught by exercising the rules that exist. This
+  // asserts the set covers every role, and that each rule answers both fields.
   assert.deepEqual(
-    [...belongsToAGroup, ...belongsToABranch, ...belongsToNeither].sort(),
+    Object.keys(contract).sort(),
     [...landBankRoles, ...philLifeRoles].sort(),
   );
+
+  for (const [role, rule] of Object.entries(contract)) {
+    assert.ok(["required", "forbidden", "optional"].includes(rule.group), `${role}.group`);
+    assert.ok(["required", "forbidden", "optional"].includes(rule.branch), `${role}.branch`);
+  }
 });
 
-test("a role that belongs to a group is refused without one", async () => {
-  for (const role of belongsToAGroup) {
+test("the service holds the same contract this file describes", async () => {
+  // Two tables that must agree. Asserting the behaviour role by role below
+  // proves each rule fires; only this proves the two lists are the same list.
+  const { service } = await withUserService(happyPath());
+
+  assert.deepEqual(service.registrationFields, contract);
+});
+
+test("a role that needs a group is refused without one", async () => {
+  for (const role of withRule("group", "required")) {
     const { service } = await withUserService(happyPath());
     const error = await captureThrown(() =>
-      service.register(fields({ role, areaCode: null, branchCode: null })),
+      service.register(fields({ role, areaCode: null, branchCode: 58 })),
     );
 
     assert.equal(error?.statusCode, 400, role);
@@ -89,16 +119,57 @@ test("a role that belongs to a group is refused without one", async () => {
   }
 });
 
-test("a role that belongs to a group is refused a branch", async () => {
-  for (const role of belongsToAGroup) {
+test("a role that must not send a branch is refused one", async () => {
+  for (const role of withRule("branch", "forbidden")) {
     const { service } = await withUserService(happyPath());
+
+    // Send the group only where the role is allowed one, or the group rule
+    // fires first and this proves nothing about the branch.
+    const areaCode = contract[role].group === "forbidden" ? null : 5;
+
     const error = await captureThrown(() =>
-      service.register(fields({ role, areaCode: 5, branchCode: 58 })),
+      service.register(fields({ role, areaCode, branchCode: 58 })),
     );
 
     assert.equal(error?.statusCode, 400, role);
     assert.match(error.message, /branch is not selected/i, role);
   }
+});
+
+test("a role that needs a branch is refused without one", async () => {
+  for (const role of withRule("branch", "required")) {
+    const { service } = await withUserService(happyPath());
+    const areaCode = contract[role].group === "forbidden" ? null : 5;
+
+    const error = await captureThrown(() =>
+      service.register(fields({ role, areaCode, branchCode: null })),
+    );
+
+    assert.equal(error?.statusCode, 400, role);
+    assert.match(error.message, /branch is required/i, role);
+  }
+});
+
+test("a Branch Head must send both, and is told which one is missing", async () => {
+  // The whole point of the fix. Without the group the approver lookup found no
+  // Group Head and answered "No Group Head is assigned to this group yet" -
+  // which is false. There is one for every group; none had been named.
+  const noGroup = await withUserService(happyPath());
+  const groupError = await captureThrown(() =>
+    noGroup.service.register(fields({ role: BRANCH_HEAD, areaCode: null, branchCode: 58 })),
+  );
+
+  assert.equal(groupError?.statusCode, 400);
+  assert.match(groupError.message, /group is required/i);
+  assert.doesNotMatch(groupError.message, /no group head is assigned/i);
+
+  const noBranch = await withUserService(happyPath());
+  const branchError = await captureThrown(() =>
+    noBranch.service.register(fields({ role: BRANCH_HEAD, areaCode: 5, branchCode: null })),
+  );
+
+  assert.equal(branchError?.statusCode, 400);
+  assert.match(branchError.message, /branch is required/i);
 });
 
 test("no field rule runs before the role itself is checked", async () => {
@@ -129,16 +200,6 @@ test("a Regional Sales Head registers with neither a group nor a branch", async 
   assert.equal(result.success, true);
 });
 
-test("Landbank field rules: staff and branch heads need a branch", async () => {
-  for (const role of [BRANCH_STAFF, BRANCH_HEAD]) {
-    const { service } = await withUserService(happyPath());
-    const error = await captureThrown(() =>
-      service.register(fields({ role, areaCode: null, branchCode: null })),
-    );
-    assert.equal(error?.statusCode, 400, role);
-    assert.match(error.message, /branch is required/i);
-  }
-});
 
 test("each role is routed to its own approver lookup", async () => {
   const routes = [

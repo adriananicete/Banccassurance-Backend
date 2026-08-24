@@ -14,9 +14,7 @@ import {
   BRANCH_STAFF,
   DEPARTMENT_HEAD,
   GROUP_HEAD,
-  landBankRoles,
   minimumLengthPassword,
-  philLifeRoles,
   REGIONAL_SALES_HEAD,
   SECTOR_HEAD,
   SUPERADMIN,
@@ -33,6 +31,17 @@ const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
 
 const isApproved = (isActive) => isActive === true || isActive === 1;
 const isPending = (isActive) => isActive === false || isActive === 0;
+
+export const registrationFields = {
+  [BRANCH_STAFF]: { group: "optional", branch: "required" },
+  [BRANCH_HEAD]: { group: "required", branch: "required" },
+  [GROUP_HEAD]: { group: "required", branch: "forbidden" },
+  [SECTOR_HEAD]: { group: "forbidden", branch: "forbidden" },
+  [ACCOUNT_OFFICER]: { group: "required", branch: "forbidden" },
+  [AREA_SALES_HEAD]: { group: "required", branch: "forbidden" },
+  [REGIONAL_SALES_HEAD]: { group: "forbidden", branch: "forbidden" },
+  [DEPARTMENT_HEAD]: { group: "forbidden", branch: "forbidden" },
+};
 
 export const verifyOtp = async (identifier, otp) => {
   const result = await userModel.validateUser(identifier).run();
@@ -170,40 +179,22 @@ export const checkEmail = async (email) => {
 };
 
 export const register = async (fields, { createdBySuperadmin = false } = {}) => {
-  if (
-    !landBankRoles.includes(fields.role) &&
-    !philLifeRoles.includes(fields.role)
-  )
-    throwHttpError(400, "Invalid role");
+  const rule = registrationFields[fields.role];
+  if (!rule) throwHttpError(400, "Invalid role");
+
   const tempPassword = crypto.randomBytes(12).toString("base64url");
 
-  if (
-    fields.role === ACCOUNT_OFFICER ||
-    fields.role === AREA_SALES_HEAD ||
-    fields.role === GROUP_HEAD
-  ) {
-    if (!fields.areaCode)
-      throwHttpError(400, "Group is required for this role");
+  if (rule.group === "required" && !fields.areaCode)
+    throwHttpError(400, "Group is required for this role");
 
-    if (fields.branchCode)
-      throwHttpError(
-        400,
-        "Branch is not selected at registration for this role",
-      );
-  }
+  if (rule.group === "forbidden" && fields.areaCode)
+    throwHttpError(400, "Group is not selected at registration for this role");
 
-  if (fields.role === REGIONAL_SALES_HEAD || topLevelRoles.includes(fields.role)) {
-    if (fields.areaCode || fields.branchCode)
-      throwHttpError(
-        400,
-        "Group is not selected at registration for this role",
-      );
-  }
+  if (rule.branch === "required" && !fields.branchCode)
+    throwHttpError(400, "Branch is required for this role");
 
-  if (fields.role === BRANCH_STAFF || fields.role === BRANCH_HEAD) {
-    if (!fields.branchCode)
-      throwHttpError(400, "Branch is required for this role");
-  }
+  if (rule.branch === "forbidden" && fields.branchCode)
+    throwHttpError(400, "Branch is not selected at registration for this role");
 
   let approvers;
   let approverMessage;
