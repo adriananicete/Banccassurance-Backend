@@ -75,6 +75,39 @@ test("the defaults for a missing scope are unchanged", async () => {
   }
 });
 
+test("the referrer's Account Officer is resolved from the branch, not from the stale snapshot", async () => {
+  // Users.AOCode is written once, by usp_ins_register_user, from whoever held
+  // the branch at that moment. Assigning an Account Officer afterwards does
+  // nothing for the staff already in that branch, so every seeded Landbank
+  // account carries NULL here and can never create a referral - the guard in
+  // createReferral refuses them by design.
+  //
+  // Reading account_officer_branches live fixes that for everyone at once. The
+  // COALESCE keeps the stored value as a fallback, so an account that is
+  // already correct is never made worse.
+  const { model, queries } = await captureSql(REFERRAL_MODEL);
+  await model.getReferrerAttribution("USR-BRH-0300").run();
+  restoreSqlCapture();
+
+  const [text] = queries;
+
+  assert.match(text, /FROM banc\.account_officer_branches aob/i);
+  assert.match(text, /WHERE aob\.BranchCode = u\.BranchCode/i);
+  assert.match(text, /COALESCE\(live\.UserCode, u\.AOCode\) AS AOCode/i);
+});
+
+test("the Account Officer's name is joined on the resolved code, not the stored one", async () => {
+  // Easy to miss when changing the column: leaving the join on u.AOCode returns
+  // a live AOCode beside a null or, worse, a stale AOName - and the referral
+  // row carries both.
+  const { model, queries } = await captureSql(REFERRAL_MODEL);
+  await model.getReferrerAttribution("USR-BRH-0300").run();
+  restoreSqlCapture();
+
+  assert.match(queries[0], /ao\.UserCode = COALESCE\(live\.UserCode, u\.AOCode\)/i);
+  assert.doesNotMatch(queries[0], /ON u\.AOCode = ao\.UserCode/i);
+});
+
 test("the overseer list carries a tenant guard on the column that side scopes by", async () => {
   // This query had no WHERE clause at all, so a PhilLife Department Head listed
   // Landbank referrals and the reverse. Stubbing the model cannot catch that —

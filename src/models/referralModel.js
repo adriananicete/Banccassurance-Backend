@@ -195,7 +195,7 @@ export const getReferrerAttribution = (userCode) => {
     SELECT
     u.UserCode    AS ReferrerCode,
     COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS ReferrerName,
-    u.AOCode,
+    COALESCE(live.UserCode, u.AOCode) AS AOCode,
     ao.FullName   AS AOName,
     b.BranchCode,
     b.BranchName,
@@ -206,8 +206,14 @@ INNER JOIN banc.branches b
     ON u.BranchCode = b.BranchCode
 INNER JOIN banc.group_areas a
     ON b.AreaCode = a.AreaCode
+OUTER APPLY (
+    SELECT TOP 1 aob.UserCode
+    FROM banc.account_officer_branches aob
+    WHERE aob.BranchCode = u.BranchCode
+    ORDER BY aob.Id DESC
+) live
 LEFT JOIN banc.Users ao
-    ON u.AOCode = ao.UserCode
+    ON ao.UserCode = COALESCE(live.UserCode, u.AOCode)
 WHERE u.UserCode = @UserCode
     `)
  } 
