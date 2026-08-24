@@ -82,9 +82,12 @@ test("the referrer's Account Officer is resolved from the branch, not from the s
   // account carries NULL here and can never create a referral - the guard in
   // createReferral refuses them by design.
   //
-  // Reading account_officer_branches live fixes that for everyone at once. The
-  // COALESCE keeps the stored value as a fallback, so an account that is
-  // already correct is never made worse.
+  // Reading account_officer_branches live fixes that for everyone at once.
+  //
+  // The column is deliberately NOT coalesced back onto Users.AOCode. Falling
+  // back to the stored value would let an Account Officer keep receiving
+  // referrals from a branch that had been taken away from them, and the rule is
+  // that a branch with no Account Officer refuses the referral outright.
   const { model, queries } = await captureSql(REFERRAL_MODEL);
   await model.getReferrerAttribution("USR-BRH-0300").run();
   restoreSqlCapture();
@@ -93,7 +96,8 @@ test("the referrer's Account Officer is resolved from the branch, not from the s
 
   assert.match(text, /FROM banc\.account_officer_branches aob/i);
   assert.match(text, /WHERE aob\.BranchCode = u\.BranchCode/i);
-  assert.match(text, /COALESCE\(live\.UserCode, u\.AOCode\) AS AOCode/i);
+  assert.match(text, /live\.UserCode AS AOCode/i);
+  assert.doesNotMatch(text, /COALESCE\(live\.UserCode/i);
 });
 
 test("the Account Officer's name is joined on the resolved code, not the stored one", async () => {
@@ -104,7 +108,7 @@ test("the Account Officer's name is joined on the resolved code, not the stored 
   await model.getReferrerAttribution("USR-BRH-0300").run();
   restoreSqlCapture();
 
-  assert.match(queries[0], /ao\.UserCode = COALESCE\(live\.UserCode, u\.AOCode\)/i);
+  assert.match(queries[0], /ao\.UserCode = live\.UserCode/i);
   assert.doesNotMatch(queries[0], /ON u\.AOCode = ao\.UserCode/i);
 });
 
