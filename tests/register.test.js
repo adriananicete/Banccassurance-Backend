@@ -7,8 +7,12 @@ import {
   AREA_SALES_HEAD,
   BRANCH_HEAD,
   BRANCH_STAFF,
+  DEPARTMENT_HEAD,
   GROUP_HEAD,
+  landBankRoles,
+  philLifeRoles,
   REGIONAL_SALES_HEAD,
+  SECTOR_HEAD,
 } from "../src/utils/constant.js";
 
 const fields = (overrides) => ({
@@ -53,22 +57,58 @@ test("an unknown role is refused before anything is looked up", async () => {
   assert.deepEqual(calls, []);
 });
 
-test("PhilLife field rules: AO and ASH need a group and must not send a branch", async () => {
-  for (const role of [ACCOUNT_OFFICER, AREA_SALES_HEAD]) {
-    const missing = await withUserService(happyPath());
-    const noArea = await captureThrown(() =>
-      missing.service.register(fields({ role, areaCode: null })),
-    );
-    assert.equal(noArea?.statusCode, 400, role);
-    assert.match(noArea.message, /group is required/i);
+const belongsToAGroup = [ACCOUNT_OFFICER, AREA_SALES_HEAD, GROUP_HEAD];
+const belongsToABranch = [BRANCH_STAFF, BRANCH_HEAD];
+const belongsToNeither = [REGIONAL_SALES_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD];
 
-    const extra = await withUserService(happyPath());
-    const withBranch = await captureThrown(() =>
-      extra.service.register(fields({ role, branchCode: 58 })),
+test("every self-registering role has a field rule", () => {
+  // GROUP_HEAD had none. It matched no branch of the validation, so a
+  // registration with no areaCode was accepted and produced a Group Head
+  // belonging to no group - an account that can never approve anyone, because
+  // getBranchHeadsForApproval filters on exactly the column left null. It shows
+  // up as an empty list rather than an error. USR-GRH-0030 is that account.
+  //
+  // A missing rule cannot be caught by exercising the rules that exist, because
+  // nothing throws and nothing fails. This asserts the set instead, so a role
+  // added to landBankRoles or philLifeRoles without a rule fails here.
+  assert.deepEqual(
+    [...belongsToAGroup, ...belongsToABranch, ...belongsToNeither].sort(),
+    [...landBankRoles, ...philLifeRoles].sort(),
+  );
+});
+
+test("a role that belongs to a group is refused without one", async () => {
+  for (const role of belongsToAGroup) {
+    const { service } = await withUserService(happyPath());
+    const error = await captureThrown(() =>
+      service.register(fields({ role, areaCode: null, branchCode: null })),
     );
-    assert.equal(withBranch?.statusCode, 400, role);
-    assert.match(withBranch.message, /branch is not selected/i);
+
+    assert.equal(error?.statusCode, 400, role);
+    assert.match(error.message, /group is required/i, role);
   }
+});
+
+test("a role that belongs to a group is refused a branch", async () => {
+  for (const role of belongsToAGroup) {
+    const { service } = await withUserService(happyPath());
+    const error = await captureThrown(() =>
+      service.register(fields({ role, areaCode: 5, branchCode: 58 })),
+    );
+
+    assert.equal(error?.statusCode, 400, role);
+    assert.match(error.message, /branch is not selected/i, role);
+  }
+});
+
+test("no field rule runs before the role itself is checked", async () => {
+  // An unknown role must be refused as an unknown role, not as a missing group.
+  const { service } = await withUserService(happyPath());
+  const error = await captureThrown(() =>
+    service.register(fields({ role: "CLUSTER_HEAD", areaCode: null, branchCode: null })),
+  );
+
+  assert.match(error.message, /invalid role/i);
 });
 
 test("a Regional Sales Head registers with neither a group nor a branch", async () => {

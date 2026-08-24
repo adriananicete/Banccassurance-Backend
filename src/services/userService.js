@@ -177,7 +177,11 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
     throwHttpError(400, "Invalid role");
   const tempPassword = crypto.randomBytes(12).toString("base64url");
 
-  if (fields.role === ACCOUNT_OFFICER || fields.role === AREA_SALES_HEAD) {
+  if (
+    fields.role === ACCOUNT_OFFICER ||
+    fields.role === AREA_SALES_HEAD ||
+    fields.role === GROUP_HEAD
+  ) {
     if (!fields.areaCode)
       throwHttpError(400, "Group is required for this role");
 
