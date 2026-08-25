@@ -1,4 +1,4 @@
-import bcrypt from "bcrypt";
+﻿import bcrypt from "bcrypt";
 import crypto from "crypto";
 import * as userModel from "../models/userModel.js";
 import * as notificationModel from "../models/notificationModel.js";
@@ -9,6 +9,7 @@ import {
 } from "./emailService.js";
 import {
   ACCOUNT_OFFICER,
+  approverRoles,
   AREA_SALES_HEAD,
   BRANCH_HEAD,
   BRANCH_STAFF,
@@ -314,28 +315,24 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
   return { success: false, message: Message };
 };
 
-const approvalListFor = {
-  [BRANCH_HEAD]: (user, status) =>
-    userModel.getUsersForApproval(BRANCH_STAFF, user.BranchCode, status),
-  [GROUP_HEAD]: (user, status) =>
-    userModel.getBranchHeadsForApproval(user.AreaCode, status),
-  [SECTOR_HEAD]: (user, status) => userModel.getGroupHeadsForApproval(status),
-  [DEPARTMENT_HEAD]: (user, status) =>
-    userModel.getRegionalSalesHeadsForApproval(status),
-  [REGIONAL_SALES_HEAD]: (user, status) =>
-    userModel.getAreaSalesHeadsForApproval(user.UserCode, status),
-  [AREA_SALES_HEAD]: (user, status) =>
-    userModel.getAccountOfficersForApproval(user.UserCode, status),
-  [SUPERADMIN]: (user, status) => userModel.getTopLevelHeadsForApproval(status),
-};
 
-export const getUsersForApproval = async (user, status) => {
-  const lookup = approvalListFor[user.Role];
-  if (!lookup) throwHttpError(400, "Invalid Role");
+export const getUsersForApproval = async (user, options = {}) => {
+  if (!approverRoles.includes(user.Role)) throwHttpError(400, "Invalid Role");
 
-  const result = await lookup(user, status).run();
+  const result = await userModel.getUsersForApproval(user, options).run();
 
-  return result.recordset.map(({ TotalCount, ...rest }) => rest);
+  const totalCount = result.recordset[0]?.TotalCount ?? 0;
+  const rows = result.recordset.map(({ TotalCount, ...rest }) => rest);
+
+  return {
+    data: rows,
+    pagination: {
+      page: options.PageNumber,
+      pageSize: options.PageSize,
+      totalCount,
+      totalPages: Math.ceil(totalCount / options.PageSize),
+    },
+  };
 };
 
 export const approveRejectUser = async (user, userId, action) => {

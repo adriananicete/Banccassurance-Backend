@@ -36,9 +36,23 @@ export const register = async (req, res, next) => {
 
 export const getUsersForApproval = async (req, res, next) => {
   try {
-    const { status = 'ALL' } = req.query
-    const data = await userService.getUsersForApproval(req.user, status)
-    return res.json({ success: true, data })
+    let { page, pageSize, search, status = 'ALL' } = req.query
+
+    page = parseInt(page, 10)
+    if (isNaN(page) || page < 1) page = 1
+
+    pageSize = parseInt(pageSize, 10)
+    if (isNaN(pageSize) || pageSize < 1) pageSize = 20
+    if (pageSize > 100) pageSize = 100
+
+    const result = await userService.getUsersForApproval(req.user, {
+      StatusFilter: status,
+      Search: search || null,
+      PageNumber: page,
+      PageSize: pageSize,
+    })
+
+    return res.json({ success: true, ...result })
   } catch (error) {
     next(error)
   }

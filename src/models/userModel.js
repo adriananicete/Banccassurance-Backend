@@ -1,4 +1,4 @@
-import sql from "../config/db.js";
+﻿import sql from "../config/db.js";
 
 import * as auditModel from "./auditModel.js";
 import { asInt, asText } from "../utils/sqlValue.js";
@@ -126,13 +126,16 @@ export const checkOrRegisterUser = ({
   return { request, run: () => request.execute("banc.usp_ins_register_user") };
 };
 
-export const getUsersForApproval = (role, branchCode, statusFilter) => {
+export const getUsersForApproval = (user, options = {}) => {
   const request = new sql.Request();
-  request.input("Role", sql.NVarChar, role);
-  request.input("BranchCode", sql.Int, asInt(branchCode));
-  request.input("StatusFilter", sql.NVarChar, statusFilter);
-  request.input("PageNumber", sql.Int, 1);
-  request.input("PageSize", sql.Int, 100);
+  request.input("CallerRole", sql.NVarChar, asText(user.Role));
+  request.input("CallerUserCode", sql.NVarChar, asText(user.UserCode));
+  request.input("BranchCode", sql.Int, asInt(user.BranchCode));
+  request.input("AreaCode", sql.Int, asInt(user.AreaCode));
+  request.input("StatusFilter", sql.NVarChar, asText(options.StatusFilter) ?? "ALL");
+  request.input("Search", sql.NVarChar, asText(options.Search));
+  request.input("PageNumber", sql.Int, asInt(options.PageNumber) ?? 1);
+  request.input("PageSize", sql.Int, asInt(options.PageSize) ?? 20);
   return {
     request,
     run: () => request.execute("banc.usp_sel_users_for_approval"),
@@ -161,116 +164,6 @@ export const getUserScopeById = (userId) => {
   };
 };
 
-export const getBranchHeadsForApproval = (areaCode, status) => {
-  const request = new sql.Request();
-  request.input("AreaCode", sql.Int, asInt(areaCode));
-  request.input("StatusFilter", sql.NVarChar, status);
-  return {
-    request,
-    run: () =>
-      request.query(
-        `SELECT
-    UserId,
-    UserCode,
-    FirstName,
-    LastName,
-    Email,
-    MobileNumber,
-    Position,
-    Role,
-    IsActive,
-    CreatedAt,
-    CASE
-        WHEN IsActive = 1  THEN 'APPROVED'
-        WHEN IsActive = -1 THEN 'REJECTED'
-        ELSE 'PENDING'
-    END AS Status
-FROM banc.Users
-WHERE AreaCode = @AreaCode
-  AND Role = 'BRANCH_HEAD'
-  AND (
-        @StatusFilter = 'ALL'
-     OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
-     OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
-     OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
-  )
-ORDER BY CreatedAt DESC;`,
-      ),
-  };
-};
-
-export const getGroupHeadsForApproval = (status) => {
-  const request = new sql.Request();
-  request.input("StatusFilter", sql.NVarChar, status);
-  return {
-    request,
-    run: () =>
-      request.query(`
-      SELECT
-    UserId,
-    UserCode,
-    FirstName,
-    LastName,
-    Email,
-    MobileNumber,
-    Position,
-    Role,
-    IsActive,
-    CreatedAt,
-    CASE
-        WHEN IsActive = 1  THEN 'APPROVED'
-        WHEN IsActive = -1 THEN 'REJECTED'
-        ELSE 'PENDING'
-    END AS Status
-FROM banc.Users
-  WHERE Role = 'GROUP_HEAD'
-  AND (
-        @StatusFilter = 'ALL'
-     OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
-     OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
-     OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
-  )
-ORDER BY CreatedAt DESC, UserId DESC;
-      `),
-  };
-};
-
-export const getRegionalSalesHeadsForApproval = (status) => {
-  const request = new sql.Request();
-  request.input("StatusFilter", sql.NVarChar, status);
-  return {
-    request,
-    run: () =>
-      request.query(`
-      SELECT
-    UserId,
-    UserCode,
-    FirstName,
-    LastName,
-    Email,
-    MobileNumber,
-    Position,
-    Role,
-    IsActive,
-    CreatedAt,
-    CASE
-        WHEN IsActive = 1  THEN 'APPROVED'
-        WHEN IsActive = -1 THEN 'REJECTED'
-        ELSE 'PENDING'
-    END AS Status
-FROM banc.Users
-  WHERE Role = 'REGIONAL_SALES_HEAD'
-  AND (
-        @StatusFilter = 'ALL' 
-     OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
-     OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
-     OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
-  )
-ORDER BY CreatedAt DESC;
-      `),
-  };
-};
-
 export const getSuperadmins = () => {
   const request = new sql.Request();
   return {
@@ -294,86 +187,6 @@ export const findUserIdByCode = (userCode) => {
       request.query(`
       SELECT UserId FROM banc.Users WHERE UserCode = @UserCode
     `),
-  };
-};
-
-export const getTopLevelHeadsForApproval = (status) => {
-  const request = new sql.Request();
-  request.input("StatusFilter", sql.NVarChar, status);
-  return {
-    request,
-    run: () =>
-      request.query(`
-      SELECT
-    UserId,
-    UserCode,
-    FullName,
-    FirstName,
-    LastName,
-    Email,
-    MobileNumber,
-    Position,
-    Role,
-    IsActive,
-    CreatedAt,
-    CASE
-        WHEN IsActive = 1  THEN 'APPROVED'
-        WHEN IsActive = -1 THEN 'REJECTED'
-        ELSE 'PENDING'
-    END AS Status
-FROM banc.Users
-  WHERE Role IN ('SECTOR_HEAD', 'DEPARTMENT_HEAD')
-  AND (
-        @StatusFilter = 'ALL'
-     OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
-     OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
-     OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
-  )
-ORDER BY CreatedAt DESC, UserId DESC;
-      `),
-  };
-};
-
-export const getAreaSalesHeadsForApproval = (rshUserCode, status) => {
-  const request = new sql.Request();
-  request.input("RshUserCode", sql.NVarChar, rshUserCode)
-  request.input("StatusFilter", sql.NVarChar, status);
-  return {
-    request,
-    run: () =>
-      request.query(`
-      SELECT
-    UserId,
-    UserCode,
-    FirstName,
-    LastName,
-    Email,
-    MobileNumber,
-    Position,
-    Role,
-    IsActive,
-    CreatedAt,
-    CASE
-        WHEN IsActive = 1  THEN 'APPROVED'
-        WHEN IsActive = -1 THEN 'REJECTED'
-        ELSE 'PENDING'
-    END AS Status
-FROM banc.Users 
-  WHERE Role = 'AREA_SALES_HEAD'
-  AND EXISTS (
-  SELECT 1
-  FROM banc.area_sales_head_areas a
-  INNER JOIN banc.regional_sales_head_areas r ON a.AreaCode = r.AreaCode
-  WHERE a.UserCode = banc.Users.UserCode AND r.UserCode = @RshUserCode
-)
-  AND (
-        @StatusFilter = 'ALL' 
-     OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
-     OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
-     OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
-  )
-ORDER BY CreatedAt DESC;
-      `),
   };
 };
 
@@ -540,46 +353,6 @@ WHERE a.UserCode = @AshUserCode AND r.UserCode = @RshUserCode`),
   };
 };
 
-
-export const getAccountOfficersForApproval = (ashUserCode, status) => {
-  const request = new sql.Request();
-  request.input("AshUserCode", sql.NVarChar, ashUserCode);
-  request.input("StatusFilter", sql.NVarChar, status);
-  return {
-    request, run: () => request.query(`
-      SELECT
-    UserId,
-    UserCode,
-    FirstName,
-    LastName,
-    Email,
-    MobileNumber,
-    Position,
-    Role,
-    IsActive,
-    CreatedAt,
-    CASE
-        WHEN IsActive = 1  THEN 'APPROVED'
-        WHEN IsActive = -1 THEN 'REJECTED'
-        ELSE 'PENDING'
-    END AS Status
-FROM banc.Users
-WHERE Role = 'ACCOUNT_OFFICER'
-AND AreaCode IN (
-    SELECT AreaCode
-    FROM banc.area_sales_head_areas
-    WHERE UserCode = @AshUserCode
-)
-AND (
-      @StatusFilter = 'ALL'
-   OR (@StatusFilter = 'PENDING'  AND IsActive = 0)
-   OR (@StatusFilter = 'APPROVED' AND IsActive = 1)
-   OR (@StatusFilter = 'REJECTED' AND IsActive = -1)
-)
-ORDER BY CreatedAt DESC;
-      `)
-  }
-}
 
 export const replaceAccountOfficerBranches = (userCode, branchCodes, audit) => {
   return {

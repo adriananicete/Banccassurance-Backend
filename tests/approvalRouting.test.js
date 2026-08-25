@@ -21,101 +21,122 @@ const pendingUser = rows({
   TotalCount: 16,
 });
 
-const everyLookup = {
-  getUsersForApproval: pendingUser,
-  getBranchHeadsForApproval: pendingUser,
-  getGroupHeadsForApproval: pendingUser,
-  getRegionalSalesHeadsForApproval: pendingUser,
-  getAreaSalesHeadsForApproval: pendingUser,
-  getAccountOfficersForApproval: pendingUser,
-  getTopLevelHeadsForApproval: pendingUser,
-};
+const oneProcedure = { getUsersForApproval: pendingUser };
 
-const routes = [
-  [{ Role: BRANCH_HEAD, BranchCode: 58 }, "getUsersForApproval"],
-  [{ Role: GROUP_HEAD, AreaCode: 2 }, "getBranchHeadsForApproval"],
-  [{ Role: SECTOR_HEAD, UserCode: "USR-SEC-0029" }, "getGroupHeadsForApproval"],
-  [{ Role: DEPARTMENT_HEAD, UserCode: "PHL-DH-0001" }, "getRegionalSalesHeadsForApproval"],
-  [{ Role: REGIONAL_SALES_HEAD, UserCode: "PHL-RSH-0001" }, "getAreaSalesHeadsForApproval"],
-  [{ Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-0005" }, "getAccountOfficersForApproval"],
-  [{ Role: SUPERADMIN, UserCode: "SYS-ADM-0001" }, "getTopLevelHeadsForApproval"],
+const paging = { StatusFilter: "PENDING", PageNumber: 1, PageSize: 20 };
+
+const callers = [
+  { Role: BRANCH_HEAD, UserCode: "USR-BRH-0300", BranchCode: 255 },
+  { Role: GROUP_HEAD, UserCode: "USR-GRH-0031", AreaCode: 2 },
+  { Role: SECTOR_HEAD, UserCode: "USR-SEC-0029" },
+  { Role: DEPARTMENT_HEAD, UserCode: "PHL-DH-0001" },
+  { Role: REGIONAL_SALES_HEAD, UserCode: "PHL-RSH-0001" },
+  { Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-0005" },
+  { Role: SUPERADMIN, UserCode: "SYS-ADM-0001" },
 ];
 
 test("the route guard and the service agree on who may approve", () => {
-  // Two lists that must match and, until now, nothing connected. A role allowed
-  // through requireRole but absent from the service's table passes the guard and
-  // then gets "Invalid Role" - a 403's worth of intent answered with a 400 that
-  // reads like the caller's mistake.
+  // Seven model functions became one procedure, so the service can no longer
+  // route by a table whose keys were the second copy of this list. It now reads
+  // approverRoles directly - the same array requireRole is given - and this
+  // asserts the fixtures below still cover all of it.
   assert.deepEqual(
-    routes.map(([user]) => user.Role).sort(),
+    callers.map((caller) => caller.Role).sort(),
     [...approverRoles].sort(),
   );
 });
 
-test("each approver role consults exactly its own lookup", async () => {
-  // Seven near-identical branches became a lookup table, and a table is easy to
-  // get subtly wrong: one wrong key routes a role to somebody else's query and
-  // answers with a plausible list. Assert which lookup was asked for, not the
-  // shape of what came back.
-  for (const [user, expected] of routes) {
-    const { service, calls } = await withUserService(everyLookup);
+test("every approver role reaches the one procedure", async () => {
+  for (const caller of callers) {
+    const { service, calls } = await withUserService(oneProcedure);
 
-    await service.getUsersForApproval(user, "PENDING");
+    await service.getUsersForApproval(caller, paging);
 
     assert.deepEqual(
       calls.map((call) => call.name).filter((name) => name.startsWith("get")),
-      [expected],
-      user.Role,
+      ["getUsersForApproval"],
+      caller.Role,
     );
   }
 });
 
-test("the caller's own scope reaches the lookup that needs it", async () => {
-  // Three of the seven are scoped to the caller. Passing the wrong field - or
-  // the right field for the wrong role - is the defect family that has produced
-  // most of this codebase's bugs.
-  const scoped = [
-    [{ Role: BRANCH_HEAD, BranchCode: 58 }, 58],
-    [{ Role: GROUP_HEAD, AreaCode: 2 }, 2],
-    [{ Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-0005" }, "PHL-ASH-0005"],
-    [{ Role: REGIONAL_SALES_HEAD, UserCode: "PHL-RSH-0001" }, "PHL-RSH-0001"],
-  ];
+test("the caller reaches the procedure whole, not one field at a time", async () => {
+  // The old table pulled one scope field per role and passed it alone, so the
+  // wrong field for a role was a silent plausible list. The procedure now picks
+  // the branch itself from @CallerRole, which means the caller must arrive
+  // intact - dropping BranchCode for a Branch Head is what an empty list looks
+  // like now.
+  for (const caller of callers) {
+    const { service, calls } = await withUserService(oneProcedure);
 
-  for (const [user, expectedScope] of scoped) {
-    const { service, calls } = await withUserService(everyLookup);
+    await service.getUsersForApproval(caller, paging);
 
-    await service.getUsersForApproval(user, "PENDING");
+    const [passedUser, passedOptions] = calls.find((call) =>
+      call.name === "getUsersForApproval",
+    ).args;
 
-    const lookup = calls.find((call) => call.name.startsWith("get"));
-    assert.ok(lookup.args.includes(expectedScope), `${user.Role} ${expectedScope}`);
-    assert.ok(lookup.args.includes("PENDING"), user.Role);
+    assert.equal(passedUser.Role, caller.Role, caller.Role);
+    assert.equal(passedUser.UserCode, caller.UserCode, caller.Role);
+    assert.equal(passedUser.BranchCode, caller.BranchCode, caller.Role);
+    assert.equal(passedUser.AreaCode, caller.AreaCode, caller.Role);
+    assert.equal(passedOptions.StatusFilter, "PENDING", caller.Role);
   }
 });
 
-test("TotalCount is stripped on every path, not only the paged one", async () => {
-  // Only the Branch Head's list runs through a procedure with COUNT(*) OVER()
-  // today, so only that one carried the artefact. The other six become
-  // procedures under DBA item 20a and will carry it too - stripping uniformly
-  // now means that change cannot leak a paging column into the response.
-  for (const [user] of routes) {
-    const { service } = await withUserService(everyLookup);
+test("TotalCount is stripped and the count survives in pagination", async () => {
+  // COUNT(*) OVER() rides on every row. It is the total for the whole set, so
+  // it has to be read before the strip and reported beside the rows rather than
+  // on them - a page of 20 must not report a total of 20.
+  for (const caller of callers) {
+    const { service } = await withUserService(oneProcedure);
 
-    const list = await service.getUsersForApproval(user, "PENDING");
+    const result = await service.getUsersForApproval(caller, paging);
 
-    for (const row of list) {
-      assert.equal("TotalCount" in row, false, user.Role);
+    for (const row of result.data) {
+      assert.equal("TotalCount" in row, false, caller.Role);
     }
-    assert.equal(list[0].UserCode, "USR-GRH-0614", user.Role);
+    assert.equal(result.data[0].UserCode, "USR-GRH-0614", caller.Role);
+    assert.equal(result.pagination.totalCount, 16, caller.Role);
+    assert.equal(result.pagination.totalPages, 1, caller.Role);
   }
+});
+
+test("an empty page reports no total rather than throwing", async () => {
+  // TotalCount rides on the rows, so a page past the end carries no count at
+  // all. The referral and notification lists behave the same way; what matters
+  // is that it reads 0 instead of dereferencing undefined.
+  const { service } = await withUserService({ getUsersForApproval: rows() });
+
+  const result = await service.getUsersForApproval(callers[0], {
+    ...paging,
+    PageNumber: 999,
+  });
+
+  assert.deepEqual(result.data, []);
+  assert.equal(result.pagination.totalCount, 0);
+  assert.equal(result.pagination.totalPages, 0);
 });
 
 test("a role with no approval list is refused rather than answered", async () => {
-  const { service } = await withUserService(everyLookup);
+  const { service } = await withUserService(oneProcedure);
 
   const error = await captureThrown(() =>
-    service.getUsersForApproval({ Role: "BRANCH_STAFF" }, "PENDING"),
+    service.getUsersForApproval({ Role: "BRANCH_STAFF" }, paging),
   );
 
   assert.equal(error?.statusCode, 400);
   assert.match(error.message, /invalid role/i);
+});
+
+test("a non-approver never reaches the procedure at all", async () => {
+  // The guard has to run before the call, not after. A refused role that still
+  // issued the query would hand the procedure a @CallerRole matching none of
+  // its seven blocks - an empty list, which reads as "nobody is pending".
+  const { service, calls } = await withUserService(oneProcedure);
+
+  await captureThrown(() =>
+    service.getUsersForApproval({ Role: "ACCOUNT_OFFICER" }, paging),
+  );
+
+  assert.equal(calls.filter((call) => call.name === "getUsersForApproval").length, 0);
 });

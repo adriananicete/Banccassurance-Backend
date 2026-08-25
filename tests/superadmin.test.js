@@ -132,17 +132,31 @@ test("the audit actor is the superadmin, never the target", async () => {
 });
 
 test("the approval list returns both top roles across both tenants", async () => {
+  // The superadmin has no branch, no area and no tenant, so its block in
+  // usp_sel_users_for_approval filters on role alone. The caller still has to
+  // arrive whole: SYS- is not a tenant getTenant accepts, and a scope field
+  // invented for this role is how it would start behaving like a PhilLife user.
   const { service, calls } = await withUserService({
-    getTopLevelHeadsForApproval: rows(
+    getUsersForApproval: rows(
       { UserCode: "USR-SEC-0002", Role: SECTOR_HEAD, Status: "PENDING" },
       { UserCode: "PHL-DH-0002", Role: DEPARTMENT_HEAD, Status: "PENDING" },
     ),
   });
 
-  const data = await service.getUsersForApproval(ADMIN, "PENDING");
+  const result = await service.getUsersForApproval(ADMIN, {
+    StatusFilter: "PENDING",
+    PageNumber: 1,
+    PageSize: 20,
+  });
 
-  assert.deepEqual(calls.find((c) => c.name === "getTopLevelHeadsForApproval").args, ["PENDING"]);
-  assert.deepEqual(data.map((r) => r.Role), [SECTOR_HEAD, DEPARTMENT_HEAD]);
+  const [passedUser, passedOptions] = calls.find(
+    (c) => c.name === "getUsersForApproval",
+  ).args;
+
+  assert.equal(passedUser.Role, SUPERADMIN);
+  assert.equal(passedUser.UserCode, ADMIN.UserCode);
+  assert.equal(passedOptions.StatusFilter, "PENDING");
+  assert.deepEqual(result.data.map((r) => r.Role), [SECTOR_HEAD, DEPARTMENT_HEAD]);
 });
 
 test("assigning branches skips the caller's scope checks but not the one-AO rule", async () => {
