@@ -38,6 +38,32 @@ test("a complete registration still reaches the procedure", async () => {
   assert.ok(calls.some((call) => call.name === "checkOrRegisterUser"));
 });
 
+test("the list matches what the procedure actually refuses", () => {
+  // Read from usp_ins_register_user STEP 1 on 2026-08-25. Six of these are its
+  // list; PasswordHash is generated here and always present, and Role is
+  // covered by registrationFields above. Email is ours and goes further than
+  // the procedure - see the test below.
+  assert.deepEqual(Object.keys(alwaysRequiredFields).sort(), [
+    "birthday",
+    "email",
+    "employeeNo",
+    "firstName",
+    "lastName",
+    "mobileNumber",
+    "position",
+  ]);
+});
+
+test("a null email is refused here even though the procedure allows it", () => {
+  // STEP 1 does not test @Email, and STEP 2's existence check compares
+  // Email = @Email, which is never true for NULL - so the procedure would
+  // happily insert a user with no email at all. That account cannot log in by
+  // email and cannot be told it was approved. UQ_Users_Email permits exactly
+  // one NULL in SQL Server, so a second such registration would surface as a
+  // raw constraint violation rather than a message.
+  assert.ok(Object.hasOwn(alwaysRequiredFields, "email"));
+});
+
 test("each always-required field is refused by name", async () => {
   // usp_ins_register_user answers a missing one of these with "Missing required
   // registration fields." - true, and it does not say which. The role-specific
