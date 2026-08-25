@@ -23,6 +23,18 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy) {
+  const hops = Number(trustProxy);
+  app.set("trust proxy", Number.isInteger(hops) ? hops : trustProxy);
+} else if (process.env.NODE_ENV === "production") {
+  console.warn(
+    "TRUST_PROXY is not set. If anything sits in front of this app, every " +
+      "request will look like it came from that one address and all users " +
+      "will share a single rate-limit bucket.",
+  );
+}
+
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:3000", 

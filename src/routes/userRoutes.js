@@ -9,13 +9,13 @@ import { requireAuth, requireRole } from '../middleware/auth.js'
 import { photoUpload } from '../middleware/upload.js';
 import { verifyFileSignature } from '../middleware/verifyFileSignature.js';
 import { imageKinds } from '../utils/fileSignature.js';
-import { mediumLimiter } from '../middleware/rateLimiter.js';
+import { registerLimiter, checkEmailLimiter } from '../middleware/rateLimiter.js';
 import { approverRoles, AREA_SALES_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, SUPERADMIN } from '../utils/constant.js';
 
 const router = express.Router()
 
-router.get('/check-email', mediumLimiter, checkEmail)
-router.post('/register', mediumLimiter, register)
+router.get('/check-email', checkEmailLimiter, checkEmail)
+router.post('/register', registerLimiter, register)
 
 router.post('/change-password', requireAuth, changePassword)
 router.post('/upload-photo', requireAuth, photoUpload.single('photo'), verifyFileSignature(imageKinds), uploadProfilePhoto)
