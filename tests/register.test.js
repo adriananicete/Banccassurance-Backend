@@ -295,15 +295,18 @@ test("an Account Officer does store its AreaCode on the user row", async () => {
   assert.equal(insert.args[0].areaCode, 5);
 });
 
-test("a taken employee number answers success false rather than throwing", async () => {
+test("a taken employee number is a 409, and nothing is written", async () => {
+  // This answered success:false with HTTP 200 until 2026-08-25. The body was
+  // right and the status said the registration had worked, so a client reading
+  // res.ok showed a confirmation for an account that does not exist.
   const { service, calls } = await withUserService(
     happyPath({ checkEmployeeNoExists: rows({ EmployeeNo: "TEST-AO-01" }) }),
   );
 
-  const result = await service.register(fields());
+  const error = await captureThrown(() => service.register(fields()));
 
-  assert.equal(result.success, false);
-  assert.match(result.message, /already registered/i);
+  assert.equal(error?.statusCode, 409);
+  assert.match(error.message, /already registered/i);
   assert.equal(
     calls.some((call) => call.name === "checkOrRegisterUser"),
     false,
@@ -336,15 +339,38 @@ test("a failing notification does not fail the registration", async () => {
   assert.equal(result.success, true);
 });
 
-test("a rejected insert is reported without a userCode", async () => {
+test("a refusal from the procedure is a 409 carrying its own message", async () => {
+  // The procedure's own wording reaches the caller unchanged - it is the only
+  // thing that says which of the two duplicates was hit. Only the status is
+  // ours, and 409 matches what a duplicate referral and an already-assigned
+  // branch already answer.
   const { service } = await withUserService(
     happyPath({
-      checkOrRegisterUser: rows({ Success: 0, Message: "Email already registered" }),
+      checkOrRegisterUser: rows({ Success: 0, Message: "Email is already registered." }),
     }),
   );
 
-  const result = await service.register(fields());
+  const error = await captureThrown(() => service.register(fields()));
 
-  assert.equal(result.success, false);
-  assert.equal(result.userCode, undefined);
+  assert.equal(error?.statusCode, 409);
+  assert.equal(error.message, "Email is already registered.");
+});
+
+test("no refusal path returns a body instead of throwing", async () => {
+  // Both duplicates used to return { success: false } and reach the client as
+  // HTTP 200, which no other refusal on this endpoint did. Asserting the shape
+  // rather than one case is what stops a third one being added the old way.
+  const refusals = [
+    happyPath({ checkEmployeeNoExists: rows({ EmployeeNo: "TEST-AO-01" }) }),
+    happyPath({ checkOrRegisterUser: rows({ Success: 0, Message: "Refused." }) }),
+  ];
+
+  for (const model of refusals) {
+    const { service } = await withUserService(model);
+
+    const error = await captureThrown(() => service.register(fields()));
+
+    assert.ok(error, "a refusal returned instead of throwing");
+    assert.ok(error.statusCode >= 400, String(error.statusCode));
+  }
 });

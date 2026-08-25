@@ -278,12 +278,8 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
     .checkEmployeeNoExists(fields.employeeNo)
     .run();
 
-  if (checkEmployeeNo.recordset.length > 0) {
-    return {
-      success: false,
-      message: "Employee number already registered",
-    };
-  }
+  if (checkEmployeeNo.recordset.length > 0)
+    throwHttpError(409, "Employee number already registered");
 
   const passwordHash = await bcrypt.hash(tempPassword, 10);
 
@@ -325,7 +321,7 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
     return { success: true, message: Message, userCode: UserCode };
   }
 
-  return { success: false, message: Message };
+  throwHttpError(409, Message);
 };
 
 
@@ -444,7 +440,6 @@ export const createTopLevelUser = async (actor, fields) => {
     throwHttpError(400, "Group is not selected at registration for this role");
 
   const created = await register(fields, { createdBySuperadmin: true });
-  if (!created.success) return created;
 
   const found = await userModel.findUserIdByCode(created.userCode).run();
   if (found.recordset.length === 0)

@@ -210,14 +210,18 @@ test("a superadmin may not create any role but the two top ones", async () => {
 });
 
 test("a failed insert is not followed by an approval", async () => {
+  // register throws on a refusal since 2026-08-25, so createTopLevelUser no
+  // longer needs its own success check - the throw is what stops it. The
+  // guarantee is unchanged and matters more than the mechanism: approving a
+  // UserId that was never created would approve somebody else's account.
   const { service, calls } = await withUserService(
     createPath({
       checkOrRegisterUser: rows({ Success: 0, Message: "Email is already registered." }),
     }),
   );
 
-  const result = await service.createTopLevelUser(ADMIN, fields());
+  const error = await captureThrown(() => service.createTopLevelUser(ADMIN, fields()));
 
-  assert.equal(result.success, false);
+  assert.equal(error?.statusCode, 409);
   assert.equal(calls.some((c) => c.name === "approveRejectUser"), false);
 });
