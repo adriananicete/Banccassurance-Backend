@@ -33,6 +33,13 @@ const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
 const isApproved = (isActive) => isActive === true || isActive === 1;
 const isPending = (isActive) => isActive === false || isActive === 0;
 
+export const alwaysRequiredFields = {
+  firstName: "First name",
+  lastName: "Last name",
+  birthday: "Birthday",
+  email: "Email",
+};
+
 export const registrationFields = {
   [BRANCH_STAFF]: { group: "optional", branch: "required" },
   [BRANCH_HEAD]: { group: "required", branch: "required" },
@@ -196,6 +203,9 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
 
   if (rule.branch === "forbidden" && fields.branchCode)
     throwHttpError(400, "Branch is not selected at registration for this role");
+
+  for (const [field, label] of Object.entries(alwaysRequiredFields))
+    if (!fields[field]) throwHttpError(400, `${label} is required`);
 
   let approvers;
   let approverMessage;
