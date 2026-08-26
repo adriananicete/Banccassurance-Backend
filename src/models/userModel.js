@@ -2,6 +2,7 @@
 
 import * as auditModel from "./auditModel.js";
 import { asInt, asText } from "../utils/sqlValue.js";
+import { branchListPageSize } from "../utils/constant.js";
 
 export const validateUser = (identifier) => {
   const request = new sql.Request();
@@ -68,19 +69,23 @@ export const getGroups = () => {
     request,
     run: () =>
       request.query(`
-      SELECT AreaCode, AreaName
+      SELECT GroupCode, GroupName
       FROM banc.group_areas
-      ORDER BY AreaName
+      ORDER BY GroupName
     `),
   };
 };
 
-export const getBranches = (areaCode, search) => {
+export const getBranches = (areaCode, search, options = {}) => {
   const request = new sql.Request();
   const area = asInt(areaCode);
+  const page = asInt(options.PageNumber);
+  const size = asInt(options.PageSize);
 
   request.input("AreaCode", sql.Int, Number.isFinite(area) ? area : null);
   request.input("Search", sql.NVarChar, asText(search));
+  request.input("PageNumber", sql.Int, Number.isFinite(page) ? page : 1);
+  request.input("PageSize", sql.Int, Number.isFinite(size) ? size : branchListPageSize);
 
   return {
     request,

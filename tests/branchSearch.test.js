@@ -10,9 +10,9 @@ const USER_MODEL = "../../src/models/userModel.js";
 // caller. banc.usp_sel_branches replaced two inline SELECTs -- one filtered by
 // area, one not -- so these assert the collapse landed and that both filters
 // still reach SQL as parameters rather than text.
-const build = async (areaCode, search) => {
+const build = async (areaCode, search, options) => {
   const { model, queries, inputs } = await captureSql(USER_MODEL);
-  await model.getBranches(areaCode, search).run();
+  await model.getBranches(areaCode, search, options).run();
   restoreSqlCapture();
 
   return { query: queries[0], inputs };
@@ -37,14 +37,55 @@ test("the model no longer builds SQL against banc.branches", async () => {
   assert.doesNotMatch(query, /banc\.branches/i);
 });
 
-test("both parameters are always bound, present or not", async () => {
+test("all four parameters are always bound, present or not", async () => {
   // The procedure reads NULL as "no filter". Binding only the parameters that
   // have values would leave the other undeclared and fail at run time.
+  //
+  // @PageNumber and @PageSize arrived with item 21b and went unbound for days:
+  // no error, no warning, twenty rows of 567. The parameter name is still
+  // @AreaCode even though the column it filters is now GroupCode -- the DBA is
+  // holding the parameter names still while the columns move.
   const { inputs } = await build(undefined, undefined);
 
-  assert.deepEqual(inputs.map((i) => i.name).sort(), ["AreaCode", "Search"]);
+  assert.deepEqual(inputs.map((i) => i.name).sort(), [
+    "AreaCode",
+    "PageNumber",
+    "PageSize",
+    "Search",
+  ]);
   assert.equal(valueOf(inputs, "AreaCode"), null);
   assert.equal(valueOf(inputs, "Search"), null);
+});
+
+test("the default page size is 100, not the procedure's 20", async () => {
+  // The whole defect in one assertion. usp_sel_branches defaults @PageSize to
+  // 20, so an unbound call silently truncates. The largest group holds 52
+  // branches, so 100 is what makes every ?areaCode= call fit in one page --
+  // which is the real registration flow, pick a group then a branch.
+  const { inputs } = await build(undefined, undefined);
+
+  assert.equal(valueOf(inputs, "PageSize"), 100);
+  assert.equal(valueOf(inputs, "PageNumber"), 1);
+});
+
+test("paging options are bound as numbers, whatever the query string held", async () => {
+  const { inputs } = await build(1, undefined, { PageNumber: "3", PageSize: "50" });
+
+  assert.equal(valueOf(inputs, "PageNumber"), 3);
+  assert.equal(typeof valueOf(inputs, "PageNumber"), "number");
+  assert.equal(valueOf(inputs, "PageSize"), 50);
+});
+
+test("junk paging falls back rather than reaching sql.Int", async () => {
+  // asInt returns NaN for junk, not null, so `asInt(x) ?? 1` would bind NaN and
+  // tedious would refuse it. The guard is Number.isFinite, the same one AreaCode
+  // already uses two lines above.
+  for (const junk of ["abc", "", null, undefined, "NaN"]) {
+    const { inputs } = await build(1, undefined, { PageNumber: junk, PageSize: junk });
+
+    assert.equal(valueOf(inputs, "PageNumber"), 1, String(junk));
+    assert.equal(valueOf(inputs, "PageSize"), 100, String(junk));
+  }
 });
 
 test("a numeric areaCode arrives as a number, not the query string's text", async () => {
@@ -95,25 +136,64 @@ test("the two filters are independent", async () => {
   assert.equal(valueOf(searchOnly.inputs, "Search"), "dolores");
 });
 
-test("the service passes both arguments through and returns the recordset bare", async () => {
-  // /lookups/branches answers { success, data } with the rows unwrapped. The
-  // controller adds the envelope; the service must not.
-  const { service, calls } = await withUserService({
-    getBranches: rows(
-      { BranchCode: 58, BranchName: "San Fernando - Dolores", AreaCode: 5 },
-      { BranchCode: 59, BranchName: "San Fernando - Sto Nino", AreaCode: 5 },
-    ),
+const branchRows = (...records) =>
+  withUserService({ getBranches: rows(...records) });
+
+test("the service strips TotalCount and reports it in pagination instead", async () => {
+  // COUNT(*) OVER() rides on every row. It is the total for the whole set, so it
+  // has to be read before the strip and reported beside the rows rather than on
+  // them -- a page of 20 must not hand back a row saying 52.
+  const { service } = await branchRows(
+    { BranchCode: 58, BranchName: "San Fernando - Dolores", ClusterCode: null, GroupCode: 5, TotalCount: 52 },
+    { BranchCode: 59, BranchName: "San Fernando - Sto Nino", ClusterCode: 11, GroupCode: 5, TotalCount: 52 },
+  );
+
+  const result = await service.getBranches("5", "san fernando", { PageNumber: 1, PageSize: 100 });
+
+  assert.deepEqual(Object.keys(result.data[0]), [
+    "BranchCode",
+    "BranchName",
+    "ClusterCode",
+    "GroupCode",
+  ]);
+  assert.equal(result.data.length, 2);
+  assert.deepEqual(result.pagination, {
+    page: 1,
+    pageSize: 100,
+    totalCount: 52,
+    totalPages: 1,
   });
-
-  const data = await service.getBranches("5", "san fernando");
-
-  assert.deepEqual(calls.find((c) => c.name === "getBranches").args, ["5", "san fernando"]);
-  assert.equal(Array.isArray(data), true);
-  assert.equal(data.length, 2);
-  assert.deepEqual(Object.keys(data[0]), ["BranchCode", "BranchName", "AreaCode"]);
 });
 
-test("groups still uses its own inline query and was not swept up in the move", async () => {
+test("the service passes the paging options through to the model", async () => {
+  const { service, calls } = await branchRows();
+
+  await service.getBranches("5", "san fernando", { PageNumber: 2, PageSize: 100 });
+
+  assert.deepEqual(calls.find((c) => c.name === "getBranches").args, [
+    "5",
+    "san fernando",
+    { PageNumber: 2, PageSize: 100 },
+  ]);
+});
+
+test("an empty page reports a zero total rather than throwing on the missing row", async () => {
+  // recordset[0] does not exist when nothing matches, and TotalCount is read
+  // from it. ?areaCode=99 is reachable by anyone -- the endpoint takes no
+  // session.
+  const { service } = await branchRows();
+
+  const result = await service.getBranches("99", null, { PageNumber: 1, PageSize: 100 });
+
+  assert.deepEqual(result.data, []);
+  assert.equal(result.pagination.totalCount, 0);
+  assert.equal(result.pagination.totalPages, 0);
+});
+
+test("groups still uses its own inline query, and now names the group columns", async () => {
+  // group_areas carries GroupCode/GroupName beside the original AreaCode/
+  // AreaName. Reading the new pair is what lets AreaCode be dropped later
+  // without touching this again.
   const { model, queries } = await captureSql(USER_MODEL);
 
   await model.getGroups().run();
@@ -121,4 +201,6 @@ test("groups still uses its own inline query and was not swept up in the move", 
 
   assert.doesNotMatch(queries[0], /^EXEC /);
   assert.match(queries[0], /FROM banc\.group_areas/i);
+  assert.match(queries[0], /SELECT\s+GroupCode,\s*GroupName/i);
+  assert.doesNotMatch(queries[0], /AreaCode|AreaName/i);
 });

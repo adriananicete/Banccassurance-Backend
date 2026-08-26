@@ -1,6 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import * as userService from '../services/userService.js'
+import { paging } from '../utils/paging.js'
 
 export const checkEmail = async (req, res, next) => {
   try {
@@ -36,20 +37,12 @@ export const register = async (req, res, next) => {
 
 export const getUsersForApproval = async (req, res, next) => {
   try {
-    let { page, pageSize, search, status = 'ALL' } = req.query
-
-    page = parseInt(page, 10)
-    if (isNaN(page) || page < 1) page = 1
-
-    pageSize = parseInt(pageSize, 10)
-    if (isNaN(pageSize) || pageSize < 1) pageSize = 20
-    if (pageSize > 100) pageSize = 100
+    const { search, status = 'ALL' } = req.query
 
     const result = await userService.getUsersForApproval(req.user, {
       StatusFilter: status,
       Search: search || null,
-      PageNumber: page,
-      PageSize: pageSize,
+      ...paging(req.query),
     })
 
     return res.json({ success: true, ...result })

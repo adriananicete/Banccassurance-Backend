@@ -177,9 +177,21 @@ export const getGroups = async () => {
   return result.recordset;
 };
 
-export const getBranches = async (areaCode, search) => {
-  const result = await userModel.getBranches(areaCode, search).run();
-  return result.recordset;
+export const getBranches = async (areaCode, search, options = {}) => {
+  const result = await userModel.getBranches(areaCode, search, options).run();
+
+  const totalCount = result.recordset[0]?.TotalCount ?? 0;
+  const rows = result.recordset.map(({ TotalCount, ...rest }) => rest);
+
+  return {
+    data: rows,
+    pagination: {
+      page: options.PageNumber,
+      pageSize: options.PageSize,
+      totalCount,
+      totalPages: Math.ceil(totalCount / options.PageSize),
+    },
+  };
 };
 
 export const checkEmail = async (email) => {

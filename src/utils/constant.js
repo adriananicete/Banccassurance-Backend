@@ -49,4 +49,6 @@ export const approverRoles = [BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_H
 
 export const minimumLengthPassword = 8;
 
+export const branchListPageSize = 100;
+
 export const API_VERSION_PREFIX = '/api/v1';
