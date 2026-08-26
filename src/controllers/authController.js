@@ -23,7 +23,7 @@ export const verifyOtp = async (req, res, next) => {
       UserCode: user.UserCode,
       Role: user.Role,
       BranchCode: user.BranchCode,
-      AreaCode: user.AreaCode,
+      GroupCode: user.GroupCode,
       AOCode: user.AOCode
     }
 
@@ -49,7 +49,8 @@ export const verifyOtp = async (req, res, next) => {
         Role: user.Role,
         Photo: user.Photo,
         BranchCode: user.BranchCode,
-        AreaCode: user.AreaCode,
+        AreaCode: user.GroupCode,
+        GroupCode: user.GroupCode,
         AOCode: user.AOCode,
         aoFullName: aoFullName,
         EmployeeNo: user.EmployeeNo,

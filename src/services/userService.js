@@ -361,7 +361,7 @@ export const approveRejectUser = async (user, userId, action) => {
   } else if (user.Role === GROUP_HEAD) {
     if (
       targetUser.Role !== BRANCH_HEAD ||
-      targetUser.AreaCode !== user.AreaCode
+      targetUser.AreaCode !== user.GroupCode
     ) {
       throwHttpError(403, "Forbidden");
     }

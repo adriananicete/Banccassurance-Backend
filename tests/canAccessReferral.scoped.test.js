@@ -16,7 +16,7 @@ const referral = (overrides) => ({
 });
 
 test("Area Sales Head access follows area_sales_head_areas, not Users.AreaCode", async () => {
-  const user = { Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-1167", AreaCode: null };
+  const user = { Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-1167", GroupCode: null };
 
   const hit = await withStubbedUserModel({ isAreaInAreaSalesHeadScope: scopeHit });
   assert.equal(await hit.service.canAccessReferral(referral(), user), true);
@@ -26,7 +26,7 @@ test("Area Sales Head access follows area_sales_head_areas, not Users.AreaCode",
 });
 
 test("Area Sales Head lookup is given the caller's UserCode and the referral's area", async () => {
-  const user = { Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-1167", AreaCode: null };
+  const user = { Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-1167", GroupCode: null };
   const { service, calls } = await withStubbedUserModel({
     isAreaInAreaSalesHeadScope: scopeHit,
   });
@@ -91,7 +91,7 @@ test("Sector Head is denied, not errored, when ReferrerCode is not a user code",
 });
 
 test("Regional Sales Head access follows regional_sales_head_areas", async () => {
-  const user = { Role: REGIONAL_SALES_HEAD, UserCode: "PHL-RSH-0001", AreaCode: null };
+  const user = { Role: REGIONAL_SALES_HEAD, UserCode: "PHL-RSH-0001", GroupCode: null };
 
   const hit = await withStubbedUserModel({ isAreaInRegionalScope: scopeHit });
   assert.equal(await hit.service.canAccessReferral(referral(), user), true);

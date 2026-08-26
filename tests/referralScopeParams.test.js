@@ -29,20 +29,34 @@ const bothEntryPoints = [
   ["getReferralCountsByRole", (model, user) => model.getReferralCountsByRole(user)],
 ];
 
-test("AreaCode is sent as a number, whichever way the JWT carried it", async () => {
-  // Both procedures declare @AreaCode INT. They were NVARCHAR(50) until the DBA
-  // rebuilt Users and Referrals, and the coercion added then now points the
-  // wrong way: a string only reaches the column through an implicit conversion,
-  // and BranchCode two lines above already does this correctly.
+test("the session's GroupCode reaches @AreaCode as a number, however it was carried", async () => {
+  // The session carries GroupCode since usp_ValidateUser stopped returning
+  // AreaCode; the procedures still declare the parameter @AreaCode, so the two
+  // names meet here deliberately. Reading user.AreaCode instead binds undefined,
+  // which asInt turns into null and the ?? 0 turns into group zero - a group no
+  // row has, so the list comes back empty rather than failing.
   for (const [name, call] of bothEntryPoints) {
-    for (const AreaCode of [5, "5"]) {
+    for (const GroupCode of [5, "5"]) {
       const params = await paramsFor((model) =>
-        call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, AreaCode }),
+        call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, GroupCode }),
       );
 
-      assert.equal(typeof params.AreaCode, "number", `${name} ${JSON.stringify(AreaCode)}`);
-      assert.equal(params.AreaCode, 5, `${name} ${JSON.stringify(AreaCode)}`);
+      assert.equal(typeof params.AreaCode, "number", `${name} ${JSON.stringify(GroupCode)}`);
+      assert.equal(params.AreaCode, 5, `${name} ${JSON.stringify(GroupCode)}`);
     }
+  }
+});
+
+test("a session still carrying only AreaCode is not read by mistake", async () => {
+  // The rename's failure mode is silence: the old key is simply ignored and the
+  // caller sees an empty list. Asserting the miss is what keeps a revert to
+  // user.AreaCode from passing this file.
+  for (const [name, call] of bothEntryPoints) {
+    const params = await paramsFor((model) =>
+      call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, AreaCode: 5 }),
+    );
+
+    assert.equal(params.AreaCode, 0, name);
   }
 });
 
@@ -51,7 +65,7 @@ test("a string BranchCode is sent as a number", async () => {
   // just as firmly. Not observed yet, only because Account Officers carry null.
   for (const [name, call] of bothEntryPoints) {
     const params = await paramsFor((model) =>
-      call(model, { Role: "BRANCH_STAFF", UserCode: "USR-STF-0115", BranchCode: "58", AreaCode: "1" }),
+      call(model, { Role: "BRANCH_STAFF", UserCode: "USR-STF-0115", BranchCode: "58", GroupCode: "1" }),
     );
 
     assert.equal(typeof params.BranchCode, "number", name);
@@ -66,7 +80,7 @@ test("the defaults for a missing scope are unchanged", async () => {
   for (const [name, call] of bothEntryPoints) {
     for (const missing of [null, undefined, ""]) {
       const params = await paramsFor((model) =>
-        call(model, { Role: "DEPARTMENT_HEAD", UserCode: "PHL-DH-0001", BranchCode: missing, AreaCode: missing }),
+        call(model, { Role: "DEPARTMENT_HEAD", UserCode: "PHL-DH-0001", BranchCode: missing, GroupCode: missing }),
       );
 
       assert.equal(params.BranchCode, 0, `${name} ${JSON.stringify(missing)}`);
@@ -137,10 +151,10 @@ test("every scope parameter is a type the procedure can accept", async () => {
   // will reject. This is the assertion that would have caught the defect
   // regardless of which column the JWT got wrong.
   const shapes = [
-    { BranchCode: null, AreaCode: 5 },
-    { BranchCode: "58", AreaCode: "1" },
-    { BranchCode: 58, AreaCode: 1 },
-    { BranchCode: undefined, AreaCode: undefined },
+    { BranchCode: null, GroupCode: 5 },
+    { BranchCode: "58", GroupCode: "1" },
+    { BranchCode: 58, GroupCode: 1 },
+    { BranchCode: undefined, GroupCode: undefined },
   ];
 
   for (const [name, call] of bothEntryPoints) {

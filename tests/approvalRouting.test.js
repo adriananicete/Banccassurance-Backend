@@ -27,7 +27,7 @@ const paging = { StatusFilter: "PENDING", PageNumber: 1, PageSize: 20 };
 
 const callers = [
   { Role: BRANCH_HEAD, UserCode: "USR-BRH-0300", BranchCode: 255 },
-  { Role: GROUP_HEAD, UserCode: "USR-GRH-0031", AreaCode: 2 },
+  { Role: GROUP_HEAD, UserCode: "USR-GRH-0031", GroupCode: 2 },
   { Role: SECTOR_HEAD, UserCode: "USR-SEC-0029" },
   { Role: DEPARTMENT_HEAD, UserCode: "PHL-DH-0001" },
   { Role: REGIONAL_SALES_HEAD, UserCode: "PHL-RSH-0001" },
@@ -78,7 +78,7 @@ test("the caller reaches the procedure whole, not one field at a time", async ()
     assert.equal(passedUser.Role, caller.Role, caller.Role);
     assert.equal(passedUser.UserCode, caller.UserCode, caller.Role);
     assert.equal(passedUser.BranchCode, caller.BranchCode, caller.Role);
-    assert.equal(passedUser.AreaCode, caller.AreaCode, caller.Role);
+    assert.equal(passedUser.GroupCode, caller.GroupCode, caller.Role);
     assert.equal(passedOptions.StatusFilter, "PENDING", caller.Role);
   }
 });

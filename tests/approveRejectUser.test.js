@@ -118,6 +118,59 @@ test("a Branch Head may only approve Branch Staff in their own branch", async ()
   assert.equal(error?.statusCode, 403);
 });
 
+const groupHead = { Role: GROUP_HEAD, UserCode: "USR-GRH-0031", GroupCode: 2 };
+
+const approvingABranchHead = (targetOverrides) => ({
+  getUserScopeById: target({ Role: BRANCH_HEAD, AreaCode: 2, ...targetOverrides }),
+  approveRejectUser: approved,
+});
+
+test("a Group Head approves a Branch Head in their own group", async () => {
+  // This branch compares the session's group against the target's row and had no
+  // test at all, so the rename from AreaCode to GroupCode passed through it
+  // unseen. It is a scope check: getting it wrong is a 403 for every legitimate
+  // approval, or an approval nobody was entitled to make.
+  const { service } = await withUserService(approvingABranchHead());
+
+  const result = await service.approveRejectUser(groupHead, 1784, "APPROVE");
+
+  assert.equal(result.success, true);
+});
+
+test("a Group Head may not approve a Branch Head from another group", async () => {
+  const { service } = await withUserService(approvingABranchHead({ AreaCode: 7 }));
+
+  const error = await captureThrown(() =>
+    service.approveRejectUser(groupHead, 1784, "APPROVE"),
+  );
+
+  assert.equal(error?.statusCode, 403);
+});
+
+test("a Group Head session carrying only the old AreaCode approves nobody", async () => {
+  // Fails closed rather than open: undefined matches no group, so a stale
+  // session is refused instead of being let through against the wrong one.
+  const stale = { Role: GROUP_HEAD, UserCode: "USR-GRH-0031", AreaCode: 2 };
+  const { service } = await withUserService(approvingABranchHead());
+
+  const error = await captureThrown(() => service.approveRejectUser(stale, 1784, "APPROVE"));
+
+  assert.equal(error?.statusCode, 403);
+});
+
+test("a Group Head may only approve Branch Heads", async () => {
+  // The role check and the group check sit in one condition. Asserting the role
+  // half separately keeps a future edit from dropping it while the group half
+  // still passes.
+  const { service } = await withUserService(approvingABranchHead({ Role: BRANCH_STAFF }));
+
+  const error = await captureThrown(() =>
+    service.approveRejectUser(groupHead, 1784, "APPROVE"),
+  );
+
+  assert.equal(error?.statusCode, 403);
+});
+
 const sectorHead = { Role: SECTOR_HEAD, UserId: 42, UserCode: "USR-SEC-0001" };
 
 test("a Sector Head approves a Group Head from any group, consulting no scope lookup", async () => {

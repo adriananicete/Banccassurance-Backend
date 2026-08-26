@@ -5,7 +5,7 @@ import { withStubbedModules } from "./helpers/stubModel.js";
 const REFERRAL_MODEL = "../../src/models/referralModel.js";
 const REFERRAL_SERVICE = "../../src/services/referralService.js";
 
-const USER = { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, AreaCode: "5" };
+const USER = { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, GroupCode: "5" };
 const PAGE = { PageNumber: 2, PageSize: 20 };
 
 const listing = (...records) =>

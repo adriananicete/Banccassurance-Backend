@@ -19,7 +19,7 @@ const branchHead = {
   Role: "BRANCH_HEAD",
   UserCode: "USR-BRH-0300",
   BranchCode: 255,
-  AreaCode: null,
+  GroupCode: null,
 };
 
 test("getUsersForApproval binds every parameter the procedure requires", async () => {
@@ -71,14 +71,15 @@ test("no parameter named Role survives, under any caller", async () => {
 });
 
 test("the caller's scope columns are sent as numbers whatever the JWT held", async () => {
-  // A JWT carries whatever the login response put in it, and AreaCode became an
+  // A JWT carries whatever the login response put in it, and the group became an
   // INT column on 2026-08-19 while BranchCode always was one. tedious refuses a
   // type mismatch before the query is sent, so this is a 500 rather than a bad
-  // result.
+  // result. The session key is GroupCode; the procedure parameter is still
+  // @AreaCode, and the two meet in the model.
   for (const branchCode of ["255", 255]) {
     const { params } = await capture((model) =>
       model
-        .getUsersForApproval({ ...branchHead, BranchCode: branchCode, AreaCode: "2" }, {})
+        .getUsersForApproval({ ...branchHead, BranchCode: branchCode, GroupCode: "2" }, {})
         .run(),
     );
 

@@ -389,7 +389,7 @@ export const canAccessReferral = async (referral, user) => {
   } else if (user.Role === ACCOUNT_OFFICER) {
     if (referral.AOCode === user.UserCode) return true;
   } else if (user.Role === GROUP_HEAD) {
-    if (String(referral.AreaCode) === String(user.AreaCode)) return true;
+    if (String(referral.AreaCode) === String(user.GroupCode)) return true;
   } else if (user.Role === AREA_SALES_HEAD) {
     const areaSalesHead = await userModel
       .isAreaInAreaSalesHeadScope(user.UserCode, referral.AreaCode)
