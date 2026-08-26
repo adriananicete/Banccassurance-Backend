@@ -81,7 +81,7 @@ export const getReferralsByRole = (user,options) => {
   request.input('Role', sql.NVarChar, user.Role)
   request.input('UserCode', sql.NVarChar, user.UserCode)
   request.input('BranchCode', sql.Int, asInt(user.BranchCode) ?? 0)
-  request.input('GroupCode', sql.Int, asInt(user.GroupCode) ?? 0)
+  request.input('AreaCode', sql.Int, asInt(user.GroupCode) ?? 0)
   request.input('PageNumber', sql.Int, options.PageNumber)
   request.input('PageSize', sql.Int, options?.PageSize)
   request.input('Search', sql.NVarChar, options.Search)
@@ -246,7 +246,7 @@ export const getReferralCountsByRole = (user) => {
   request.input('Role', sql.NVarChar, user.Role)
   request.input('UserCode', sql.NVarChar, user.UserCode)
   request.input('BranchCode', sql.Int, asInt(user.BranchCode) ?? 0)
-  request.input('GroupCode', sql.Int, asInt(user.GroupCode) ?? 0)
+  request.input('AreaCode', sql.Int, asInt(user.GroupCode) ?? 0)
   return {
     request, run: () => request.execute('[banc].[usp_sel_referral_counts_by_role]')
   }

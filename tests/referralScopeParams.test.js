@@ -29,21 +29,25 @@ const bothEntryPoints = [
   ["getReferralCountsByRole", (model, user) => model.getReferralCountsByRole(user)],
 ];
 
-test("the session's GroupCode is bound as @GroupCode, as a number however it was carried", async () => {
-  // Both ends of this moved on 2026-08-26: usp_ValidateUser stopped returning
-  // AreaCode, and both procedures renamed the parameter to @GroupCode. Binding
-  // the old parameter name is not a bad result but a hard failure -- error 8145,
-  // "@AreaCode is not a parameter for procedure" -- so this asserts the name as
-  // firmly as the value.
+test("the session's GroupCode is bound as @AreaCode, as a number however it was carried", async () => {
+  // The two names meet here, and they are meant to. The session carries
+  // GroupCode because usp_ValidateUser stopped returning AreaCode; the
+  // procedures keep @AreaCode because the DBA is holding the parameter names
+  // still while the columns move underneath.
+  //
+  // Getting the parameter name wrong is not a bad result but a hard failure --
+  // error 8145 for a name the procedure does not declare, error 201 for one it
+  // declares and did not receive -- so the name is asserted as firmly as the
+  // value. Both were live 500s on 2026-08-26, in both directions.
   for (const [name, call] of bothEntryPoints) {
     for (const GroupCode of [5, "5"]) {
       const params = await paramsFor((model) =>
         call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, GroupCode }),
       );
 
-      assert.equal("AreaCode" in params, false, `${name} ${JSON.stringify(GroupCode)}`);
-      assert.equal(typeof params.GroupCode, "number", `${name} ${JSON.stringify(GroupCode)}`);
-      assert.equal(params.GroupCode, 5, `${name} ${JSON.stringify(GroupCode)}`);
+      assert.equal("GroupCode" in params, false, `${name} ${JSON.stringify(GroupCode)}`);
+      assert.equal(typeof params.AreaCode, "number", `${name} ${JSON.stringify(GroupCode)}`);
+      assert.equal(params.AreaCode, 5, `${name} ${JSON.stringify(GroupCode)}`);
     }
   }
 });
@@ -57,7 +61,7 @@ test("a session still carrying only AreaCode is not read by mistake", async () =
       call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, AreaCode: 5 }),
     );
 
-    assert.equal(params.GroupCode, 0, name);
+    assert.equal(params.AreaCode, 0, name);
   }
 });
 
@@ -85,7 +89,7 @@ test("the defaults for a missing scope are unchanged", async () => {
       );
 
       assert.equal(params.BranchCode, 0, `${name} ${JSON.stringify(missing)}`);
-      assert.equal(params.GroupCode, 0, `${name} ${JSON.stringify(missing)}`);
+      assert.equal(params.AreaCode, 0, `${name} ${JSON.stringify(missing)}`);
     }
   }
 });
@@ -165,7 +169,7 @@ test("every scope parameter is a type the procedure can accept", async () => {
       );
 
       assert.equal(typeof params.BranchCode, "number", `${name} ${JSON.stringify(shape)}`);
-      assert.equal(typeof params.GroupCode, "number", `${name} ${JSON.stringify(shape)}`);
+      assert.equal(typeof params.AreaCode, "number", `${name} ${JSON.stringify(shape)}`);
     }
   }
 });
