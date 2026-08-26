@@ -10,7 +10,7 @@ import {
 const referral = (overrides) => ({
   ReferrerCode: "USR-STF-0115",
   BranchCode: 58,
-  AreaCode: 5,
+  GroupCode: 5,
   AOCode: "PHL-AO-0001",
   ...overrides,
 });
@@ -31,7 +31,7 @@ test("Area Sales Head lookup is given the caller's UserCode and the referral's a
     isAreaInAreaSalesHeadScope: scopeHit,
   });
 
-  await service.canAccessReferral(referral({ AreaCode: 5 }), user);
+  await service.canAccessReferral(referral({ GroupCode: 5 }), user);
 
   assert.deepEqual(calls, [
     { name: "isAreaInAreaSalesHeadScope", args: ["PHL-ASH-1167", 5] },
@@ -45,7 +45,7 @@ test("Sector Head consults no scope lookup at all", async () => {
   const user = { Role: SECTOR_HEAD, UserId: 42, UserCode: "USR-SEC-0001" };
   const { service, calls } = await withStubbedUserModel({});
 
-  assert.equal(await service.canAccessReferral(referral({ AreaCode: 5 }), user), true);
+  assert.equal(await service.canAccessReferral(referral({ GroupCode: 5 }), user), true);
   assert.deepEqual(calls, []);
 });
 
@@ -53,8 +53,8 @@ test("Sector Head reaches any area of their own tenant, and none of the other", 
   const user = { Role: SECTOR_HEAD, UserId: 42, UserCode: "USR-SEC-0001" };
   const { service } = await withStubbedUserModel({});
 
-  for (const AreaCode of [1, 9, 15]) {
-    assert.equal(await service.canAccessReferral(referral({ AreaCode }), user), true);
+  for (const GroupCode of [1, 9, 15]) {
+    assert.equal(await service.canAccessReferral(referral({ GroupCode }), user), true);
   }
 
   assert.equal(
@@ -106,7 +106,7 @@ test("Regional Sales Head lookup is given the caller's UserCode and the referral
     isAreaInRegionalScope: scopeHit,
   });
 
-  await service.canAccessReferral(referral({ AreaCode: 12 }), user);
+  await service.canAccessReferral(referral({ GroupCode: 12 }), user);
 
   assert.deepEqual(calls, [{ name: "isAreaInRegionalScope", args: ["PHL-RSH-0001", 12] }]);
 });

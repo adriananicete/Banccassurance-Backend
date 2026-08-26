@@ -172,7 +172,7 @@ test("the Department Head assigns groups with no scope check of their own", asyn
 
 test("a group code that does not exist is a 400, not a 403", async () => {
   const { service } = await withUserService(
-    groupsModel({ getUnknownAreas: rows({ AreaCode: 99 }) }),
+    groupsModel({ getUnknownAreas: rows({ GroupCode: 99 }) }),
   );
 
   const error = await captureThrown(() =>

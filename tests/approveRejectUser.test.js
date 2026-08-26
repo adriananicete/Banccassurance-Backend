@@ -121,7 +121,7 @@ test("a Branch Head may only approve Branch Staff in their own branch", async ()
 const groupHead = { Role: GROUP_HEAD, UserCode: "USR-GRH-0031", GroupCode: 2 };
 
 const approvingABranchHead = (targetOverrides) => ({
-  getUserScopeById: target({ Role: BRANCH_HEAD, AreaCode: 2, ...targetOverrides }),
+  getUserScopeById: target({ Role: BRANCH_HEAD, GroupCode: 2, ...targetOverrides }),
   approveRejectUser: approved,
 });
 
@@ -138,7 +138,7 @@ test("a Group Head approves a Branch Head in their own group", async () => {
 });
 
 test("a Group Head may not approve a Branch Head from another group", async () => {
-  const { service } = await withUserService(approvingABranchHead({ AreaCode: 7 }));
+  const { service } = await withUserService(approvingABranchHead({ GroupCode: 7 }));
 
   const error = await captureThrown(() =>
     service.approveRejectUser(groupHead, 1784, "APPROVE"),
@@ -178,19 +178,19 @@ test("a Sector Head approves a Group Head from any group, consulting no scope lo
   // banc.user_area — the Group Heads' own table — where the Sector Head has no
   // rows, so every approval was a 403 and sixteen Group Heads sat pending with
   // nobody able to act on them.
-  for (const AreaCode of [1, 9, 15]) {
+  for (const GroupCode of [1, 9, 15]) {
     const { service, calls } = await withUserService({
-      getUserScopeById: target({ Role: GROUP_HEAD, AreaCode }),
+      getUserScopeById: target({ Role: GROUP_HEAD, GroupCode }),
       approveRejectUser: approved,
     });
 
     const result = await service.approveRejectUser(sectorHead, 1784, "APPROVE");
 
-    assert.equal(result.success, true, `area ${AreaCode}`);
+    assert.equal(result.success, true, `group ${GroupCode}`);
     assert.deepEqual(
       calls.filter((call) => call.name.startsWith("isArea")),
       [],
-      `area ${AreaCode}`,
+      `group ${GroupCode}`,
     );
   }
 });

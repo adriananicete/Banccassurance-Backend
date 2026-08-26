@@ -74,7 +74,7 @@ test("a numeric entityId reaches SQL as text", async () => {
 // --------------------------------------------------------------- approve / reject
 
 const approvalModel = (overrides = {}) => ({
-  getUserScopeById: target({ IsActive: 0, Role: "ACCOUNT_OFFICER", AreaCode: 5 }),
+  getUserScopeById: target({ IsActive: 0, Role: "ACCOUNT_OFFICER", GroupCode: 5 }),
   isAreaInAreaSalesHeadScope: scopeHit,
   approveRejectUser: rows({
     Success: 1,
@@ -130,7 +130,7 @@ test("the log is written before the email, so a failed email leaves a record", a
 test("a refused approval writes no audit row", async () => {
   // Actions that did not happen must not appear in the log.
   const alreadyDone = await withUserService(
-    approvalModel({ getUserScopeById: target({ IsActive: 1, Role: "ACCOUNT_OFFICER", AreaCode: 5 }) }),
+    approvalModel({ getUserScopeById: target({ IsActive: 1, Role: "ACCOUNT_OFFICER", GroupCode: 5 }) }),
   );
   const stateError = await captureThrown(() =>
     alreadyDone.service.approveRejectUser(ASH, 1784, "APPROVE"),
@@ -153,7 +153,7 @@ test("a refused approval writes no audit row", async () => {
 // ------------------------------------------------------------- scope assignment
 
 const assignModel = (role) => ({
-  getUserScopeById: target({ IsActive: 1, Role: role, AreaCode: 5, UserCode: "PHL-TGT-0001" }),
+  getUserScopeById: target({ IsActive: 1, Role: role, GroupCode: 5, UserCode: "PHL-TGT-0001" }),
   isAreaInAreaSalesHeadScope: scopeHit,
   isAshInRegionalScope: scopeHit,
   getBranchesOutsideAreaSalesHeadScope: noRows,

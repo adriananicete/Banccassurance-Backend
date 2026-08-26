@@ -42,8 +42,8 @@ export const getReferrerByCode = async (user) => {
       AOName: ao.ReferrerName,
       BranchCode: null,
       BranchName: null,
-      AreaCode: ao.AreaCode,
-      AreaName: ao.AreaName,
+      GroupCode: ao.GroupCode,
+      GroupName: ao.GroupName,
     };
   }
 
@@ -110,8 +110,8 @@ export const createReferral = async (data, user) => {
       referrerName: authAttribution.ReferrerName,
       branchCode: authAttribution.BranchCode,
       branchName: authAttribution.BranchName,
-      areaCode: authAttribution.AreaCode,
-      areaName: authAttribution.AreaName,
+      groupCode: authAttribution.GroupCode,
+      groupName: authAttribution.GroupName,
       aoCode: authAttribution.AOCode,
       aoName: authAttribution.AOName,
     };
@@ -181,15 +181,15 @@ export const createReferral = async (data, user) => {
       aoName: aoData.ReferrerName,
       branchCode: null,
       branchName: null,
-      areaCode: aoData.AreaCode,
-      areaName: aoData.AreaName,
+      groupCode: aoData.GroupCode,
+      groupName: aoData.GroupName,
     };
 
     const result = await referralModel.createReferral(referralData).run();
 
     try {
       const areaSalesHeads = await userModel
-        .getAreaSalesHeadByArea(aoData.AreaCode)
+        .getAreaSalesHeadByArea(aoData.GroupCode)
         .run();
 
       if (areaSalesHeads.recordset.length > 0) {
@@ -389,10 +389,10 @@ export const canAccessReferral = async (referral, user) => {
   } else if (user.Role === ACCOUNT_OFFICER) {
     if (referral.AOCode === user.UserCode) return true;
   } else if (user.Role === GROUP_HEAD) {
-    if (String(referral.AreaCode) === String(user.GroupCode)) return true;
+    if (String(referral.GroupCode) === String(user.GroupCode)) return true;
   } else if (user.Role === AREA_SALES_HEAD) {
     const areaSalesHead = await userModel
-      .isAreaInAreaSalesHeadScope(user.UserCode, referral.AreaCode)
+      .isAreaInAreaSalesHeadScope(user.UserCode, referral.GroupCode)
       .run();
 
     return areaSalesHead.recordset.length > 0;
@@ -406,7 +406,7 @@ export const canAccessReferral = async (referral, user) => {
     return referralTenant !== null && referralTenant === getTenant(user.UserCode);
   } else if (user.Role === REGIONAL_SALES_HEAD) {
     const regionalSalesHead = await userModel
-      .isAreaInRegionalScope(user.UserCode, referral.AreaCode)
+      .isAreaInRegionalScope(user.UserCode, referral.GroupCode)
       .run();
 
     return regionalSalesHead.recordset.length > 0;

@@ -32,7 +32,7 @@ export const target = (overrides) =>
     IsActive: false,
     Role: "ACCOUNT_OFFICER",
     BranchCode: null,
-    AreaCode: 5,
+    GroupCode: 5,
     ...overrides,
   });
 

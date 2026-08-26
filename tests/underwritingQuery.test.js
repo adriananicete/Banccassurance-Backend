@@ -23,11 +23,11 @@ test("filter values are bound as parameters, never written into the SQL", async 
   assert.doesNotMatch(sql, /DROP TABLE/i);
   assert.match(sql, /@AOCode/);
 
-  // A non-numeric areaCode is dropped rather than bound. Referrals.AreaCode is
+  // A non-numeric areaCode is dropped rather than bound. Referrals.GroupCode is
   // INT, so a string reached the driver and surfaced as a 500 - the same defect
   // already guarded in userModel.getBranches, where ?areaCode=abc now means
   // "no filter" rather than an error.
-  assert.doesNotMatch(sql, /@AreaCode/);
+  assert.doesNotMatch(sql, /@GroupCode/);
 
   assert.deepEqual(
     inputs.map((i) => i.value),
@@ -39,18 +39,18 @@ test("an absent filter adds neither a parameter nor a clause", async () => {
   const { sql, inputs } = await build({});
 
   assert.equal(inputs.length, 0);
-  assert.doesNotMatch(sql, /@AreaCode/);
+  assert.doesNotMatch(sql, /@GroupCode/);
   assert.doesNotMatch(sql, /@AOCode/);
 });
 
 test("each filter is added independently", async () => {
   const areaOnly = await build({ areaCode: "5" });
-  assert.match(areaOnly.sql, /@AreaCode/);
+  assert.match(areaOnly.sql, /@GroupCode/);
   assert.doesNotMatch(areaOnly.sql, /@AOCode/);
 
   const aoOnly = await build({ aoCode: "PHL-AO-0001" });
   assert.match(aoOnly.sql, /@AOCode/);
-  assert.doesNotMatch(aoOnly.sql, /@AreaCode/);
+  assert.doesNotMatch(aoOnly.sql, /@GroupCode/);
 });
 
 test("underwriting only ever sees the three statuses it can act on", async () => {
@@ -70,7 +70,7 @@ test("the filters extend the status clause rather than replacing it", async () =
   const { sql } = await build({ areaCode: "5", aoCode: "PHL-AO-0001" });
 
   const where = sql.slice(sql.indexOf("WHERE"));
-  assert.match(where, /Status IN[\s\S]*AND AreaCode = @AreaCode[\s\S]*AND AOCode = @AOCode/);
+  assert.match(where, /Status IN[\s\S]*AND GroupCode = @GroupCode[\s\S]*AND AOCode = @AOCode/);
   assert.doesNotMatch(where, /\bOR\b/);
 });
 

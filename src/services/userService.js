@@ -373,7 +373,7 @@ export const approveRejectUser = async (user, userId, action) => {
   } else if (user.Role === GROUP_HEAD) {
     if (
       targetUser.Role !== BRANCH_HEAD ||
-      targetUser.AreaCode !== user.GroupCode
+      targetUser.GroupCode !== user.GroupCode
     ) {
       throwHttpError(403, "Forbidden");
     }
@@ -400,7 +400,7 @@ export const approveRejectUser = async (user, userId, action) => {
       throwHttpError(403, 'Forbidden')
     }
 
-    const scopeCheck = await userModel.isAreaInAreaSalesHeadScope(user.UserCode, targetUser.AreaCode).run();
+    const scopeCheck = await userModel.isAreaInAreaSalesHeadScope(user.UserCode, targetUser.GroupCode).run();
     if(scopeCheck.recordset.length === 0) {
       throwHttpError(403, 'Forbidden')
     }
@@ -521,7 +521,7 @@ export const replaceAccountOfficerBranches = async (
 
   if (!unscoped) {
     const inScope = await userModel
-      .isAreaInAreaSalesHeadScope(user.UserCode, targetUser.AreaCode)
+      .isAreaInAreaSalesHeadScope(user.UserCode, targetUser.GroupCode)
       .run();
     if (inScope.recordset.length === 0) throwHttpError(403, "Forbidden");
   }
@@ -606,7 +606,7 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
       throwHttpError(
         403,
         `These groups are outside your region: ${outside.recordset
-          .map((row) => row.AreaCode)
+          .map((row) => row.GroupCode)
           .join(", ")}`,
       );
   }
@@ -617,7 +617,7 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
       throwHttpError(
         400,
         `These groups do not exist: ${unknown.recordset
-          .map((row) => row.AreaCode)
+          .map((row) => row.GroupCode)
           .join(", ")}`,
       );
   }
@@ -660,7 +660,7 @@ export const replaceRegionalSalesHeadAreas = async (
       throwHttpError(
         400,
         `These groups do not exist: ${unknown.recordset
-          .map((row) => row.AreaCode)
+          .map((row) => row.GroupCode)
           .join(", ")}`,
       );
   }

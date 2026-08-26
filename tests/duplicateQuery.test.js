@@ -13,8 +13,8 @@ const runDuplicateQuery = async () => {
 test("the duplicate lookup selects only what the 409 is allowed to show", async () => {
   assert.deepEqual((await runDuplicateQuery()).sort(), [
     "AOName",
-    "AreaName",
     "BranchName",
+    "GroupName",
     "ReferralNo",
     "ReferrerName",
     "Status",

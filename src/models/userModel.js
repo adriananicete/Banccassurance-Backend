@@ -82,7 +82,7 @@ export const getBranches = (areaCode, search, options = {}) => {
   const page = asInt(options.PageNumber);
   const size = asInt(options.PageSize);
 
-  request.input("AreaCode", sql.Int, Number.isFinite(area) ? area : null);
+  request.input("GroupCode", sql.Int, Number.isFinite(area) ? area : null);
   request.input("Search", sql.NVarChar, asText(search));
   request.input("PageNumber", sql.Int, Number.isFinite(page) ? page : 1);
   request.input("PageSize", sql.Int, Number.isFinite(size) ? size : branchListPageSize);
@@ -122,7 +122,7 @@ export const checkOrRegisterUser = ({
     request.input("MobileNumber", sql.NVarChar, mobileNumber);
     request.input("Position", sql.NVarChar, position);
     request.input("Role", sql.NVarChar, role);
-    request.input("AreaCode", sql.NVarChar, asText(areaCode));
+    request.input("GroupCode", sql.NVarChar, asText(areaCode));
     request.input("BranchCode", sql.Int, asInt(branchCode));
     request.input("PasswordHash", sql.NVarChar, passwordHash);
     request.input("EmployeeNo", sql.NVarChar, employeeNo || null);
@@ -136,7 +136,7 @@ export const getUsersForApproval = (user, options = {}) => {
   request.input("CallerRole", sql.NVarChar, asText(user.Role));
   request.input("CallerUserCode", sql.NVarChar, asText(user.UserCode));
   request.input("BranchCode", sql.Int, asInt(user.BranchCode));
-  request.input("AreaCode", sql.Int, asInt(user.GroupCode));
+  request.input("GroupCode", sql.Int, asInt(user.GroupCode));
   request.input("StatusFilter", sql.NVarChar, asText(options.StatusFilter) ?? "ALL");
   request.input("Search", sql.NVarChar, asText(options.Search));
   request.input("PageNumber", sql.Int, asInt(options.PageNumber) ?? 1);
@@ -164,7 +164,7 @@ export const getUserScopeById = (userId) => {
     request,
     run: () =>
       request.query(
-        `SELECT UserId, UserCode, IsActive, Role, BranchCode, AreaCode FROM banc.Users WHERE UserId = @UserId`,
+        `SELECT UserId, UserCode, IsActive, Role, BranchCode, GroupCode FROM banc.Users WHERE UserId = @UserId`,
       ),
   };
 };
@@ -198,14 +198,14 @@ export const findUserIdByCode = (userCode) => {
 export const isAreaInRegionalScope = (userCode, areaCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
-  request.input("AreaCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(areaCode));
   return {
     request,
     run: () =>
       request.query(`
         SELECT 1 AS InScope
 FROM banc.regional_sales_head_areas
-WHERE UserCode = @UserCode AND AreaCode = @AreaCode
+WHERE UserCode = @UserCode AND GroupCode = @GroupCode
       `),
   };
 };
@@ -237,20 +237,20 @@ export const getBranchHeadByBranch = (branchCode) => {
 export const assignAreaSalesHeadArea = (userCode, areaCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
-  request.input("AreaCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(areaCode));
   return {
     request,
     run: () =>
       request.query(`
-      INSERT INTO banc.area_sales_head_areas (UserCode, AreaCode)
-VALUES (@UserCode, @AreaCode)
+      INSERT INTO banc.area_sales_head_areas (UserCode, GroupCode)
+VALUES (@UserCode, @GroupCode)
       `),
   };
 };
 
 export const getAreaSalesHeadByArea = (areaCode) => {
   const request = new sql.Request();
-  request.input("AreaCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(areaCode));
   return {
     request,
     run: () =>
@@ -258,8 +258,8 @@ export const getAreaSalesHeadByArea = (areaCode) => {
        SELECT u.UserCode 
 FROM banc.Users u
 INNER JOIN banc.area_sales_head_areas a ON u.UserCode = a.UserCode
-WHERE u.Role = 'AREA_SALES_HEAD' 
-  AND a.AreaCode = @AreaCode 
+WHERE u.Role = 'AREA_SALES_HEAD'
+  AND a.GroupCode = @GroupCode
   AND u.IsActive = 1
       `),
   };
@@ -267,7 +267,7 @@ WHERE u.Role = 'AREA_SALES_HEAD'
 
 export const getRegionalSalesHeadByArea = (areaCode) => {
   const request = new sql.Request();
-  request.input("AreaCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(areaCode));
   return {
     request,
     run: () =>
@@ -275,8 +275,8 @@ export const getRegionalSalesHeadByArea = (areaCode) => {
       SELECT u.UserCode 
 FROM banc.Users u
 INNER JOIN banc.regional_sales_head_areas r ON u.UserCode = r.UserCode
-WHERE u.Role = 'REGIONAL_SALES_HEAD' 
-  AND r.AreaCode = @AreaCode 
+WHERE u.Role = 'REGIONAL_SALES_HEAD'
+  AND r.GroupCode = @GroupCode
   AND u.IsActive = 1
       `),
   };
@@ -307,12 +307,12 @@ export const getAccountOfficerByCode = (aoCode) => {
 
 export const getGroupHeadByArea = (areaCode) => {
   const request = new sql.Request();
-  request.input("AreaCode", sql.Int, asInt(areaCode));
+  request.input("GroupCode", sql.Int, asInt(areaCode));
   return {
     request,
     run: () =>
       request.query(`
-      SELECT UserCode FROM banc.Users WHERE Role = 'GROUP_HEAD' AND AreaCode = @AreaCode AND IsActive = 1
+      SELECT UserCode FROM banc.Users WHERE Role = 'GROUP_HEAD' AND GroupCode = @GroupCode AND IsActive = 1
       `),
   };
 };
@@ -331,14 +331,14 @@ export const getSectorHead = () => {
 export const isAreaInAreaSalesHeadScope = (userCode, areaCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
-  request.input("AreaCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(areaCode));
   return {
     request,
     run: () =>
       request.query(`
         SELECT 1 AS InScope
 FROM banc.area_sales_head_areas
-WHERE UserCode = @UserCode AND AreaCode = @AreaCode
+WHERE UserCode = @UserCode AND GroupCode = @GroupCode
       `),
   };
 };
@@ -353,7 +353,7 @@ export const isAshInRegionalScope = (rshUserCode, ashUserCode) => {
     run: () =>
       request.query(`SELECT 1 AS InScope
 FROM banc.area_sales_head_areas a
-INNER JOIN banc.regional_sales_head_areas r ON a.AreaCode = r.AreaCode
+INNER JOIN banc.regional_sales_head_areas r ON a.GroupCode = r.GroupCode
 WHERE a.UserCode = @AshUserCode AND r.UserCode = @RshUserCode`),
   };
 };
@@ -396,12 +396,12 @@ export const replaceAreaSalesHeadAreas = (userCode, areaCodes, audit) => {
       try {
         const request = new sql.Request(transaction);
         request.input('UserCode', sql.NVarChar, userCode)
-        request.input('AreaCodes', sql.NVarChar, areaCodes)
+        request.input('GroupCodes', sql.NVarChar, areaCodes)
 
         await request.query(`DELETE FROM banc.area_sales_head_areas WHERE UserCode = @UserCode`)
-        await request.query(`INSERT INTO banc.area_sales_head_areas (UserCode, AreaCode)
+        await request.query(`INSERT INTO banc.area_sales_head_areas (UserCode, GroupCode)
 SELECT @UserCode, CAST(value AS INT)
-FROM STRING_SPLIT(@AreaCodes, ',')
+FROM STRING_SPLIT(@GroupCodes, ',')
 WHERE LTRIM(RTRIM(value)) <> ''`)
 
         await auditModel.insert(audit, transaction).run()
@@ -424,13 +424,14 @@ export const replaceRegionalSalesHeadAreas = (userCode, areaCodes, audit) => {
       try {
         const request = new sql.Request(transaction);
         request.input('UserCode', sql.NVarChar, userCode)
-        request.input('AreaCodes', sql.NVarChar, areaCodes)
+        request.input('GroupCodes', sql.NVarChar, areaCodes)
 
         await request.query(`DELETE FROM banc.regional_sales_head_areas WHERE UserCode = @UserCode`)
-        await request.query(`INSERT INTO banc.regional_sales_head_areas (UserCode, AreaCode)
-SELECT @UserCode, CAST(value AS INT)
-FROM STRING_SPLIT(@AreaCodes, ',')
-WHERE LTRIM(RTRIM(value)) <> ''`)
+        await request.query(`INSERT INTO banc.regional_sales_head_areas (UserCode, GroupCode, RegionCode)
+SELECT @UserCode, g.GroupCode, g.RegionCode
+FROM STRING_SPLIT(@GroupCodes, ',') s
+INNER JOIN banc.group_areas g ON g.GroupCode = CAST(s.value AS INT)
+WHERE LTRIM(RTRIM(s.value)) <> ''`)
 
         await auditModel.insert(audit, transaction).run()
 
@@ -457,7 +458,7 @@ WHERE LTRIM(RTRIM(s.value)) <> ''
   AND NOT EXISTS (
       SELECT 1
       FROM banc.branches b
-      INNER JOIN banc.area_sales_head_areas a ON a.AreaCode = b.AreaCode
+      INNER JOIN banc.area_sales_head_areas a ON a.GroupCode = b.GroupCode
       WHERE b.BranchCode = CAST(s.value AS INT)
         AND a.UserCode = @UserCode
   )
@@ -485,19 +486,19 @@ WHERE aob.UserCode <> @UserCode
 export const getAreasOutsideRegionalSalesHeadScope = (rshUserCode, areaCodes) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, rshUserCode);
-  request.input("AreaCodes", sql.NVarChar, areaCodes);
+  request.input("GroupCodes", sql.NVarChar, areaCodes);
   return {
     request,
     run: () =>
       request.query(`
-      SELECT DISTINCT CAST(s.value AS INT) AS AreaCode
-FROM STRING_SPLIT(@AreaCodes, ',') s
+      SELECT DISTINCT CAST(s.value AS INT) AS GroupCode
+FROM STRING_SPLIT(@GroupCodes, ',') s
 WHERE LTRIM(RTRIM(s.value)) <> ''
   AND NOT EXISTS (
       SELECT 1
       FROM banc.regional_sales_head_areas r
       WHERE r.UserCode = @UserCode
-        AND r.AreaCode = CAST(s.value AS INT)
+        AND r.GroupCode = CAST(s.value AS INT)
   )
       `),
   };
@@ -505,18 +506,18 @@ WHERE LTRIM(RTRIM(s.value)) <> ''
 
 export const getUnknownAreas = (areaCodes) => {
   const request = new sql.Request();
-  request.input("AreaCodes", sql.NVarChar, areaCodes);
+  request.input("GroupCodes", sql.NVarChar, areaCodes);
   return {
     request,
     run: () =>
       request.query(`
-      SELECT DISTINCT CAST(s.value AS INT) AS AreaCode
-FROM STRING_SPLIT(@AreaCodes, ',') s
+      SELECT DISTINCT CAST(s.value AS INT) AS GroupCode
+FROM STRING_SPLIT(@GroupCodes, ',') s
 WHERE LTRIM(RTRIM(s.value)) <> ''
   AND NOT EXISTS (
       SELECT 1
       FROM banc.group_areas g
-      WHERE g.AreaCode = CAST(s.value AS INT)
+      WHERE g.GroupCode = CAST(s.value AS INT)
   )
       `),
   };

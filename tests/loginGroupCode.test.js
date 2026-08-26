@@ -105,14 +105,16 @@ test("a null group is carried as null and does not throw", async () => {
   assert.equal(body.user.GroupCode, null);
 });
 
-test("the response carries both names, so the frontend can move on its own schedule", async () => {
-  // The frontend reads user.AreaCode today. Sending GroupCode alone would break
-  // it on deploy; sending both lets the rename land here first and there second.
-  const { body } = await login(groupHead());
+test("the response carries GroupCode alone, with no AreaCode left beside it", async () => {
+  // It carried both for one release, while the frontend moved. The transitional
+  // alias came out with the rest of the rename on 2026-08-26 -- every other
+  // response had moved by then, so leaving this one would have cost the frontend
+  // a second pass rather than saving it one.
+  const { body } = await login(groupHead({ AreaCode: 2 }));
 
   assert.equal(body.success, true);
   assert.equal(body.user.GroupCode, 2);
-  assert.equal(body.user.AreaCode, 2);
+  assert.equal("AreaCode" in body.user, false);
 });
 
 test("the rest of the session is unchanged", async () => {

@@ -43,17 +43,17 @@ test("all four parameters are always bound, present or not", async () => {
   //
   // @PageNumber and @PageSize arrived with item 21b and went unbound for days:
   // no error, no warning, twenty rows of 567. The parameter name is still
-  // @AreaCode even though the column it filters is now GroupCode -- the DBA is
-  // holding the parameter names still while the columns move.
+  // @GroupCode since the parameter rename landed on 2026-08-26; before that it
+  // was @AreaCode, and binding the old name is error 8145 rather than a bad page.
   const { inputs } = await build(undefined, undefined);
 
   assert.deepEqual(inputs.map((i) => i.name).sort(), [
-    "AreaCode",
+    "GroupCode",
     "PageNumber",
     "PageSize",
     "Search",
   ]);
-  assert.equal(valueOf(inputs, "AreaCode"), null);
+  assert.equal(valueOf(inputs, "GroupCode"), null);
   assert.equal(valueOf(inputs, "Search"), null);
 });
 
@@ -78,8 +78,8 @@ test("paging options are bound as numbers, whatever the query string held", asyn
 
 test("junk paging falls back rather than reaching sql.Int", async () => {
   // asInt returns NaN for junk, not null, so `asInt(x) ?? 1` would bind NaN and
-  // tedious would refuse it. The guard is Number.isFinite, the same one AreaCode
-  // already uses two lines above.
+  // tedious would refuse it. The guard is Number.isFinite, the same one the
+  // group filter already uses two lines above.
   for (const junk of ["abc", "", null, undefined, "NaN"]) {
     const { inputs } = await build(1, undefined, { PageNumber: junk, PageSize: junk });
 
@@ -90,11 +90,11 @@ test("junk paging falls back rather than reaching sql.Int", async () => {
 
 test("a numeric areaCode arrives as a number, not the query string's text", async () => {
   // areaCode reaches the model as a string from the query string, and the
-  // procedure declares @AreaCode INT. tedious refuses the mismatch outright.
+  // procedure declares @GroupCode INT. tedious refuses the mismatch outright.
   const { inputs } = await build("5", undefined);
 
-  assert.equal(valueOf(inputs, "AreaCode"), 5);
-  assert.equal(typeof valueOf(inputs, "AreaCode"), "number");
+  assert.equal(valueOf(inputs, "GroupCode"), 5);
+  assert.equal(typeof valueOf(inputs, "GroupCode"), "number");
 });
 
 test("a non-numeric areaCode reads as absent rather than reaching sql.Int", async () => {
@@ -103,7 +103,7 @@ test("a non-numeric areaCode reads as absent rather than reaching sql.Int", asyn
   for (const junk of ["abc", "5; DROP TABLE banc.branches", "NaN"]) {
     const { inputs } = await build(junk, undefined);
 
-    assert.equal(valueOf(inputs, "AreaCode"), null, junk);
+    assert.equal(valueOf(inputs, "GroupCode"), null, junk);
   }
 });
 
@@ -129,10 +129,10 @@ test("the two filters are independent", async () => {
   const areaOnly = await build(5, undefined);
   const searchOnly = await build(undefined, "dolores");
 
-  assert.equal(valueOf(areaOnly.inputs, "AreaCode"), 5);
+  assert.equal(valueOf(areaOnly.inputs, "GroupCode"), 5);
   assert.equal(valueOf(areaOnly.inputs, "Search"), null);
 
-  assert.equal(valueOf(searchOnly.inputs, "AreaCode"), null);
+  assert.equal(valueOf(searchOnly.inputs, "GroupCode"), null);
   assert.equal(valueOf(searchOnly.inputs, "Search"), "dolores");
 });
 
@@ -191,9 +191,8 @@ test("an empty page reports a zero total rather than throwing on the missing row
 });
 
 test("groups still uses its own inline query, and now names the group columns", async () => {
-  // group_areas carries GroupCode/GroupName beside the original AreaCode/
-  // AreaName. Reading the new pair is what lets AreaCode be dropped later
-  // without touching this again.
+  // group_areas dropped AreaCode/AreaName on 2026-08-26; GroupCode/GroupName is
+  // all that is left. Asserting the absence keeps a revert from passing here.
   const { model, queries } = await captureSql(USER_MODEL);
 
   await model.getGroups().run();

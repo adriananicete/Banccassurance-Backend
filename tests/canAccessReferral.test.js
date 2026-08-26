@@ -12,7 +12,7 @@ import {
 const referral = (overrides) => ({
   ReferrerCode: "USR-STF-0115",
   BranchCode: 58,
-  AreaCode: 5,
+  GroupCode: 5,
   AOCode: "PHL-AO-0001",
   ...overrides,
 });
@@ -36,15 +36,15 @@ test("Account Officers reach referrals assigned to them, including ones referred
 });
 
 test("Group Head area comparison holds whether the codes arrive as numbers or strings", async () => {
-  // The two sides carry different names now: the session's GroupCode against
-  // Referrals.AreaCode, which has not been renamed. Both are INT columns, so the
-  // schema mismatch this once guarded against is gone. The comparison stays
+  // Both sides are GroupCode now -- the session's and Referrals' -- and both are
+  // INT columns, so the schema mismatch this once guarded against is gone. The
+  // comparison stays
   // type-tolerant on purpose: the JWT is JSON and a query string is text, so
   // neither side can be relied on to preserve the column's type.
   const user = { Role: GROUP_HEAD, UserCode: "USR-GRH-0001", GroupCode: "5" };
-  assert.equal(await canAccessReferral(referral({ AreaCode: 5 }), user), true);
-  assert.equal(await canAccessReferral(referral({ AreaCode: "5" }), user), true);
-  assert.ok(!(await canAccessReferral(referral({ AreaCode: 4 }), user)));
+  assert.equal(await canAccessReferral(referral({ GroupCode: 5 }), user), true);
+  assert.equal(await canAccessReferral(referral({ GroupCode: "5" }), user), true);
+  assert.ok(!(await canAccessReferral(referral({ GroupCode: 4 }), user)));
 });
 
 test("a Group Head session carrying only the old AreaCode is refused, not admitted", async () => {
@@ -52,7 +52,7 @@ test("a Group Head session carrying only the old AreaCode is refused, not admitt
   // stale key fails closed rather than open. Asserting it keeps a silent revert
   // from looking like a pass.
   const stale = { Role: GROUP_HEAD, UserCode: "USR-GRH-0001", AreaCode: "5" };
-  assert.ok(!(await canAccessReferral(referral({ AreaCode: 5 }), stale)));
+  assert.ok(!(await canAccessReferral(referral({ GroupCode: 5 }), stale)));
 });
 
 const departmentHead = { Role: DEPARTMENT_HEAD, UserCode: "PHL-DH-0001" };

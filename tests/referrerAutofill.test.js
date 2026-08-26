@@ -21,7 +21,7 @@ const withAttribution = ({ staff, ao }) =>
     REFERRAL_SERVICE,
   );
 
-const AO_ROW = { ReferrerName: "Ana Reyes", AreaCode: 5, AreaName: "CENTRAL LUZON" };
+const AO_ROW = { ReferrerName: "Ana Reyes", GroupCode: 5, GroupName: "CENTRAL LUZON" };
 
 const STAFF_ROW = {
   ReferrerCode: "USR-STF-0115",
@@ -30,8 +30,8 @@ const STAFF_ROW = {
   AOName: "Ana Reyes",
   BranchCode: 58,
   BranchName: "Makati",
-  AreaCode: 1,
-  AreaName: "NCR NORTH",
+  GroupCode: 1,
+  GroupName: "NCR NORTH",
 };
 
 test("an Account Officer gets their own attribution instead of a 404", async () => {
@@ -43,7 +43,7 @@ test("an Account Officer gets their own attribution instead of a 404", async () 
   });
 
   assert.equal(data.ReferrerCode, "PHL-AO-1168");
-  assert.equal(data.AreaCode, 5);
+  assert.equal(data.GroupCode, 5);
 });
 
 test("an Account Officer is their own Account Officer, and has no branch", async () => {

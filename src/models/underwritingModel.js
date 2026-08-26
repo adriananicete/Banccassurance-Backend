@@ -9,8 +9,8 @@ const getUnderwritingReferrals = (filters = {}) => {
   const areaCode = asInt(filters.areaCode);
 
   if (Number.isFinite(areaCode)) {
-      request.input("AreaCode", sql.Int, areaCode);
-      whereClause.push("AND AreaCode = @AreaCode");
+      request.input("GroupCode", sql.Int, areaCode);
+      whereClause.push("AND GroupCode = @GroupCode");
     }
 
     if (filters.aoCode) {
@@ -22,7 +22,7 @@ const getUnderwritingReferrals = (filters = {}) => {
     request, run: () => request.query(`
         SELECT Id, ReferralNo, FirstName, LastName, Email,
        Status, StatusDate, ReferrerCode, ReferrerName,
-       BranchCode, BranchName, AreaCode, AreaName,
+       BranchCode, BranchName, GroupCode, GroupName,
        AOCode, AOName, CreatedAt
 FROM banc.Referrals
 WHERE Status IN ('Presented', 'Closed Pending', 'Postponed') ${whereClause.join(' ')}
