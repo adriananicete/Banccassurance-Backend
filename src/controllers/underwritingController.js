@@ -2,8 +2,8 @@ import underwritingService from '../services/underwritingService.js'
 
 export const getUnderwritingReferrals = async (req, res, next) => {
     try {
-        const { areaCode, aoCode } = req.query
-        const underWritingData = await underwritingService.getUnderwritingReferrals({areaCode, aoCode});
+        const { groupCode, aoCode } = req.query
+        const underWritingData = await underwritingService.getUnderwritingReferrals({groupCode, aoCode});
 
         return res.status(200).json({
             success: true,

@@ -6,10 +6,10 @@ const getUnderwritingReferrals = (filters = {}) => {
 
   const request = new sql.Request();
 
-  const areaCode = asInt(filters.areaCode);
+  const groupCode = asInt(filters.groupCode);
 
-  if (Number.isFinite(areaCode)) {
-      request.input("GroupCode", sql.Int, areaCode);
+  if (Number.isFinite(groupCode)) {
+      request.input("GroupCode", sql.Int, groupCode);
       whereClause.push("AND GroupCode = @GroupCode");
     }
 

@@ -177,8 +177,8 @@ export const getGroups = async () => {
   return result.recordset;
 };
 
-export const getBranches = async (areaCode, search, options = {}) => {
-  const result = await userModel.getBranches(areaCode, search, options).run();
+export const getBranches = async (groupCode, search, options = {}) => {
+  const result = await userModel.getBranches(groupCode, search, options).run();
 
   const totalCount = result.recordset[0]?.TotalCount ?? 0;
   const rows = result.recordset.map(({ TotalCount, ...rest }) => rest);
@@ -207,10 +207,10 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
 
   const tempPassword = crypto.randomBytes(12).toString("base64url");
 
-  if (rule.group === "required" && !fields.areaCode)
+  if (rule.group === "required" && !fields.groupCode)
     throwHttpError(400, "Group is required for this role");
 
-  if (rule.group === "forbidden" && fields.areaCode)
+  if (rule.group === "forbidden" && fields.groupCode)
     throwHttpError(400, "Group is not selected at registration for this role");
 
   if (rule.branch === "required" && !fields.branchCode)
@@ -237,7 +237,7 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
 
   } else if (fields.role === BRANCH_HEAD) {
      approvers = await userModel
-      .getGroupHeadByArea(fields.areaCode)
+      .getGroupHeadByArea(fields.groupCode)
       .run();
     approverMessage = `New branch head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
     noApproverMessage = 'No Group Head is assigned to this group yet. Please contact your administrator.'
@@ -251,14 +251,14 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
 
   } else if (fields.role === ACCOUNT_OFFICER) {
     approvers = await userModel
-      .getAreaSalesHeadByArea(fields.areaCode)
+      .getAreaSalesHeadByArea(fields.groupCode)
       .run();
     approverMessage = `New account officer registration pending for approval: ${fields.firstName} ${fields.lastName}`;
 
     noApproverMessage = 'No Area Sales Head is assigned to this group yet. Please contact your administrator.'
 
   } else if (fields.role === AREA_SALES_HEAD) {
-    approvers = await userModel.getRegionalSalesHeadByArea(fields.areaCode).run();
+    approvers = await userModel.getRegionalSalesHeadByArea(fields.groupCode).run();
     approverMessage = `New area sales head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
     noApproverMessage = 'No Regional Sales Head is assigned to this group yet. Please contact your administrator.';
 
@@ -298,7 +298,7 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
   const result = await userModel
     .checkOrRegisterUser({
       ...fields,
-      areaCode: fields.role === AREA_SALES_HEAD ? null : fields.areaCode,
+      groupCode: fields.role === AREA_SALES_HEAD ? null : fields.groupCode,
       checkOnly: false,
       passwordHash,
     })
@@ -319,7 +319,7 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
     }
 
     if(fields.role === AREA_SALES_HEAD) {
-      await userModel.assignAreaSalesHeadArea(UserCode, fields.areaCode).run();
+      await userModel.assignAreaSalesHeadArea(UserCode, fields.groupCode).run();
     }
 
     try {
@@ -448,7 +448,7 @@ export const createTopLevelUser = async (actor, fields) => {
       "A superadmin creates Sector Heads and Department Heads. Every other role registers and is approved by the role above it.",
     );
 
-  if (fields.areaCode || fields.branchCode)
+  if (fields.groupCode || fields.branchCode)
     throwHttpError(400, "Group is not selected at registration for this role");
 
   const created = await register(fields, { createdBySuperadmin: true });
@@ -574,8 +574,8 @@ export const replaceAccountOfficerBranches = async (
   };
 };
 
-export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
-  const areas = normalizeCodes(areaCodes, "areaCodes");
+export const replaceAreaSalesHeadAreas = async (user, userId, groupCodes) => {
+  const areas = normalizeCodes(groupCodes, "groupCodes");
 
   const unscoped = user.Role === SUPERADMIN;
 
@@ -637,7 +637,7 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
     data: {
       userId: targetUser.UserId,
       userCode: targetUser.UserCode,
-      areaCodes: areas,
+      groupCodes: areas,
     },
   };
 };
@@ -645,9 +645,9 @@ export const replaceAreaSalesHeadAreas = async (user, userId, areaCodes) => {
 export const replaceRegionalSalesHeadAreas = async (
   user,
   userId,
-  areaCodes,
+  groupCodes,
 ) => {
-  const areas = normalizeCodes(areaCodes, "areaCodes");
+  const areas = normalizeCodes(groupCodes, "groupCodes");
   const targetUser = await loadAssignTarget(
     userId,
     REGIONAL_SALES_HEAD,
@@ -680,7 +680,7 @@ export const replaceRegionalSalesHeadAreas = async (
     data: {
       userId: targetUser.UserId,
       userCode: targetUser.UserCode,
-      areaCodes: areas,
+      groupCodes: areas,
     },
   };
 };

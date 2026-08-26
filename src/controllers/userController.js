@@ -20,13 +20,13 @@ export const register = async (req, res, next) => {
     const {
       firstName, middleName, lastName, suffix,
       birthday, email, mobileNumber, position,
-      role, areaCode, branchCode, employeeNo
+      role, groupCode, branchCode, employeeNo
     } = req.body
 
     const result = await userService.register({
       firstName, middleName, lastName, suffix,
       birthday, email, mobileNumber, position,
-      role, areaCode, branchCode, employeeNo
+      role, groupCode, branchCode, employeeNo
     })
 
     return res.json(result)
@@ -144,10 +144,10 @@ export const replaceAccountOfficerBranches = async (req, res, next) => {
 export const replaceAreaSalesHeadAreas = async (req, res, next) => {
   try {
     const { userId } = req.params
-    const { areaCodes } = req.body
+    const { groupCodes } = req.body
 
     const result = await userService.replaceAreaSalesHeadAreas(
-      req.user, userId, areaCodes
+      req.user, userId, groupCodes
     )
     return res.json(result)
   } catch (error) {
@@ -158,10 +158,10 @@ export const replaceAreaSalesHeadAreas = async (req, res, next) => {
 export const replaceRegionalSalesHeadAreas = async (req, res, next) => {
   try {
     const { userId } = req.params
-    const { areaCodes } = req.body
+    const { groupCodes } = req.body
 
     const result = await userService.replaceRegionalSalesHeadAreas(
-      req.user, userId, areaCodes
+      req.user, userId, groupCodes
     )
     return res.json(result)
   } catch (error) {

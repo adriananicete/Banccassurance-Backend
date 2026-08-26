@@ -14,9 +14,9 @@ export const getGroups = async (req, res, next) => {
 
 export const getBranches = async (req, res, next) => {
   try {
-    const { areaCode, search } = req.query
+    const { groupCode, search } = req.query
     const result = await userService.getBranches(
-      areaCode,
+      groupCode,
       search,
       paging(req.query, branchListPageSize),
     )

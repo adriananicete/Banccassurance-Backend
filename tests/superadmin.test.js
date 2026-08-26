@@ -224,8 +224,8 @@ test("a superadmin assigning areas skips the region check but not the existence 
   const { service, calls } = await withUserService({
     getUserScopeById: approved({ Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-1165" }),
     isAshInRegionalScope: noRows,
-    getAreasOutsideRegionalSalesHeadScope: rows({ AreaCode: 5 }),
-    getUnknownAreas: rows({ AreaCode: 99 }),
+    getAreasOutsideRegionalSalesHeadScope: rows({ GroupCode:5 }),
+    getUnknownAreas: rows({ GroupCode:99 }),
   });
 
   const error = await captureThrown(() =>

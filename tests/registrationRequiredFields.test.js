@@ -26,7 +26,7 @@ const complete = {
   position: "Account Officer",
   employeeNo: "TEST-001",
   role: ACCOUNT_OFFICER,
-  areaCode: 1,
+  groupCode: 1,
 };
 
 test("a complete registration still reaches the procedure", async () => {
@@ -68,7 +68,7 @@ test("each always-required field is refused by name", async () => {
   // usp_ins_register_user answers a missing one of these with "Missing required
   // registration fields." - true, and it does not say which. The role-specific
   // rules above already name theirs, so a caller got a precise message for a
-  // missing areaCode and a guess for a missing birthday.
+  // missing groupCode and a guess for a missing birthday.
   for (const [field, label] of Object.entries(alwaysRequiredFields)) {
     const { service } = await withUserService(model);
     const incomplete = { ...complete };
@@ -114,7 +114,7 @@ test("the role-specific rules still answer first", async () => {
   const { service } = await withUserService(model);
 
   const error = await captureThrown(() =>
-    service.register({ ...complete, areaCode: undefined, birthday: undefined }),
+    service.register({ ...complete, groupCode: undefined, birthday: undefined }),
   );
 
   assert.match(error.message, /group is required/i);
@@ -127,7 +127,7 @@ test("the superadmin creation path is held to the same rules", async () => {
   const { service } = await withUserService(model);
 
   const error = await captureThrown(() =>
-    service.register({ ...complete, role: BRANCH_STAFF, branchCode: 255, areaCode: undefined, lastName: undefined },
+    service.register({ ...complete, role: BRANCH_STAFF, branchCode: 255, groupCode: undefined, lastName: undefined },
       { createdBySuperadmin: true }),
   );
 

@@ -76,9 +76,9 @@ export const getGroups = () => {
   };
 };
 
-export const getBranches = (areaCode, search, options = {}) => {
+export const getBranches = (groupCode, search, options = {}) => {
   const request = new sql.Request();
-  const area = asInt(areaCode);
+  const area = asInt(groupCode);
   const page = asInt(options.PageNumber);
   const size = asInt(options.PageSize);
 
@@ -104,7 +104,7 @@ export const checkOrRegisterUser = ({
   mobileNumber,
   position,
   role,
-  areaCode,
+  groupCode,
   branchCode,
   passwordHash,
   employeeNo,
@@ -122,7 +122,7 @@ export const checkOrRegisterUser = ({
     request.input("MobileNumber", sql.NVarChar, mobileNumber);
     request.input("Position", sql.NVarChar, position);
     request.input("Role", sql.NVarChar, role);
-    request.input("GroupCode", sql.NVarChar, asText(areaCode));
+    request.input("GroupCode", sql.NVarChar, asText(groupCode));
     request.input("BranchCode", sql.Int, asInt(branchCode));
     request.input("PasswordHash", sql.NVarChar, passwordHash);
     request.input("EmployeeNo", sql.NVarChar, employeeNo || null);
@@ -195,10 +195,10 @@ export const findUserIdByCode = (userCode) => {
   };
 };
 
-export const isAreaInRegionalScope = (userCode, areaCode) => {
+export const isAreaInRegionalScope = (userCode, groupCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
-  request.input("GroupCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(groupCode));
   return {
     request,
     run: () =>
@@ -234,10 +234,10 @@ export const getBranchHeadByBranch = (branchCode) => {
   };
 };
 
-export const assignAreaSalesHeadArea = (userCode, areaCode) => {
+export const assignAreaSalesHeadArea = (userCode, groupCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
-  request.input("GroupCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(groupCode));
   return {
     request,
     run: () =>
@@ -248,9 +248,9 @@ VALUES (@UserCode, @GroupCode)
   };
 };
 
-export const getAreaSalesHeadByArea = (areaCode) => {
+export const getAreaSalesHeadByArea = (groupCode) => {
   const request = new sql.Request();
-  request.input("GroupCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(groupCode));
   return {
     request,
     run: () =>
@@ -265,9 +265,9 @@ WHERE u.Role = 'AREA_SALES_HEAD'
   };
 };
 
-export const getRegionalSalesHeadByArea = (areaCode) => {
+export const getRegionalSalesHeadByArea = (groupCode) => {
   const request = new sql.Request();
-  request.input("GroupCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(groupCode));
   return {
     request,
     run: () =>
@@ -305,9 +305,9 @@ export const getAccountOfficerByCode = (aoCode) => {
   };
 };
 
-export const getGroupHeadByArea = (areaCode) => {
+export const getGroupHeadByArea = (groupCode) => {
   const request = new sql.Request();
-  request.input("GroupCode", sql.Int, asInt(areaCode));
+  request.input("GroupCode", sql.Int, asInt(groupCode));
   return {
     request,
     run: () =>
@@ -328,10 +328,10 @@ export const getSectorHead = () => {
   };
 };
 
-export const isAreaInAreaSalesHeadScope = (userCode, areaCode) => {
+export const isAreaInAreaSalesHeadScope = (userCode, groupCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
-  request.input("GroupCode", sql.Int, Number(areaCode));
+  request.input("GroupCode", sql.Int, Number(groupCode));
   return {
     request,
     run: () =>
@@ -387,7 +387,7 @@ WHERE LTRIM(RTRIM(value)) <> ''`)
   }
 }
 
-export const replaceAreaSalesHeadAreas = (userCode, areaCodes, audit) => {
+export const replaceAreaSalesHeadAreas = (userCode, groupCodes, audit) => {
   return {
     run: async () => {
       const transaction = new sql.Transaction()
@@ -396,7 +396,7 @@ export const replaceAreaSalesHeadAreas = (userCode, areaCodes, audit) => {
       try {
         const request = new sql.Request(transaction);
         request.input('UserCode', sql.NVarChar, userCode)
-        request.input('GroupCodes', sql.NVarChar, areaCodes)
+        request.input('GroupCodes', sql.NVarChar, groupCodes)
 
         await request.query(`DELETE FROM banc.area_sales_head_areas WHERE UserCode = @UserCode`)
         await request.query(`INSERT INTO banc.area_sales_head_areas (UserCode, GroupCode)
@@ -415,7 +415,7 @@ WHERE LTRIM(RTRIM(value)) <> ''`)
   }
 }
 
-export const replaceRegionalSalesHeadAreas = (userCode, areaCodes, audit) => {
+export const replaceRegionalSalesHeadAreas = (userCode, groupCodes, audit) => {
   return {
     run: async () => {
       const transaction = new sql.Transaction()
@@ -424,7 +424,7 @@ export const replaceRegionalSalesHeadAreas = (userCode, areaCodes, audit) => {
       try {
         const request = new sql.Request(transaction);
         request.input('UserCode', sql.NVarChar, userCode)
-        request.input('GroupCodes', sql.NVarChar, areaCodes)
+        request.input('GroupCodes', sql.NVarChar, groupCodes)
 
         await request.query(`DELETE FROM banc.regional_sales_head_areas WHERE UserCode = @UserCode`)
         await request.query(`INSERT INTO banc.regional_sales_head_areas (UserCode, GroupCode, RegionCode)
@@ -483,10 +483,10 @@ WHERE aob.UserCode <> @UserCode
   };
 };
 
-export const getAreasOutsideRegionalSalesHeadScope = (rshUserCode, areaCodes) => {
+export const getAreasOutsideRegionalSalesHeadScope = (rshUserCode, groupCodes) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, rshUserCode);
-  request.input("GroupCodes", sql.NVarChar, areaCodes);
+  request.input("GroupCodes", sql.NVarChar, groupCodes);
   return {
     request,
     run: () =>
@@ -504,9 +504,9 @@ WHERE LTRIM(RTRIM(s.value)) <> ''
   };
 };
 
-export const getUnknownAreas = (areaCodes) => {
+export const getUnknownAreas = (groupCodes) => {
   const request = new sql.Request();
-  request.input("GroupCodes", sql.NVarChar, areaCodes);
+  request.input("GroupCodes", sql.NVarChar, groupCodes);
   return {
     request,
     run: () =>

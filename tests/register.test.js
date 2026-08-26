@@ -25,7 +25,7 @@ const fields = (overrides) => ({
   mobileNumber: "09171234570",
   position: "Account Officer",
   role: ACCOUNT_OFFICER,
-  areaCode: 5,
+  groupCode: 5,
   branchCode: null,
   employeeNo: "TEST-AO-01",
   ...overrides,
@@ -79,11 +79,11 @@ const withRule = (field, value) =>
 
 test("every self-registering role has a field rule, and the rule is complete", () => {
   // GROUP_HEAD had none at all: it matched no branch of the validation, so a
-  // registration with no areaCode was accepted and produced a Group Head
+  // registration with no groupCode was accepted and produced a Group Head
   // belonging to no group - an account that can never approve anyone, since its
   // approvals query filters on the column left null. USR-GRH-0030 is that row.
   //
-  // BRANCH_HEAD had one that was incomplete: branchCode required, areaCode
+  // BRANCH_HEAD had one that was incomplete: branchCode required, groupCode
   // silently not. That failed loudly but blamed the wrong thing.
   //
   // Neither shape can be caught by exercising the rules that exist. This
@@ -111,7 +111,7 @@ test("a role that needs a group is refused without one", async () => {
   for (const role of withRule("group", "required")) {
     const { service } = await withUserService(happyPath());
     const error = await captureThrown(() =>
-      service.register(fields({ role, areaCode: null, branchCode: 58 })),
+      service.register(fields({ role, groupCode: null, branchCode: 58 })),
     );
 
     assert.equal(error?.statusCode, 400, role);
@@ -125,10 +125,10 @@ test("a role that must not send a branch is refused one", async () => {
 
     // Send the group only where the role is allowed one, or the group rule
     // fires first and this proves nothing about the branch.
-    const areaCode = contract[role].group === "forbidden" ? null : 5;
+    const groupCode = contract[role].group === "forbidden" ? null : 5;
 
     const error = await captureThrown(() =>
-      service.register(fields({ role, areaCode, branchCode: 58 })),
+      service.register(fields({ role, groupCode, branchCode: 58 })),
     );
 
     assert.equal(error?.statusCode, 400, role);
@@ -139,10 +139,10 @@ test("a role that must not send a branch is refused one", async () => {
 test("a role that needs a branch is refused without one", async () => {
   for (const role of withRule("branch", "required")) {
     const { service } = await withUserService(happyPath());
-    const areaCode = contract[role].group === "forbidden" ? null : 5;
+    const groupCode = contract[role].group === "forbidden" ? null : 5;
 
     const error = await captureThrown(() =>
-      service.register(fields({ role, areaCode, branchCode: null })),
+      service.register(fields({ role, groupCode, branchCode: null })),
     );
 
     assert.equal(error?.statusCode, 400, role);
@@ -156,7 +156,7 @@ test("a Branch Head must send both, and is told which one is missing", async () 
   // which is false. There is one for every group; none had been named.
   const noGroup = await withUserService(happyPath());
   const groupError = await captureThrown(() =>
-    noGroup.service.register(fields({ role: BRANCH_HEAD, areaCode: null, branchCode: 58 })),
+    noGroup.service.register(fields({ role: BRANCH_HEAD, groupCode: null, branchCode: 58 })),
   );
 
   assert.equal(groupError?.statusCode, 400);
@@ -165,7 +165,7 @@ test("a Branch Head must send both, and is told which one is missing", async () 
 
   const noBranch = await withUserService(happyPath());
   const branchError = await captureThrown(() =>
-    noBranch.service.register(fields({ role: BRANCH_HEAD, areaCode: 5, branchCode: null })),
+    noBranch.service.register(fields({ role: BRANCH_HEAD, groupCode: 5, branchCode: null })),
   );
 
   assert.equal(branchError?.statusCode, 400);
@@ -176,7 +176,7 @@ test("no field rule runs before the role itself is checked", async () => {
   // An unknown role must be refused as an unknown role, not as a missing group.
   const { service } = await withUserService(happyPath());
   const error = await captureThrown(() =>
-    service.register(fields({ role: "CLUSTER_HEAD", areaCode: null, branchCode: null })),
+    service.register(fields({ role: "CLUSTER_HEAD", groupCode: null, branchCode: null })),
   );
 
   assert.match(error.message, /invalid role/i);
@@ -185,17 +185,17 @@ test("no field rule runs before the role itself is checked", async () => {
 test("a Regional Sales Head registers with neither a group nor a branch", async () => {
   const model = happyPath({ getDepartmentHead: rows({ UserCode: "PHL-DH-0001" }) });
 
-  for (const extra of [{ areaCode: 5 }, { branchCode: 58 }]) {
+  for (const extra of [{ groupCode: 5 }, { branchCode: 58 }]) {
     const { service } = await withUserService(model);
     const error = await captureThrown(() =>
-      service.register(fields({ role: REGIONAL_SALES_HEAD, areaCode: null, branchCode: null, ...extra })),
+      service.register(fields({ role: REGIONAL_SALES_HEAD, groupCode: null, branchCode: null, ...extra })),
     );
     assert.equal(error?.statusCode, 400, JSON.stringify(extra));
   }
 
   const { service } = await withUserService(model);
   const result = await service.register(
-    fields({ role: REGIONAL_SALES_HEAD, areaCode: null, branchCode: null }),
+    fields({ role: REGIONAL_SALES_HEAD, groupCode: null, branchCode: null }),
   );
   assert.equal(result.success, true);
 });
@@ -204,11 +204,11 @@ test("a Regional Sales Head registers with neither a group nor a branch", async 
 test("each role is routed to its own approver lookup", async () => {
   const routes = [
     [BRANCH_STAFF, { branchCode: 58 }, "getBranchHeadByBranch"],
-    [BRANCH_HEAD, { branchCode: 58, areaCode: 5 }, "getGroupHeadByArea"],
-    [GROUP_HEAD, { areaCode: 5 }, "getSectorHead"],
-    [ACCOUNT_OFFICER, { areaCode: 5 }, "getAreaSalesHeadByArea"],
-    [AREA_SALES_HEAD, { areaCode: 5 }, "getRegionalSalesHeadByArea"],
-    [REGIONAL_SALES_HEAD, { areaCode: null, branchCode: null }, "getDepartmentHead"],
+    [BRANCH_HEAD, { branchCode: 58, groupCode: 5 }, "getGroupHeadByArea"],
+    [GROUP_HEAD, { groupCode: 5 }, "getSectorHead"],
+    [ACCOUNT_OFFICER, { groupCode: 5 }, "getAreaSalesHeadByArea"],
+    [AREA_SALES_HEAD, { groupCode: 5 }, "getRegionalSalesHeadByArea"],
+    [REGIONAL_SALES_HEAD, { groupCode: null, branchCode: null }, "getDepartmentHead"],
   ];
 
   for (const [role, extra, expected] of routes) {
@@ -223,7 +223,7 @@ test("each role is routed to its own approver lookup", async () => {
     });
 
     const { service, calls } = await withUserService(model);
-    await service.register(fields({ role, areaCode: null, branchCode: null, ...extra }));
+    await service.register(fields({ role, groupCode: null, branchCode: null, ...extra }));
 
     const lookups = calls
       .map((call) => call.name)
@@ -276,10 +276,10 @@ test("an Area Sales Head stores no AreaCode on the user row, and gets a junction
     }),
   );
 
-  await service.register(fields({ role: AREA_SALES_HEAD, areaCode: 5 }));
+  await service.register(fields({ role: AREA_SALES_HEAD, groupCode: 5 }));
 
   const insert = calls.find((call) => call.name === "checkOrRegisterUser");
-  assert.equal(insert.args[0].areaCode, null);
+  assert.equal(insert.args[0].groupCode, null);
 
   assert.deepEqual(
     calls.find((call) => call.name === "assignAreaSalesHeadArea").args,
@@ -289,10 +289,10 @@ test("an Area Sales Head stores no AreaCode on the user row, and gets a junction
 
 test("an Account Officer does store its AreaCode on the user row", async () => {
   const { service, calls } = await withUserService(happyPath());
-  await service.register(fields({ role: ACCOUNT_OFFICER, areaCode: 5 }));
+  await service.register(fields({ role: ACCOUNT_OFFICER, groupCode: 5 }));
 
   const insert = calls.find((call) => call.name === "checkOrRegisterUser");
-  assert.equal(insert.args[0].areaCode, 5);
+  assert.equal(insert.args[0].groupCode, 5);
 });
 
 test("a taken employee number is a 409, and nothing is written", async () => {

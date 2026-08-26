@@ -111,7 +111,7 @@ test("no active superadmin refuses the registration and writes no user row", asy
 });
 
 test("the top roles pick neither a branch nor a group", async () => {
-  for (const key of ["areaCode", "branchCode"]) {
+  for (const key of ["groupCode", "branchCode"]) {
     const { service } = await withUserService(selfRegisterPath());
 
     const error = await captureThrown(() => service.register(fields({ [key]: 5 })));

@@ -57,7 +57,7 @@ test("an empty set is accepted for branches and for groups", async () => {
 
   const groups = await withUserService(groupsModel());
   const emptied = await groups.service.replaceRegionalSalesHeadAreas(dh, 1784, []);
-  assert.deepEqual(emptied.data.areaCodes, []);
+  assert.deepEqual(emptied.data.groupCodes, []);
 });
 
 test("the empty-areas refusal happens before the target is even looked up", async () => {

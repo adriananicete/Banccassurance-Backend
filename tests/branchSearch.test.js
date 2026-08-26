@@ -10,9 +10,9 @@ const USER_MODEL = "../../src/models/userModel.js";
 // caller. banc.usp_sel_branches replaced two inline SELECTs -- one filtered by
 // area, one not -- so these assert the collapse landed and that both filters
 // still reach SQL as parameters rather than text.
-const build = async (areaCode, search, options) => {
+const build = async (groupCode, search, options) => {
   const { model, queries, inputs } = await captureSql(USER_MODEL);
-  await model.getBranches(areaCode, search, options).run();
+  await model.getBranches(groupCode, search, options).run();
   restoreSqlCapture();
 
   return { query: queries[0], inputs };
@@ -60,7 +60,7 @@ test("all four parameters are always bound, present or not", async () => {
 test("the default page size is 100, not the procedure's 20", async () => {
   // The whole defect in one assertion. usp_sel_branches defaults @PageSize to
   // 20, so an unbound call silently truncates. The largest group holds 52
-  // branches, so 100 is what makes every ?areaCode= call fit in one page --
+  // branches, so 100 is what makes every ?groupCode= call fit in one page --
   // which is the real registration flow, pick a group then a branch.
   const { inputs } = await build(undefined, undefined);
 
@@ -88,8 +88,8 @@ test("junk paging falls back rather than reaching sql.Int", async () => {
   }
 });
 
-test("a numeric areaCode arrives as a number, not the query string's text", async () => {
-  // areaCode reaches the model as a string from the query string, and the
+test("a numeric groupCode arrives as a number, not the query string's text", async () => {
+  // groupCode reaches the model as a string from the query string, and the
   // procedure declares @GroupCode INT. tedious refuses the mismatch outright.
   const { inputs } = await build("5", undefined);
 
@@ -97,8 +97,8 @@ test("a numeric areaCode arrives as a number, not the query string's text", asyn
   assert.equal(typeof valueOf(inputs, "GroupCode"), "number");
 });
 
-test("a non-numeric areaCode reads as absent rather than reaching sql.Int", async () => {
-  // This endpoint takes no session, so anyone can send ?areaCode=abc. It used
+test("a non-numeric groupCode reads as absent rather than reaching sql.Int", async () => {
+  // This endpoint takes no session, so anyone can send ?groupCode=abc. It used
   // to pass the truthy string straight to sql.Int and 500.
   for (const junk of ["abc", "5; DROP TABLE banc.branches", "NaN"]) {
     const { inputs } = await build(junk, undefined);
@@ -179,7 +179,7 @@ test("the service passes the paging options through to the model", async () => {
 
 test("an empty page reports a zero total rather than throwing on the missing row", async () => {
   // recordset[0] does not exist when nothing matches, and TotalCount is read
-  // from it. ?areaCode=99 is reachable by anyone -- the endpoint takes no
+  // from it. ?groupCode=99 is reachable by anyone -- the endpoint takes no
   // session.
   const { service } = await branchRows();
 

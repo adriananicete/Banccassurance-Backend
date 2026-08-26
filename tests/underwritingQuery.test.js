@@ -18,14 +18,14 @@ const build = async (filters) => {
 test("filter values are bound as parameters, never written into the SQL", async () => {
   const injection = "'; DROP TABLE banc.Referrals; --";
 
-  const { sql, inputs } = await build({ areaCode: injection, aoCode: injection });
+  const { sql, inputs } = await build({ groupCode: injection, aoCode: injection });
 
   assert.doesNotMatch(sql, /DROP TABLE/i);
   assert.match(sql, /@AOCode/);
 
-  // A non-numeric areaCode is dropped rather than bound. Referrals.GroupCode is
+  // A non-numeric groupCode is dropped rather than bound. Referrals.GroupCode is
   // INT, so a string reached the driver and surfaced as a 500 - the same defect
-  // already guarded in userModel.getBranches, where ?areaCode=abc now means
+  // already guarded in userModel.getBranches, where ?groupCode=abc now means
   // "no filter" rather than an error.
   assert.doesNotMatch(sql, /@GroupCode/);
 
@@ -44,7 +44,7 @@ test("an absent filter adds neither a parameter nor a clause", async () => {
 });
 
 test("each filter is added independently", async () => {
-  const areaOnly = await build({ areaCode: "5" });
+  const areaOnly = await build({ groupCode: "5" });
   assert.match(areaOnly.sql, /@GroupCode/);
   assert.doesNotMatch(areaOnly.sql, /@AOCode/);
 
@@ -56,7 +56,7 @@ test("each filter is added independently", async () => {
 test("underwriting only ever sees the three statuses it can act on", async () => {
   // Deferred is AO-side only and must never appear here, whatever filters are
   // passed. A filter appended in the wrong place could widen this clause.
-  for (const filters of [{}, { areaCode: "5" }, { aoCode: "X" }, { areaCode: "5", aoCode: "X" }]) {
+  for (const filters of [{}, { groupCode: "5" }, { aoCode: "X" }, { groupCode: "5", aoCode: "X" }]) {
     const { sql } = await build(filters);
 
     assert.match(sql, /Status IN \('Presented', 'Closed Pending', 'Postponed'\)/);
@@ -67,7 +67,7 @@ test("underwriting only ever sees the three statuses it can act on", async () =>
 test("the filters extend the status clause rather than replacing it", async () => {
   // Every appended fragment starts with AND. One written without it would turn
   // the whole WHERE into something else entirely.
-  const { sql } = await build({ areaCode: "5", aoCode: "PHL-AO-0001" });
+  const { sql } = await build({ groupCode: "5", aoCode: "PHL-AO-0001" });
 
   const where = sql.slice(sql.indexOf("WHERE"));
   assert.match(where, /Status IN[\s\S]*AND GroupCode = @GroupCode[\s\S]*AND AOCode = @AOCode/);
