@@ -131,7 +131,7 @@ export const getUsersForApproval = (user, options = {}) => {
   request.input("CallerRole", sql.NVarChar, asText(user.Role));
   request.input("CallerUserCode", sql.NVarChar, asText(user.UserCode));
   request.input("BranchCode", sql.Int, asInt(user.BranchCode));
-  request.input("AreaCode", sql.Int, asInt(user.GroupCode));
+  request.input("GroupCode", sql.Int, asInt(user.GroupCode));
   request.input("StatusFilter", sql.NVarChar, asText(options.StatusFilter) ?? "ALL");
   request.input("Search", sql.NVarChar, asText(options.Search));
   request.input("PageNumber", sql.Int, asInt(options.PageNumber) ?? 1);

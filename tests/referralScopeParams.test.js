@@ -29,34 +29,35 @@ const bothEntryPoints = [
   ["getReferralCountsByRole", (model, user) => model.getReferralCountsByRole(user)],
 ];
 
-test("the session's GroupCode reaches @AreaCode as a number, however it was carried", async () => {
-  // The session carries GroupCode since usp_ValidateUser stopped returning
-  // AreaCode; the procedures still declare the parameter @AreaCode, so the two
-  // names meet here deliberately. Reading user.AreaCode instead binds undefined,
-  // which asInt turns into null and the ?? 0 turns into group zero - a group no
-  // row has, so the list comes back empty rather than failing.
+test("the session's GroupCode is bound as @GroupCode, as a number however it was carried", async () => {
+  // Both ends of this moved on 2026-08-26: usp_ValidateUser stopped returning
+  // AreaCode, and both procedures renamed the parameter to @GroupCode. Binding
+  // the old parameter name is not a bad result but a hard failure -- error 8145,
+  // "@AreaCode is not a parameter for procedure" -- so this asserts the name as
+  // firmly as the value.
   for (const [name, call] of bothEntryPoints) {
     for (const GroupCode of [5, "5"]) {
       const params = await paramsFor((model) =>
         call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, GroupCode }),
       );
 
-      assert.equal(typeof params.AreaCode, "number", `${name} ${JSON.stringify(GroupCode)}`);
-      assert.equal(params.AreaCode, 5, `${name} ${JSON.stringify(GroupCode)}`);
+      assert.equal("AreaCode" in params, false, `${name} ${JSON.stringify(GroupCode)}`);
+      assert.equal(typeof params.GroupCode, "number", `${name} ${JSON.stringify(GroupCode)}`);
+      assert.equal(params.GroupCode, 5, `${name} ${JSON.stringify(GroupCode)}`);
     }
   }
 });
 
 test("a session still carrying only AreaCode is not read by mistake", async () => {
-  // The rename's failure mode is silence: the old key is simply ignored and the
-  // caller sees an empty list. Asserting the miss is what keeps a revert to
-  // user.AreaCode from passing this file.
+  // The session half of the rename fails silently where the parameter half fails
+  // loudly: the old key is simply ignored and the caller sees an empty list.
+  // Asserting the miss is what keeps a revert to user.AreaCode from passing.
   for (const [name, call] of bothEntryPoints) {
     const params = await paramsFor((model) =>
       call(model, { Role: "ACCOUNT_OFFICER", UserCode: "PHL-AO-1168", BranchCode: null, AreaCode: 5 }),
     );
 
-    assert.equal(params.AreaCode, 0, name);
+    assert.equal(params.GroupCode, 0, name);
   }
 });
 
@@ -84,7 +85,7 @@ test("the defaults for a missing scope are unchanged", async () => {
       );
 
       assert.equal(params.BranchCode, 0, `${name} ${JSON.stringify(missing)}`);
-      assert.equal(params.AreaCode, 0, `${name} ${JSON.stringify(missing)}`);
+      assert.equal(params.GroupCode, 0, `${name} ${JSON.stringify(missing)}`);
     }
   }
 });
@@ -164,7 +165,7 @@ test("every scope parameter is a type the procedure can accept", async () => {
       );
 
       assert.equal(typeof params.BranchCode, "number", `${name} ${JSON.stringify(shape)}`);
-      assert.equal(typeof params.AreaCode, "number", `${name} ${JSON.stringify(shape)}`);
+      assert.equal(typeof params.GroupCode, "number", `${name} ${JSON.stringify(shape)}`);
     }
   }
 });

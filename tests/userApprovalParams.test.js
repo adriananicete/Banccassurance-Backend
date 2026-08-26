@@ -39,10 +39,10 @@ test("getUsersForApproval binds every parameter the procedure requires", async (
   );
 
   assert.deepEqual(Object.keys(params).sort(), [
-    "AreaCode",
     "BranchCode",
     "CallerRole",
     "CallerUserCode",
+    "GroupCode",
     "PageNumber",
     "PageSize",
     "Search",
@@ -74,8 +74,7 @@ test("the caller's scope columns are sent as numbers whatever the JWT held", asy
   // A JWT carries whatever the login response put in it, and the group became an
   // INT column on 2026-08-19 while BranchCode always was one. tedious refuses a
   // type mismatch before the query is sent, so this is a 500 rather than a bad
-  // result. The session key is GroupCode; the procedure parameter is still
-  // @AreaCode, and the two meet in the model.
+  // result.
   for (const branchCode of ["255", 255]) {
     const { params } = await capture((model) =>
       model
@@ -85,8 +84,8 @@ test("the caller's scope columns are sent as numbers whatever the JWT held", asy
 
     assert.equal(typeof params.BranchCode, "number", JSON.stringify(branchCode));
     assert.equal(params.BranchCode, 255, JSON.stringify(branchCode));
-    assert.equal(typeof params.AreaCode, "number", JSON.stringify(branchCode));
-    assert.equal(params.AreaCode, 2, JSON.stringify(branchCode));
+    assert.equal(typeof params.GroupCode, "number", JSON.stringify(branchCode));
+    assert.equal(params.GroupCode, 2, JSON.stringify(branchCode));
   }
 });
 
@@ -102,7 +101,7 @@ test("a missing scope column is NULL rather than zero", async () => {
   );
 
   assert.equal(params.BranchCode, null);
-  assert.equal(params.AreaCode, null);
+  assert.equal(params.GroupCode, null);
   assert.equal(params.CallerRole, "SECTOR_HEAD");
 });
 
