@@ -39,10 +39,15 @@ test("a complete registration still reaches the procedure", async () => {
 });
 
 test("the list matches what the procedure actually refuses", () => {
-  // Read from usp_ins_register_user STEP 1 on 2026-08-25. Six of these are its
-  // list; PasswordHash is generated here and always present, and Role is
-  // covered by registrationFields above. Email is ours and goes further than
-  // the procedure - see the test below.
+  // Read from usp_ins_register_user STEP 1. Five of these are its list;
+  // PasswordHash is generated here and always present, and Role is covered by
+  // registrationFields above. Email is ours and goes further than the
+  // procedure - see the test below.
+  //
+  // position left on 2026-08-27 with the Users.Position column. It was free
+  // text nobody read back: form -> controller -> model -> procedure, and it
+  // stopped there. Role is the authorisation key and stays; the two only
+  // looked like duplicates because the seed put job titles in both.
   assert.deepEqual(Object.keys(alwaysRequiredFields).sort(), [
     "birthday",
     "email",
@@ -50,7 +55,6 @@ test("the list matches what the procedure actually refuses", () => {
     "firstName",
     "lastName",
     "mobileNumber",
-    "position",
   ]);
 });
 

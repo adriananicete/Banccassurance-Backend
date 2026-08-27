@@ -39,7 +39,6 @@ export const alwaysRequiredFields = {
   lastName: "Last name",
   birthday: "Birthday",
   mobileNumber: "Mobile number",
-  position: "Position",
   employeeNo: "Employee number",
   email: "Email",
 };
