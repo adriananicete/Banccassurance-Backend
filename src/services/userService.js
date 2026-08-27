@@ -309,7 +309,12 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
     .run();
 
   if (checkEmployeeNo.recordset.length > 0)
-    throwHttpError(409, "Employee number already registered");
+    throwHttpError(
+      409,
+      checkEmployeeNo.recordset[0].MatchedOn === "USER_CODE"
+        ? "This employee number is already in use as another account's user code. Please check it and try again."
+        : "Employee number already registered",
+    );
 
   const passwordHash = await bcrypt.hash(tempPassword, 10);
 

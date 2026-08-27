@@ -231,7 +231,11 @@ export const checkEmployeeNoExists = (employeeNo) => {
     request,
     run: () =>
       request.query(`
-      SELECT EmployeeNo FROM banc.Users WHERE EmployeeNo = @EmployeeNo
+      SELECT TOP 1
+        CASE WHEN EmployeeNo = @EmployeeNo THEN 'EMPLOYEE_NO' ELSE 'USER_CODE' END AS MatchedOn
+      FROM banc.Users
+      WHERE EmployeeNo = @EmployeeNo OR UserCode = @EmployeeNo
+      ORDER BY CASE WHEN EmployeeNo = @EmployeeNo THEN 0 ELSE 1 END
       `),
   };
 };
