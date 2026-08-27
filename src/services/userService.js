@@ -253,6 +253,16 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
       );
   }
 
+  if (fields.role === GROUP_HEAD) {
+    const held = await userModel.checkGroupHeadExists(fields.groupCode).run();
+
+    if (held.recordset.length > 0)
+      throwHttpError(
+        409,
+        "This group already has a Group Head. Only one Group Head may hold a group.",
+      );
+  }
+
   let approvers;
   let approverMessage;
   let noApproverMessage;

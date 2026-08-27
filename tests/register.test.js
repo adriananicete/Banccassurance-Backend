@@ -42,6 +42,9 @@ const approverFound = rows({ UserCode: "PHL-ASH-1167" });
 const happyPath = (overrides) => ({
   getAreaSalesHeadByArea: approverFound,
   checkEmployeeNoExists: noRows,
+  // No Group Head holds the group yet. The one-per-group guard runs before the
+  // approver lookup for GROUP_HEAD only; oneGroupHeadPerGroup.test.js owns it.
+  checkGroupHeadExists: noRows,
   checkOrRegisterUser: registered,
   ...overrides,
 });
