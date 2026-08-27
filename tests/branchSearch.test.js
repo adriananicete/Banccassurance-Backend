@@ -77,9 +77,10 @@ test("paging options are bound as numbers, whatever the query string held", asyn
 });
 
 test("junk paging falls back rather than reaching sql.Int", async () => {
-  // asInt returns NaN for junk, not null, so `asInt(x) ?? 1` would bind NaN and
-  // tedious would refuse it. The guard is Number.isFinite, the same one the
-  // group filter already uses two lines above.
+  // asInt answers null for junk since 2026-08-27, so `asInt(x) ?? 1` is enough
+  // on its own now. The Number.isFinite guards here are what this function had
+  // to do while asInt still returned NaN; they are belt and braces today and
+  // are left because they cost nothing and this is the path that found it.
   for (const junk of ["abc", "", null, undefined, "NaN"]) {
     const { inputs } = await build(1, undefined, { PageNumber: junk, PageSize: junk });
 
