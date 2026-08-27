@@ -196,7 +196,7 @@ export const findUserIdByCode = (userCode) => {
 export const isAreaInRegionalScope = (userCode, groupCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
-  request.input("GroupCode", sql.Int, Number(groupCode));
+  request.input("GroupCode", sql.Int, asInt(groupCode));
   return {
     request,
     run: () =>
@@ -253,7 +253,7 @@ export const getBranchHeadByBranch = (branchCode) => {
 export const assignAreaSalesHeadArea = (userCode, groupCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
-  request.input("GroupCode", sql.Int, Number(groupCode));
+  request.input("GroupCode", sql.Int, asInt(groupCode));
   return {
     request,
     run: () =>
@@ -266,7 +266,7 @@ VALUES (@UserCode, @GroupCode)
 
 export const getAreaSalesHeadByArea = (groupCode) => {
   const request = new sql.Request();
-  request.input("GroupCode", sql.Int, Number(groupCode));
+  request.input("GroupCode", sql.Int, asInt(groupCode));
   return {
     request,
     run: () =>
@@ -283,7 +283,7 @@ WHERE u.Role = 'AREA_SALES_HEAD'
 
 export const getRegionalSalesHeadByArea = (groupCode) => {
   const request = new sql.Request();
-  request.input("GroupCode", sql.Int, Number(groupCode));
+  request.input("GroupCode", sql.Int, asInt(groupCode));
   return {
     request,
     run: () =>
@@ -347,7 +347,7 @@ export const getSectorHead = () => {
 export const isAreaInAreaSalesHeadScope = (userCode, groupCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, userCode);
-  request.input("GroupCode", sql.Int, Number(groupCode));
+  request.input("GroupCode", sql.Int, asInt(groupCode));
   return {
     request,
     run: () =>

@@ -54,6 +54,11 @@ export const registrationFields = {
   [DEPARTMENT_HEAD]: { group: "forbidden", branch: "forbidden" },
 };
 
+export const registrationCodeFields = {
+  groupCode: "Group",
+  branchCode: "Branch",
+};
+
 export const roleCaps = {
   [SECTOR_HEAD]: { limit: 1, label: "Sector Head" },
   [DEPARTMENT_HEAD]: { limit: 1, label: "Department Head" },
@@ -226,6 +231,15 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
 
   for (const [field, label] of Object.entries(alwaysRequiredFields))
     if (!fields[field]) throwHttpError(400, `${label} is required`);
+
+  for (const [field, label] of Object.entries(registrationCodeFields)) {
+    const value = fields[field];
+    if (value === null || value === undefined || value === "") continue;
+
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0)
+      throwHttpError(400, `${label} must be a whole number`);
+  }
 
   const cap = roleCaps[fields.role];
 
