@@ -54,6 +54,11 @@ export const registrationFields = {
   [DEPARTMENT_HEAD]: { group: "forbidden", branch: "forbidden" },
 };
 
+export const roleCaps = {
+  [SECTOR_HEAD]: { limit: 1, label: "Sector Head" },
+  [DEPARTMENT_HEAD]: { limit: 1, label: "Department Head" },
+};
+
 export const verifyOtp = async (identifier, otp) => {
   const result = await userModel.validateUser(identifier).run();
 
@@ -221,6 +226,18 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
 
   for (const [field, label] of Object.entries(alwaysRequiredFields))
     if (!fields[field]) throwHttpError(400, `${label} is required`);
+
+  const cap = roleCaps[fields.role];
+
+  if (cap) {
+    const held = await userModel.countUsersByRole(fields.role).run();
+
+    if ((held.recordset[0]?.Total ?? 0) >= cap.limit)
+      throwHttpError(
+        409,
+        `The ${cap.label} role is limited to ${cap.limit} account${cap.limit === 1 ? "" : "s"}, and an approved or pending registration already holds it.`,
+      );
+  }
 
   let approvers;
   let approverMessage;

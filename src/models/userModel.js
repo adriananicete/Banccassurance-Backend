@@ -210,6 +210,20 @@ WHERE UserCode = @UserCode AND GroupCode = @GroupCode
   };
 };
 
+export const countUsersByRole = (role) => {
+  const request = new sql.Request();
+  request.input("Role", sql.NVarChar, asText(role));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT COUNT(*) AS Total
+      FROM banc.Users
+      WHERE Role = @Role AND IsActive >= 0
+      `),
+  };
+};
+
 export const checkEmployeeNoExists = (employeeNo) => {
   const request = new sql.Request();
   request.input("EmployeeNo", sql.NVarChar, employeeNo);

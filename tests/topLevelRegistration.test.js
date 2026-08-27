@@ -33,7 +33,14 @@ const registered = (userCode) =>
 
 const superadmins = (...codes) => rows(...codes.map((UserCode) => ({ UserCode })));
 
+// Total 0 is "the seat is free". Both top roles are capped at one since
+// 2026-08-27, so every case here would otherwise refuse with 409 before it
+// reached the behaviour it is testing. registrationCaps.test.js owns the cap
+// itself.
+const seatFree = rows({ Total: 0 });
+
 const selfRegisterPath = (overrides) => ({
+  countUsersByRole: seatFree,
   getSuperadmins: superadmins("SYS-ADM-0001"),
   checkEmployeeNoExists: noRows,
   checkOrRegisterUser: registered("USR-SEC-0002"),
@@ -138,6 +145,7 @@ test("a registration body cannot promote itself to a superadmin creation", async
 });
 
 const createPath = (overrides) => ({
+  countUsersByRole: seatFree,
   checkEmployeeNoExists: noRows,
   checkOrRegisterUser: registered("USR-SEC-0002"),
   findUserIdByCode: rows({ UserId: 1790 }),
