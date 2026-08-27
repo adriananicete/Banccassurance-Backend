@@ -527,7 +527,7 @@ export const getBranchScope = (branchCode) => {
     run: () =>
       request.query(`
       SELECT b.BranchCode, b.BranchName, b.GroupCode, g.GroupName,
-       g.RegionCode, r.RegionName, b.ClusterCode, c.ClusterName
+       g.RegionCode, r.RegionName, c.ClusterCode, c.ClusterName
 FROM banc.branches b
 LEFT JOIN banc.group_areas g ON g.GroupCode = b.GroupCode
 LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
@@ -545,7 +545,7 @@ export const getAccountOfficerBranchScope = (userCode) => {
     run: () =>
       request.query(`
       SELECT b.BranchCode, b.BranchName, b.GroupCode, g.GroupName,
-       g.RegionCode, r.RegionName, b.ClusterCode, c.ClusterName
+       g.RegionCode, r.RegionName, c.ClusterCode, c.ClusterName
 FROM banc.account_officer_branches aob
 INNER JOIN banc.branches b ON b.BranchCode = aob.BranchCode
 LEFT JOIN banc.group_areas g ON g.GroupCode = b.GroupCode
@@ -565,7 +565,7 @@ export const getAreaSalesHeadScope = (userCode) => {
     run: () =>
       request.query(`
       SELECT g.GroupCode, g.GroupName, g.RegionCode, r.RegionName,
-       a.ClusterCode, c.ClusterName
+       c.ClusterCode, c.ClusterName
 FROM banc.area_sales_head_areas a
 INNER JOIN banc.group_areas g ON g.GroupCode = a.GroupCode
 LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
@@ -602,7 +602,7 @@ export const getAssignableBranches = (ashUserCode, groupCode) => {
     run: () =>
       request.query(`
       SELECT b.BranchCode, b.BranchName, b.GroupCode, g.GroupName,
-       g.RegionCode, r.RegionName, b.ClusterCode, c.ClusterName,
+       g.RegionCode, r.RegionName, c.ClusterCode, c.ClusterName,
        aob.UserCode AS AOCode
 FROM banc.branches b
 LEFT JOIN banc.group_areas g ON g.GroupCode = b.GroupCode

@@ -462,6 +462,33 @@ test("a cluster is joined on its group as well as its code", async () => {
   }
 });
 
+test("the cluster code is selected from the join, so it nulls with its own name", async () => {
+  // Found by Adrian on 2026-08-27, running GET /users/scope as PHL-ASH-0005:
+  // clusterCode came back 1 with clusterName null. The name nulled because the
+  // join carries GroupCode, but the code was read straight off the junction row,
+  // where it is 1 -- Quezon City District, a group 1 cluster, on a head that
+  // holds group 5. A client resolving that code against a cluster lookup gets a
+  // real name back for a cluster this head does not hold, which is the plausible
+  // wrong answer the double-column join exists to prevent.
+  //
+  // Selecting c.ClusterCode makes the pair null together: no cluster for this
+  // group means no cluster, not somebody else's.
+  const selectClause = (text) => text.match(/SELECT([\s\S]*?)\sFROM\s/i)[1];
+
+  for (const build of [
+    (model) => model.getBranchScope(71).run(),
+    (model) => model.getAccountOfficerBranchScope("PHL-AO-0615").run(),
+    (model) => model.getAreaSalesHeadScope("PHL-ASH-0005").run(),
+    (model) => model.getAssignableBranches("PHL-ASH-0005", 5).run(),
+  ]) {
+    const { query } = await captureQuery(build);
+    const selected = selectClause(query);
+
+    assert.match(selected, /c\.ClusterCode/);
+    assert.doesNotMatch(selected, /[ab]\.ClusterCode/);
+  }
+});
+
 test("the region comes from group_areas, never from the junction's copy", async () => {
   // regional_sales_head_areas carries its own RegionCode, written by the PUT
   // from group_areas. Reading the copy would let the two disagree; group_areas
