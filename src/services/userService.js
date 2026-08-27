@@ -23,6 +23,7 @@ import {
   topLevelRoles,
 } from "../utils/constant.js";
 import { throwHttpError } from "../utils/error.js";
+import { getTenant } from "../utils/tenant.js";
 import { safeNotify } from "./notificationService.js";
 import { record } from "./auditService.js";
 
@@ -683,6 +684,212 @@ export const replaceRegionalSalesHeadAreas = async (
       groupCodes: areas,
     },
   };
+};
+
+const SELF = "SELF";
+const ASSIGNED = "ASSIGNED";
+const TENANT = "TENANT";
+
+export const scopeReach = {
+  [BRANCH_STAFF]: SELF,
+  [BRANCH_HEAD]: ASSIGNED,
+  [GROUP_HEAD]: ASSIGNED,
+  [SECTOR_HEAD]: TENANT,
+  [ACCOUNT_OFFICER]: ASSIGNED,
+  [AREA_SALES_HEAD]: ASSIGNED,
+  [REGIONAL_SALES_HEAD]: ASSIGNED,
+  [DEPARTMENT_HEAD]: TENANT,
+  [SUPERADMIN]: TENANT,
+};
+
+const groupScope = (row) => ({
+  level: "GROUP",
+  code: row.GroupCode ?? null,
+  name: row.GroupName ?? null,
+  regionCode: row.RegionCode ?? null,
+  regionName: row.RegionName ?? null,
+  groupCode: row.GroupCode ?? null,
+  groupName: row.GroupName ?? null,
+  clusterCode: row.ClusterCode ?? null,
+  clusterName: row.ClusterName ?? null,
+});
+
+const branchScope = (row) => ({
+  branchCode: row.BranchCode ?? null,
+  branchName: row.BranchName ?? null,
+  regionCode: row.RegionCode ?? null,
+  regionName: row.RegionName ?? null,
+  groupCode: row.GroupCode ?? null,
+  groupName: row.GroupName ?? null,
+  clusterCode: row.ClusterCode ?? null,
+  clusterName: row.ClusterName ?? null,
+});
+
+const assignableBranch = (row) => ({
+  ...branchScope(row),
+  aoCode: row.AOCode ?? null,
+});
+
+export const getOwnScope = async (user) => {
+  if (user.Role === SUPERADMIN)
+    return {
+      success: true,
+      data: {
+        userId: user.UserId ?? null,
+        userCode: user.UserCode,
+        role: SUPERADMIN,
+        tenant: null,
+        reach: TENANT,
+        scopes: [],
+        branches: [],
+      },
+    };
+
+  const found = await userModel.getUserScopeById(user.UserId).run();
+  if (found.recordset.length === 0) throwHttpError(404, "Not Found");
+
+  const self = found.recordset[0];
+  const scopes = [];
+  const branches = [];
+
+  if (self.Role === BRANCH_STAFF || self.Role === BRANCH_HEAD) {
+    if (self.BranchCode) {
+      const result = await userModel.getBranchScope(self.BranchCode).run();
+      branches.push(...result.recordset.map(branchScope));
+    }
+  } else if (self.Role === GROUP_HEAD) {
+    if (self.GroupCode) {
+      const result = await userModel.getGroupScope(self.GroupCode).run();
+      scopes.push(...result.recordset.map(groupScope));
+    }
+  } else if (self.Role === ACCOUNT_OFFICER) {
+    if (self.GroupCode) {
+      const result = await userModel.getGroupScope(self.GroupCode).run();
+      scopes.push(...result.recordset.map(groupScope));
+    }
+    const assigned = await userModel.getAccountOfficerBranchScope(self.UserCode).run();
+    branches.push(...assigned.recordset.map(branchScope));
+  } else if (self.Role === AREA_SALES_HEAD) {
+    const result = await userModel.getAreaSalesHeadScope(self.UserCode).run();
+    scopes.push(...result.recordset.map(groupScope));
+  } else if (self.Role === REGIONAL_SALES_HEAD) {
+    const result = await userModel.getRegionalSalesHeadScope(self.UserCode).run();
+    scopes.push(...result.recordset.map(groupScope));
+  }
+
+  return {
+    success: true,
+    data: {
+      userId: self.UserId,
+      userCode: self.UserCode,
+      role: self.Role,
+      tenant: getTenant(self.UserCode),
+      reach: scopeReach[self.Role] ?? ASSIGNED,
+      scopes,
+      branches,
+    },
+  };
+};
+
+export const getAccountOfficerBranches = async (user, userId) => {
+  const targetUser = await loadAssignTarget(
+    userId,
+    ACCOUNT_OFFICER,
+    "an Account Officer",
+  );
+
+  if (user.Role !== SUPERADMIN) {
+    const inScope = await userModel
+      .isAreaInAreaSalesHeadScope(user.UserCode, targetUser.GroupCode)
+      .run();
+    if (inScope.recordset.length === 0) throwHttpError(403, "Forbidden");
+  }
+
+  const result = await userModel
+    .getAccountOfficerBranchScope(targetUser.UserCode)
+    .run();
+
+  return {
+    success: true,
+    data: {
+      userId: targetUser.UserId,
+      userCode: targetUser.UserCode,
+      branchCodes: result.recordset.map((row) => row.BranchCode),
+      branches: result.recordset.map(branchScope),
+    },
+  };
+};
+
+export const getAreaSalesHeadAreas = async (user, userId) => {
+  const targetUser = await loadAssignTarget(
+    userId,
+    AREA_SALES_HEAD,
+    "an Area Sales Head",
+  );
+
+  if (user.Role !== SUPERADMIN) {
+    const inScope = await userModel
+      .isAshInRegionalScope(user.UserCode, targetUser.UserCode)
+      .run();
+    if (inScope.recordset.length === 0) throwHttpError(403, "Forbidden");
+  }
+
+  const result = await userModel.getAreaSalesHeadScope(targetUser.UserCode).run();
+
+  return {
+    success: true,
+    data: {
+      userId: targetUser.UserId,
+      userCode: targetUser.UserCode,
+      groupCodes: result.recordset.map((row) => row.GroupCode),
+      groups: result.recordset.map(groupScope),
+    },
+  };
+};
+
+export const getRegionalSalesHeadAreas = async (user, userId) => {
+  const targetUser = await loadAssignTarget(
+    userId,
+    REGIONAL_SALES_HEAD,
+    "a Regional Sales Head",
+  );
+
+  const result = await userModel
+    .getRegionalSalesHeadScope(targetUser.UserCode)
+    .run();
+
+  return {
+    success: true,
+    data: {
+      userId: targetUser.UserId,
+      userCode: targetUser.UserCode,
+      groupCodes: result.recordset.map((row) => row.GroupCode),
+      groups: result.recordset.map(groupScope),
+    },
+  };
+};
+
+export const getAssignableBranches = async (user, groupCode) => {
+  const unscoped = user.Role === SUPERADMIN;
+
+  let group = null;
+  if (groupCode !== undefined && groupCode !== null && groupCode !== "") {
+    group = Number(groupCode);
+    if (!Number.isInteger(group) || group <= 0)
+      throwHttpError(400, "groupCode must be a whole number");
+  }
+
+  if (unscoped && group === null)
+    throwHttpError(
+      400,
+      "Name a group: /users/assignable-branches?groupCode=1. Without one this answers with every branch in the country.",
+    );
+
+  const result = await userModel
+    .getAssignableBranches(unscoped ? null : user.UserCode, group)
+    .run();
+
+  return { success: true, data: result.recordset.map(assignableBranch) };
 };
 
 export const findByUserCode = async (userCode) => {

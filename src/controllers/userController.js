@@ -127,6 +127,55 @@ export const uploadProfilePhoto = async (req, res, next) => {
   }
 }
 
+export const getOwnScope = async (req, res, next) => {
+  try {
+    const result = await userService.getOwnScope(req.user)
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getAssignableBranches = async (req, res, next) => {
+  try {
+    const { groupCode } = req.query
+    const result = await userService.getAssignableBranches(req.user, groupCode)
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getAccountOfficerBranches = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const result = await userService.getAccountOfficerBranches(req.user, userId)
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getAreaSalesHeadAreas = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const result = await userService.getAreaSalesHeadAreas(req.user, userId)
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const getRegionalSalesHeadAreas = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const result = await userService.getRegionalSalesHeadAreas(req.user, userId)
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const replaceAccountOfficerBranches = async (req, res, next) => {
   try {
     const { userId } = req.params

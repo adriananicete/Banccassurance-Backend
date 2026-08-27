@@ -3,7 +3,9 @@ import {
     register, checkEmail, getUsersForApproval, approveRejectUser, createTopLevelUser,
     changePassword, uploadProfilePhoto,
     replaceAccountOfficerBranches, replaceAreaSalesHeadAreas,
-    replaceRegionalSalesHeadAreas
+    replaceRegionalSalesHeadAreas,
+    getOwnScope, getAssignableBranches, getAccountOfficerBranches,
+    getAreaSalesHeadAreas, getRegionalSalesHeadAreas
 } from '../controllers/userController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { photoUpload } from '../middleware/upload.js';
@@ -25,8 +27,15 @@ router.post('/approvals/action', requireAuth, requireRole(...approverRoles), app
 
 router.post('/', requireAuth, requireRole(SUPERADMIN), createTopLevelUser)
 
+router.get('/scope', requireAuth, getOwnScope)
+router.get('/assignable-branches', requireAuth, requireRole(AREA_SALES_HEAD, SUPERADMIN), getAssignableBranches)
+
 // Keep every static path above this line. Once a /:userId route is added
 // below it, anything declared after it is swallowed by the param match.
+
+router.get('/:userId/branches', requireAuth, requireRole(AREA_SALES_HEAD, SUPERADMIN), getAccountOfficerBranches)
+router.get('/:userId/areas', requireAuth, requireRole(REGIONAL_SALES_HEAD, SUPERADMIN), getAreaSalesHeadAreas)
+router.get('/:userId/groups', requireAuth, requireRole(DEPARTMENT_HEAD, SUPERADMIN), getRegionalSalesHeadAreas)
 
 router.put('/:userId/branches', requireAuth, requireRole(AREA_SALES_HEAD, SUPERADMIN), replaceAccountOfficerBranches)
 router.put('/:userId/areas', requireAuth, requireRole(REGIONAL_SALES_HEAD, SUPERADMIN), replaceAreaSalesHeadAreas)

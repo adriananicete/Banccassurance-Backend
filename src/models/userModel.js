@@ -504,6 +504,122 @@ WHERE LTRIM(RTRIM(s.value)) <> ''
   };
 };
 
+export const getGroupScope = (groupCode) => {
+  const request = new sql.Request();
+  request.input("GroupCode", sql.Int, asInt(groupCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT g.GroupCode, g.GroupName, g.RegionCode, r.RegionName
+FROM banc.group_areas g
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+WHERE g.GroupCode = @GroupCode
+      `),
+  };
+};
+
+export const getBranchScope = (branchCode) => {
+  const request = new sql.Request();
+  request.input("BranchCode", sql.Int, asInt(branchCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT b.BranchCode, b.BranchName, b.GroupCode, g.GroupName,
+       g.RegionCode, r.RegionName, b.ClusterCode, c.ClusterName
+FROM banc.branches b
+LEFT JOIN banc.group_areas g ON g.GroupCode = b.GroupCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+LEFT JOIN banc.clusters c ON c.ClusterCode = b.ClusterCode AND c.GroupCode = b.GroupCode
+WHERE b.BranchCode = @BranchCode
+      `),
+  };
+};
+
+export const getAccountOfficerBranchScope = (userCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, asText(userCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT b.BranchCode, b.BranchName, b.GroupCode, g.GroupName,
+       g.RegionCode, r.RegionName, b.ClusterCode, c.ClusterName
+FROM banc.account_officer_branches aob
+INNER JOIN banc.branches b ON b.BranchCode = aob.BranchCode
+LEFT JOIN banc.group_areas g ON g.GroupCode = b.GroupCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+LEFT JOIN banc.clusters c ON c.ClusterCode = b.ClusterCode AND c.GroupCode = b.GroupCode
+WHERE aob.UserCode = @UserCode
+ORDER BY b.GroupCode, b.BranchName
+      `),
+  };
+};
+
+export const getAreaSalesHeadScope = (userCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, asText(userCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT g.GroupCode, g.GroupName, g.RegionCode, r.RegionName,
+       a.ClusterCode, c.ClusterName
+FROM banc.area_sales_head_areas a
+INNER JOIN banc.group_areas g ON g.GroupCode = a.GroupCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+LEFT JOIN banc.clusters c ON c.ClusterCode = a.ClusterCode AND c.GroupCode = a.GroupCode
+WHERE a.UserCode = @UserCode
+ORDER BY g.GroupCode
+      `),
+  };
+};
+
+export const getRegionalSalesHeadScope = (userCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, asText(userCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT g.GroupCode, g.GroupName, g.RegionCode, r.RegionName
+FROM banc.regional_sales_head_areas rsa
+INNER JOIN banc.group_areas g ON g.GroupCode = rsa.GroupCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+WHERE rsa.UserCode = @UserCode
+ORDER BY g.GroupCode
+      `),
+  };
+};
+
+export const getAssignableBranches = (ashUserCode, groupCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, asText(ashUserCode));
+  request.input("GroupCode", sql.Int, asInt(groupCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT b.BranchCode, b.BranchName, b.GroupCode, g.GroupName,
+       g.RegionCode, r.RegionName, b.ClusterCode, c.ClusterName,
+       aob.UserCode AS AOCode
+FROM banc.branches b
+LEFT JOIN banc.group_areas g ON g.GroupCode = b.GroupCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+LEFT JOIN banc.clusters c ON c.ClusterCode = b.ClusterCode AND c.GroupCode = b.GroupCode
+LEFT JOIN banc.account_officer_branches aob ON aob.BranchCode = b.BranchCode
+WHERE (@GroupCode IS NULL OR b.GroupCode = @GroupCode)
+  AND (@UserCode IS NULL OR EXISTS (
+      SELECT 1
+      FROM banc.area_sales_head_areas a
+      WHERE a.UserCode = @UserCode AND a.GroupCode = b.GroupCode
+  ))
+ORDER BY b.GroupCode, b.BranchName
+      `),
+  };
+};
+
 export const getUnknownAreas = (groupCodes) => {
   const request = new sql.Request();
   request.input("GroupCodes", sql.NVarChar, groupCodes);
