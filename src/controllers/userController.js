@@ -19,13 +19,13 @@ export const register = async (req, res, next) => {
   try {
     const {
       firstName, middleName, lastName, suffix,
-      birthday, email, mobileNumber, position,
+      birthday, email, mobileNumber,
       role, groupCode, branchCode, employeeNo
     } = req.body
 
     const result = await userService.register({
       firstName, middleName, lastName, suffix,
-      birthday, email, mobileNumber, position,
+      birthday, email, mobileNumber,
       role, groupCode, branchCode, employeeNo
     })
 
@@ -55,13 +55,13 @@ export const createTopLevelUser = async (req, res, next) => {
   try {
     const {
       firstName, middleName, lastName, suffix,
-      birthday, email, mobileNumber, position,
+      birthday, email, mobileNumber,
       role, employeeNo
     } = req.body
 
     const result = await userService.createTopLevelUser(req.user, {
       firstName, middleName, lastName, suffix,
-      birthday, email, mobileNumber, position,
+      birthday, email, mobileNumber,
       role, employeeNo
     })
 

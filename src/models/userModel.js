@@ -102,7 +102,6 @@ export const checkOrRegisterUser = ({
   suffix,
   birthday,
   mobileNumber,
-  position,
   role,
   groupCode,
   branchCode,
@@ -120,7 +119,6 @@ export const checkOrRegisterUser = ({
     request.input("Suffix", sql.NVarChar, suffix || null);
     request.input("Birthday", sql.Date, birthday);
     request.input("MobileNumber", sql.NVarChar, mobileNumber);
-    request.input("Position", sql.NVarChar, position);
     request.input("Role", sql.NVarChar, role);
     request.input("GroupCode", sql.NVarChar, asText(groupCode));
     request.input("BranchCode", sql.Int, asInt(branchCode));
