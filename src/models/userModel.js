@@ -222,6 +222,22 @@ export const countUsersByRole = (role) => {
   };
 };
 
+export const checkGroupHeadExists = (groupCode) => {
+  const request = new sql.Request();
+  const group = asInt(groupCode);
+
+  request.input("GroupCode", sql.Int, Number.isFinite(group) ? group : null);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT TOP 1 UserCode
+      FROM banc.Users
+      WHERE Role = 'GROUP_HEAD' AND GroupCode = @GroupCode AND IsActive >= 0
+      `),
+  };
+};
+
 export const checkEmployeeNoExists = (employeeNo) => {
   const request = new sql.Request();
   request.input("EmployeeNo", sql.NVarChar, employeeNo);
