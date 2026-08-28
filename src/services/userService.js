@@ -23,6 +23,7 @@ import {
   topLevelRoles,
 } from "../utils/constant.js";
 import { throwHttpError } from "../utils/error.js";
+import { isValidEmail } from "../utils/validators.js";
 import { getTenant } from "../utils/tenant.js";
 import { safeNotify } from "./notificationService.js";
 import { record } from "./auditService.js";
@@ -241,6 +242,10 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
 
   for (const [field, label] of Object.entries(alwaysRequiredFields))
     if (!fields[field]) throwHttpError(400, `${label} is required`);
+
+  if (!isValidEmail(fields.email))
+    throwHttpError(400, "Enter a valid email address");
+
 
   for (const [field, label] of Object.entries(registrationCodeFields)) {
     const value = fields[field];
@@ -544,7 +549,12 @@ export const approveRejectUser = async (user, userId, action) => {
       detail: targetUser.Role,
     });
 
-    await sendApprovalEmail(Email, FirstName, UserCode, action);
+    try {
+      await sendApprovalEmail(Email, FirstName, UserCode, action);
+    } catch (error) {
+      console.error(error);
+    }
+
     return { success: true, message: Message };
   }
 
