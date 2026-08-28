@@ -44,19 +44,26 @@ export const alwaysRequiredFields = {
 };
 
 export const registrationFields = {
-  [BRANCH_STAFF]: { group: "optional", branch: "required" },
-  [BRANCH_HEAD]: { group: "required", branch: "required" },
-  [GROUP_HEAD]: { group: "required", branch: "forbidden" },
-  [SECTOR_HEAD]: { group: "forbidden", branch: "forbidden" },
-  [ACCOUNT_OFFICER]: { group: "required", branch: "forbidden" },
-  [AREA_SALES_HEAD]: { group: "required", branch: "forbidden" },
-  [REGIONAL_SALES_HEAD]: { group: "forbidden", branch: "forbidden" },
-  [DEPARTMENT_HEAD]: { group: "forbidden", branch: "forbidden" },
+  [BRANCH_STAFF]: { group: "optional", branch: "required", region: "forbidden" },
+  [BRANCH_HEAD]: { group: "required", branch: "required", region: "forbidden" },
+  [GROUP_HEAD]: { group: "required", branch: "forbidden", region: "forbidden" },
+  [SECTOR_HEAD]: { group: "forbidden", branch: "forbidden", region: "forbidden" },
+  [ACCOUNT_OFFICER]: { group: "required", branch: "forbidden", region: "forbidden" },
+  [AREA_SALES_HEAD]: { group: "forbidden", branch: "forbidden", region: "required" },
+  [REGIONAL_SALES_HEAD]: { group: "forbidden", branch: "forbidden", region: "forbidden" },
+  [DEPARTMENT_HEAD]: { group: "forbidden", branch: "forbidden", region: "forbidden" },
 };
+
+export const registrationCodeRules = [
+  ["group", "groupCode", "Group"],
+  ["branch", "branchCode", "Branch"],
+  ["region", "regionCode", "Region"],
+];
 
 export const registrationCodeFields = {
   groupCode: "Group",
   branchCode: "Branch",
+  regionCode: "Region",
 };
 
 export const roleCaps = {
@@ -221,17 +228,16 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
 
   const tempPassword = crypto.randomBytes(12).toString("base64url");
 
-  if (rule.group === "required" && !fields.groupCode)
-    throwHttpError(400, "Group is required for this role");
+  for (const [key, field, label] of registrationCodeRules) {
+    if (rule[key] === "required" && !fields[field])
+      throwHttpError(400, `${label} is required for this role`);
 
-  if (rule.group === "forbidden" && fields.groupCode)
-    throwHttpError(400, "Group is not selected at registration for this role");
-
-  if (rule.branch === "required" && !fields.branchCode)
-    throwHttpError(400, "Branch is required for this role");
-
-  if (rule.branch === "forbidden" && fields.branchCode)
-    throwHttpError(400, "Branch is not selected at registration for this role");
+    if (rule[key] === "forbidden" && fields[field])
+      throwHttpError(
+        400,
+        `${label} is not selected at registration for this role`,
+      );
+  }
 
   for (const [field, label] of Object.entries(alwaysRequiredFields))
     if (!fields[field]) throwHttpError(400, `${label} is required`);
@@ -267,17 +273,6 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
       );
   }
 
-  if (fields.role === AREA_SALES_HEAD) {
-    const held = await userModel
-      .checkAreaSalesHeadExists(fields.groupCode)
-      .run();
-
-    if (held.recordset.length > 0)
-      throwHttpError(
-        409,
-        "This group already has an Area Sales Head. Only one Area Sales Head may hold a group.",
-      );
-  }
 
   let approvers;
   let approverMessage;
@@ -315,9 +310,9 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
     noApproverMessage = 'No Area Sales Head is assigned to this group yet. Please contact your administrator.'
 
   } else if (fields.role === AREA_SALES_HEAD) {
-    approvers = await userModel.getRegionalSalesHeadByArea(fields.groupCode).run();
+    approvers = await userModel.getRegionalSalesHeadByRegion(fields.regionCode).run();
     approverMessage = `New area sales head registration pending for approval: ${fields.firstName} ${fields.lastName}`;
-    noApproverMessage = 'No Regional Sales Head is assigned to this group yet. Please contact your administrator.';
+    noApproverMessage = 'No Regional Sales Head holds this region yet. Please contact your administrator.';
 
   } else if (fields.role === REGIONAL_SALES_HEAD) {
     approvers = await userModel.getDepartmentHead().run();
@@ -360,7 +355,6 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
   const result = await userModel
     .checkOrRegisterUser({
       ...fields,
-      groupCode: fields.role === AREA_SALES_HEAD ? null : fields.groupCode,
       checkOnly: false,
       passwordHash,
     })
@@ -378,10 +372,6 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
       );
     } catch (error) {
       console.error(error);
-    }
-
-    if(fields.role === AREA_SALES_HEAD) {
-      await userModel.assignAreaSalesHeadArea(UserCode, fields.groupCode).run();
     }
 
     try {

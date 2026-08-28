@@ -65,10 +65,32 @@ test("asInt still passes a real number through, string or not", () => {
   assert.equal(asInt([5]), 5);
 });
 
-test("the two code fields are the set that gets checked", () => {
+test("the three code fields are the set that gets checked", () => {
   // Assert the set: a code field missing from here is validated by nothing and
-  // throws nothing to say so.
-  assert.deepEqual(Object.keys(registrationCodeFields).sort(), ["branchCode", "groupCode"]);
+  // throws nothing to say so. regionCode joined on 2026-08-28, when the Area
+  // Sales Head moved to registering with a region -- a new field that skipped
+  // this table would reach sql.Int as NaN and surface as the 500 this file
+  // exists to have removed.
+  assert.deepEqual(
+    Object.keys(registrationCodeFields).sort(),
+    ["branchCode", "groupCode", "regionCode"],
+  );
+});
+
+test("a non-numeric regionCode is a 400 that says so, not a 500", async () => {
+  for (const junk of ["abc", "1.5", "0", "-1"]) {
+    const { service, calls } = await withUserService(model());
+
+    const error = await captureThrown(() =>
+      service.register(fields({
+        role: AREA_SALES_HEAD, groupCode: null, branchCode: null, regionCode: junk,
+      })),
+    );
+
+    assert.equal(error?.statusCode, 400, junk);
+    assert.match(error.message, /region must be a whole number/i, junk);
+    assert.equal(calls.length, 0, `${junk} must reach no query at all`);
+  }
 });
 
 test("a non-numeric groupCode is a 400 that says so, not a 500", async () => {
@@ -141,20 +163,33 @@ const captureQuery = async (call) => {
 };
 
 test("every approver lookup binds a group through asInt, not Number", async () => {
-  // These five reached sql.Int with a raw Number(). Registration is the caller
-  // for the first three, and the value comes straight from an unauthenticated
-  // request body.
+  // These reached sql.Int with a raw Number(). Registration is the caller for
+  // the first two, and the value comes straight from an unauthenticated request
+  // body.
+  //
+  // getRegionalSalesHeadByArea and assignAreaSalesHeadArea were in this list
+  // until 2026-08-28 and are gone: the Area Sales Head registers with a region
+  // now and claims no group, so neither has a caller.
   for (const build of [
     (m) => m.getAreaSalesHeadByArea("abc").run(),
-    (m) => m.getRegionalSalesHeadByArea("abc").run(),
     (m) => m.getGroupHeadByArea("abc").run(),
-    (m) => m.assignAreaSalesHeadArea("PHL-ASH-0005", "abc").run(),
     (m) => m.isAreaInAreaSalesHeadScope("PHL-ASH-0005", "abc").run(),
   ]) {
     const { inputs } = await captureQuery(build);
 
     assert.equal(inputs.find((i) => i.name === "GroupCode").value, null);
   }
+});
+
+test("the region lookup binds through asInt too", async () => {
+  // The new one on the same unauthenticated path. Without this, regionCode
+  // "abc" becomes NaN and sql.Int refuses it before the query is sent -- the
+  // 500 this file exists to have removed, reintroduced by a new field.
+  const { inputs } = await captureQuery((m) =>
+    m.getRegionalSalesHeadByRegion("abc").run(),
+  );
+
+  assert.equal(inputs.find((i) => i.name === "RegionCode").value, null);
 });
 
 test("the branch lookup does the same", async () => {

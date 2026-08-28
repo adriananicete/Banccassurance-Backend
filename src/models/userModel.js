@@ -266,20 +266,6 @@ export const getBranchHeadByBranch = (branchCode) => {
   };
 };
 
-export const assignAreaSalesHeadArea = (userCode, groupCode) => {
-  const request = new sql.Request();
-  request.input("UserCode", sql.NVarChar, userCode);
-  request.input("GroupCode", sql.Int, asInt(groupCode));
-  return {
-    request,
-    run: () =>
-      request.query(`
-      INSERT INTO banc.area_sales_head_areas (UserCode, GroupCode)
-VALUES (@UserCode, @GroupCode)
-      `),
-  };
-};
-
 export const getAreaSalesHeadByArea = (groupCode) => {
   const request = new sql.Request();
   request.input("GroupCode", sql.Int, asInt(groupCode));
@@ -292,23 +278,6 @@ FROM banc.Users u
 INNER JOIN banc.area_sales_head_areas a ON u.UserCode = a.UserCode
 WHERE u.Role = 'AREA_SALES_HEAD'
   AND a.GroupCode = @GroupCode
-  AND u.IsActive = 1
-      `),
-  };
-};
-
-export const getRegionalSalesHeadByArea = (groupCode) => {
-  const request = new sql.Request();
-  request.input("GroupCode", sql.Int, asInt(groupCode));
-  return {
-    request,
-    run: () =>
-      request.query(`
-      SELECT u.UserCode 
-FROM banc.Users u
-INNER JOIN banc.regional_sales_head_areas r ON u.UserCode = r.UserCode
-WHERE u.Role = 'REGIONAL_SALES_HEAD'
-  AND r.GroupCode = @GroupCode
   AND u.IsActive = 1
       `),
   };
@@ -562,19 +531,21 @@ WHERE aob.UserCode <> @UserCode
   };
 };
 
-export const checkAreaSalesHeadExists = (groupCode) => {
+export const getRegionalSalesHeadByRegion = (regionCode) => {
   const request = new sql.Request();
-  const group = asInt(groupCode);
+  const region = asInt(regionCode);
 
-  request.input("GroupCode", sql.Int, Number.isFinite(group) ? group : null);
+  request.input("RegionCode", sql.Int, Number.isFinite(region) ? region : null);
   return {
     request,
     run: () =>
       request.query(`
-      SELECT TOP 1 u.UserCode
-      FROM banc.area_sales_head_areas a
-      INNER JOIN banc.Users u ON u.UserCode = a.UserCode
-      WHERE a.GroupCode = @GroupCode AND u.IsActive >= 0
+      SELECT DISTINCT u.UserCode
+FROM banc.Users u
+INNER JOIN banc.regional_sales_head_areas r ON r.UserCode = u.UserCode
+WHERE u.Role = 'REGIONAL_SALES_HEAD'
+  AND r.RegionCode = @RegionCode
+  AND u.IsActive = 1
       `),
   };
 };

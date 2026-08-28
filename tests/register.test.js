@@ -41,13 +41,21 @@ const approverFound = rows({ UserCode: "PHL-ASH-1167" });
 
 const happyPath = (overrides) => ({
   getAreaSalesHeadByArea: approverFound,
+  getRegionalSalesHeadByRegion: approverFound,
   checkEmployeeNoExists: noRows,
   // No Group Head holds the group yet. The one-per-group guard runs before the
   // approver lookup for GROUP_HEAD only; oneGroupHeadPerGroup.test.js owns it.
   checkGroupHeadExists: noRows,
-  checkAreaSalesHeadExists: noRows,
   checkOrRegisterUser: registered,
   ...overrides,
+});
+
+// Send only the codes a role is allowed, or the wrong rule fires first and the
+// assertion proves nothing about the one under test.
+const codesFor = (role) => ({
+  groupCode: contract[role].group === "forbidden" ? null : 5,
+  branchCode: contract[role].branch === "forbidden" ? null : 58,
+  regionCode: contract[role].region === "forbidden" ? null : 1,
 });
 
 test("an unknown role is refused before anything is looked up", async () => {
@@ -65,15 +73,21 @@ test("an unknown role is refused before anything is looked up", async () => {
 // must send and what it must not - "optional" is a deliberate third answer, not
 // a gap: a Branch Staff's group is derivable from their branch and nothing
 // reads it, so requiring or forbidding it would both be inventions.
+//
+// ⚠️ region joined the contract on 2026-08-28, and only the Area Sales Head
+// sends one. A PhilLife role names the scope of whoever will approve it, never
+// its own: the AO names a group because an ASH holds groups, and the ASH names
+// a region because an RSH holds a region. The RSH names nothing, because the
+// Department Head holds the whole tenant and there is nothing to narrow.
 const contract = {
-  [BRANCH_STAFF]: { group: "optional", branch: "required" },
-  [BRANCH_HEAD]: { group: "required", branch: "required" },
-  [GROUP_HEAD]: { group: "required", branch: "forbidden" },
-  [SECTOR_HEAD]: { group: "forbidden", branch: "forbidden" },
-  [ACCOUNT_OFFICER]: { group: "required", branch: "forbidden" },
-  [AREA_SALES_HEAD]: { group: "required", branch: "forbidden" },
-  [REGIONAL_SALES_HEAD]: { group: "forbidden", branch: "forbidden" },
-  [DEPARTMENT_HEAD]: { group: "forbidden", branch: "forbidden" },
+  [BRANCH_STAFF]: { group: "optional", branch: "required", region: "forbidden" },
+  [BRANCH_HEAD]: { group: "required", branch: "required", region: "forbidden" },
+  [GROUP_HEAD]: { group: "required", branch: "forbidden", region: "forbidden" },
+  [SECTOR_HEAD]: { group: "forbidden", branch: "forbidden", region: "forbidden" },
+  [ACCOUNT_OFFICER]: { group: "required", branch: "forbidden", region: "forbidden" },
+  [AREA_SALES_HEAD]: { group: "forbidden", branch: "forbidden", region: "required" },
+  [REGIONAL_SALES_HEAD]: { group: "forbidden", branch: "forbidden", region: "forbidden" },
+  [DEPARTMENT_HEAD]: { group: "forbidden", branch: "forbidden", region: "forbidden" },
 };
 
 const withRule = (field, value) =>
@@ -98,9 +112,21 @@ test("every self-registering role has a field rule, and the rule is complete", (
   );
 
   for (const [role, rule] of Object.entries(contract)) {
-    assert.ok(["required", "forbidden", "optional"].includes(rule.group), `${role}.group`);
-    assert.ok(["required", "forbidden", "optional"].includes(rule.branch), `${role}.branch`);
+    for (const field of ["group", "branch", "region"]) {
+      assert.ok(
+        ["required", "forbidden", "optional"].includes(rule[field]),
+        `${role}.${field}`,
+      );
+    }
   }
+
+  // Exactly one role sends a region, and it is the one whose approver holds one.
+  assert.deepEqual(
+    Object.entries(contract)
+      .filter(([, rule]) => rule.region === "required")
+      .map(([role]) => role),
+    [AREA_SALES_HEAD],
+  );
 });
 
 test("the service holds the same contract this file describes", async () => {
@@ -115,7 +141,7 @@ test("a role that needs a group is refused without one", async () => {
   for (const role of withRule("group", "required")) {
     const { service } = await withUserService(happyPath());
     const error = await captureThrown(() =>
-      service.register(fields({ role, groupCode: null, branchCode: 58 })),
+      service.register(fields({ ...codesFor(role), role, groupCode: null })),
     );
 
     assert.equal(error?.statusCode, 400, role);
@@ -123,16 +149,24 @@ test("a role that needs a group is refused without one", async () => {
   }
 });
 
+test("a role that needs a region is refused without one", async () => {
+  for (const role of withRule("region", "required")) {
+    const { service } = await withUserService(happyPath());
+    const error = await captureThrown(() =>
+      service.register(fields({ ...codesFor(role), role, regionCode: null })),
+    );
+
+    assert.equal(error?.statusCode, 400, role);
+    assert.match(error.message, /region is required/i, role);
+  }
+});
+
 test("a role that must not send a branch is refused one", async () => {
   for (const role of withRule("branch", "forbidden")) {
     const { service } = await withUserService(happyPath());
 
-    // Send the group only where the role is allowed one, or the group rule
-    // fires first and this proves nothing about the branch.
-    const groupCode = contract[role].group === "forbidden" ? null : 5;
-
     const error = await captureThrown(() =>
-      service.register(fields({ role, groupCode, branchCode: 58 })),
+      service.register(fields({ ...codesFor(role), role, branchCode: 58 })),
     );
 
     assert.equal(error?.statusCode, 400, role);
@@ -140,13 +174,27 @@ test("a role that must not send a branch is refused one", async () => {
   }
 });
 
+test("a role that must not send a region is refused one", async () => {
+  // Seven of the eight. Only the Area Sales Head names a region, so this is the
+  // guard against the field spreading to roles it means nothing for.
+  for (const role of withRule("region", "forbidden")) {
+    const { service } = await withUserService(happyPath());
+
+    const error = await captureThrown(() =>
+      service.register(fields({ ...codesFor(role), role, regionCode: 1 })),
+    );
+
+    assert.equal(error?.statusCode, 400, role);
+    assert.match(error.message, /region is not selected/i, role);
+  }
+});
+
 test("a role that needs a branch is refused without one", async () => {
   for (const role of withRule("branch", "required")) {
     const { service } = await withUserService(happyPath());
-    const groupCode = contract[role].group === "forbidden" ? null : 5;
 
     const error = await captureThrown(() =>
-      service.register(fields({ role, groupCode, branchCode: null })),
+      service.register(fields({ ...codesFor(role), role, branchCode: null })),
     );
 
     assert.equal(error?.statusCode, 400, role);
@@ -206,13 +254,16 @@ test("a Regional Sales Head registers with neither a group nor a branch", async 
 
 
 test("each role is routed to its own approver lookup", async () => {
+  // Each PhilLife role is looked up by the scope its approver holds: an AO by
+  // group because an ASH holds groups, an ASH by region because an RSH holds a
+  // region. The ASH moved from getRegionalSalesHeadByArea on 2026-08-28.
   const routes = [
     [BRANCH_STAFF, { branchCode: 58 }, "getBranchHeadByBranch"],
     [BRANCH_HEAD, { branchCode: 58, groupCode: 5 }, "getGroupHeadByArea"],
     [GROUP_HEAD, { groupCode: 5 }, "getSectorHead"],
     [ACCOUNT_OFFICER, { groupCode: 5 }, "getAreaSalesHeadByArea"],
-    [AREA_SALES_HEAD, { groupCode: 5 }, "getRegionalSalesHeadByArea"],
-    [REGIONAL_SALES_HEAD, { groupCode: null, branchCode: null }, "getDepartmentHead"],
+    [AREA_SALES_HEAD, { regionCode: 1 }, "getRegionalSalesHeadByRegion"],
+    [REGIONAL_SALES_HEAD, {}, "getDepartmentHead"],
   ];
 
   for (const [role, extra, expected] of routes) {
@@ -221,13 +272,14 @@ test("each role is routed to its own approver lookup", async () => {
       getGroupHeadByArea: approverFound,
       getSectorHead: approverFound,
       getAreaSalesHeadByArea: approverFound,
-      getRegionalSalesHeadByArea: approverFound,
+      getRegionalSalesHeadByRegion: approverFound,
       getDepartmentHead: approverFound,
-      assignAreaSalesHeadArea: () => ({ run: async () => {} }),
     });
 
     const { service, calls } = await withUserService(model);
-    await service.register(fields({ role, groupCode: null, branchCode: null, ...extra }));
+    await service.register(
+      fields({ role, groupCode: null, branchCode: null, regionCode: null, ...extra }),
+    );
 
     const lookups = calls
       .map((call) => call.name)
@@ -272,22 +324,30 @@ test("every approver is notified, not only the first", async () => {
   assert.deepEqual(notified, ["PHL-ASH-1167", "PHL-ASH-0001"]);
 });
 
-test("an Area Sales Head stores no AreaCode on the user row, and gets a junction row instead", async () => {
-  const { service, calls } = await withUserService(
-    happyPath({
-      getRegionalSalesHeadByArea: approverFound,
-      assignAreaSalesHeadArea: () => ({ run: async () => {} }),
-    }),
-  );
+test("an Area Sales Head claims no scope at registration", async () => {
+  // Changed 2026-08-28, and this is the whole pattern in one test. A code sent
+  // at registration finds the approver; it never becomes scope. The ASH was the
+  // only exception -- it sent a groupCode and assignAreaSalesHeadArea wrote the
+  // junction row on the spot, so the head held a group before anybody approved
+  // them. Now it sends a region, which is what its approver holds, and the RSH
+  // assigns the groups afterwards through PUT /users/:userId/groups.
+  const { service, calls } = await withUserService(happyPath());
 
-  await service.register(fields({ role: AREA_SALES_HEAD, groupCode: 5 }));
+  await service.register(fields({
+    role: AREA_SALES_HEAD, groupCode: null, branchCode: null, regionCode: 1,
+  }));
 
+  // Nothing on the user row: Users.GroupCode stays null for this role.
   const insert = calls.find((call) => call.name === "checkOrRegisterUser");
-  assert.equal(insert.args[0].groupCode, null);
+  assert.equal(insert.args[0].groupCode ?? null, null);
 
+  // And nothing in the junction either -- that write is gone from registration.
+  assert.equal(calls.some((c) => c.name === "assignAreaSalesHeadArea"), false);
+
+  // The region reached the approver lookup and nowhere else.
   assert.deepEqual(
-    calls.find((call) => call.name === "assignAreaSalesHeadArea").args,
-    ["PHL-AO-1168", 5],
+    calls.find((c) => c.name === "getRegionalSalesHeadByRegion").args,
+    [1],
   );
 });
 

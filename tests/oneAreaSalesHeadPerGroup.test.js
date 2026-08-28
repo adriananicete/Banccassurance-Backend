@@ -34,52 +34,12 @@ const assignModel = (overrides) => ({
   ...overrides,
 });
 
-test("a second Area Sales Head cannot register into a group that has one", async () => {
-  // Registration is where an ASH claims their group -- assignAreaSalesHeadArea
-  // writes the junction row immediately, so the guard has to be here and not
-  // only on the assign endpoint.
-  const { service } = await withUserService({
-    checkAreaSalesHeadExists: rows({ UserCode: "PHL-ASH-00001" }),
-    getRegionalSalesHeadByArea: rows({ UserCode: "PHL-RSH-00001" }),
-    checkEmployeeNoExists: noRows,
-    countUsersByRole: rows({ Total: 0 }),
-  });
-
-  const error = await captureThrown(() =>
-    service.register({
-      firstName: "Test", lastName: "ASH", birthday: "1980-01-01",
-      email: "ash2@example.com", mobileNumber: "09171234567",
-      employeeNo: "TEST-ASH-02", role: AREA_SALES_HEAD, groupCode: 1,
-    }),
-  );
-
-  assert.equal(error?.statusCode, 409);
-  assert.match(error.message, /already has an Area Sales Head/);
-});
-
-test("a group with no Area Sales Head accepts one", async () => {
-  // Non-vacuous half: refusing every ASH registration would pass the test above
-  // and close the role entirely.
-  const { service, calls } = await withUserService({
-    checkAreaSalesHeadExists: noRows,
-    getRegionalSalesHeadByArea: rows({ UserCode: "PHL-RSH-00001" }),
-    checkEmployeeNoExists: noRows,
-    countUsersByRole: rows({ Total: 0 }),
-    checkOrRegisterUser: rows({
-      Success: 1, Message: "User registered successfully.", UserCode: "PHL-ASH-00002",
-    }),
-    assignAreaSalesHeadArea: () => ({ run: async () => {} }),
-  });
-
-  const result = await service.register({
-    firstName: "Test", lastName: "ASH", birthday: "1980-01-01",
-    email: "ash2@example.com", mobileNumber: "09171234567",
-    employeeNo: "TEST-ASH-02", role: AREA_SALES_HEAD, groupCode: 1,
-  });
-
-  assert.equal(result.success, true);
-  assert.equal(calls.some((c) => c.name === "assignAreaSalesHeadArea"), true);
-});
+// ⚠️ Registration used to be the second place this rule needed guarding,
+// because an Area Sales Head claimed its group there. That stopped on
+// 2026-08-28: the ASH registers with a region, and the group arrives from the
+// assign endpoint like every other PhilLife scope. So the rule lives in one
+// place now, which is the assign endpoint, and register.test.js owns the proof
+// that registration claims nothing.
 
 test("assigning a group already held by another head is a 409", async () => {
   const { service } = await withUserService(
@@ -118,18 +78,13 @@ test("a head keeping its own groups is not blocked by itself", async () => {
 
 test("a rejected head does not keep hold of a group", async () => {
   // IsActive >= 0 counts approved and pending, and excludes rejected -- the same
-  // window checkGroupHeadExists uses. A refused registration must not park a
-  // group forever, and a pending one must still reserve it.
+  // window checkGroupHeadExists uses. A refused head must not park a group
+  // forever, and a pending one must still reserve it.
   const { model, queries } = await captureSql(USER_MODEL);
-
-  await model.checkAreaSalesHeadExists(1).run();
   await model.getGroupsAssignedToOtherASH("PHL-ASH-00002", "1").run();
-
   restoreSqlCapture();
 
-  for (const query of queries) {
-    assert.match(query, /u\.IsActive >= 0/i);
-  }
+  assert.match(queries[0], /u\.IsActive >= 0/i);
 });
 
 test("the superadmin is bound by it too", async () => {
