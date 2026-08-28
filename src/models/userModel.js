@@ -596,12 +596,10 @@ export const getAreaSalesHeadScope = (userCode) => {
     request,
     run: () =>
       request.query(`
-      SELECT g.GroupCode, g.GroupName, g.RegionCode, r.RegionName,
-       c.ClusterCode, c.ClusterName
+      SELECT g.GroupCode, g.GroupName, g.RegionCode, r.RegionName
 FROM banc.area_sales_head_areas a
 INNER JOIN banc.group_areas g ON g.GroupCode = a.GroupCode
 LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
-LEFT JOIN banc.clusters c ON c.ClusterCode = a.ClusterCode AND c.GroupCode = a.GroupCode
 WHERE a.UserCode = @UserCode
 ORDER BY g.GroupCode
       `),

@@ -450,16 +450,42 @@ test("a cluster is joined on its group as well as its code", async () => {
   // head's group. banc.clusters runs 1-33, so a join on the code alone resolves
   // and returns a plausible wrong name -- Ortigas reading as a Pampanga cluster.
   // Joining on both columns makes a mismatch read as null, which is true.
+  // getAreaSalesHeadScope is deliberately absent: it reads no cluster at all
+  // now. See "an Area Sales Head's scope carries no cluster" below.
   for (const build of [
     (model) => model.getBranchScope(71).run(),
     (model) => model.getAccountOfficerBranchScope("PHL-AO-1168").run(),
-    (model) => model.getAreaSalesHeadScope("PHL-ASH-0005").run(),
     (model) => model.getAssignableBranches("PHL-ASH-0005", 1).run(),
   ]) {
     const { query } = await captureQuery(build);
 
     assert.match(query, /JOIN banc\.clusters c ON c\.ClusterCode = \w+\.ClusterCode AND c\.GroupCode = \w+\.GroupCode/i);
   }
+});
+
+test("an Area Sales Head's scope carries no cluster, from either column", async () => {
+  // The Area Sales Head holds groups, permanently. backend/ash-cluster-scope was
+  // cancelled on 2026-08-28 once the final Landbank directory showed the Account
+  // Officer holding six to eight branches rather than a cluster, and the cluster
+  // turning out to be a reporting tier with no head on either side.
+  //
+  // So this query used to join area_sales_head_areas.ClusterCode -- the junction's
+  // own column, which is backfilled with clusters outside the head's group and is
+  // now the only reader keeping a wrong value alive. Reading a meaningless column
+  // carefully is still reading a meaningless column.
+  //
+  // The three queries above keep their cluster join: they reach it through
+  // branches.ClusterCode, which is ancestry for display and stays.
+  const { query } = await captureQuery((model) =>
+    model.getAreaSalesHeadScope("PHL-ASH-0005").run(),
+  );
+
+  assert.doesNotMatch(query, /banc\.clusters/i);
+  assert.doesNotMatch(query, /ClusterCode/i);
+  assert.doesNotMatch(query, /ClusterName/i);
+  // Still a group scope, and still reading the region from group_areas.
+  assert.match(query, /banc\.area_sales_head_areas/i);
+  assert.match(query, /g\.RegionCode/);
 });
 
 test("the cluster code is selected from the join, so it nulls with its own name", async () => {
@@ -478,7 +504,6 @@ test("the cluster code is selected from the join, so it nulls with its own name"
   for (const build of [
     (model) => model.getBranchScope(71).run(),
     (model) => model.getAccountOfficerBranchScope("PHL-AO-0615").run(),
-    (model) => model.getAreaSalesHeadScope("PHL-ASH-0005").run(),
     (model) => model.getAssignableBranches("PHL-ASH-0005", 5).run(),
   ]) {
     const { query } = await captureQuery(build);
