@@ -267,6 +267,18 @@ export const register = async (fields, { createdBySuperadmin = false } = {}) => 
       );
   }
 
+  if (fields.role === AREA_SALES_HEAD) {
+    const held = await userModel
+      .checkAreaSalesHeadExists(fields.groupCode)
+      .run();
+
+    if (held.recordset.length > 0)
+      throwHttpError(
+        409,
+        "This group already has an Area Sales Head. Only one Area Sales Head may hold a group.",
+      );
+  }
+
   let approvers;
   let approverMessage;
   let noApproverMessage;
@@ -714,6 +726,20 @@ export const replaceAreaSalesHeadAreas = async (user, userId, groupCodes) => {
       throwHttpError(
         403,
         `These groups are outside your region: ${outside.recordset
+          .map((row) => row.GroupCode)
+          .join(", ")}`,
+      );
+  }
+
+  if (areas.length > 0) {
+    const taken = await userModel
+      .getGroupsAssignedToOtherASH(targetUser.UserCode, areas.join(","))
+      .run();
+
+    if (taken.recordset.length > 0)
+      throwHttpError(
+        409,
+        `These groups are already held by another Area Sales Head: ${taken.recordset
           .map((row) => row.GroupCode)
           .join(", ")}`,
       );

@@ -45,6 +45,7 @@ const happyPath = (overrides) => ({
   // No Group Head holds the group yet. The one-per-group guard runs before the
   // approver lookup for GROUP_HEAD only; oneGroupHeadPerGroup.test.js owns it.
   checkGroupHeadExists: noRows,
+  checkAreaSalesHeadExists: noRows,
   checkOrRegisterUser: registered,
   ...overrides,
 });

@@ -159,6 +159,7 @@ const assignModel = (role) => ({
   getBranchesOutsideAreaSalesHeadScope: noRows,
   getBranchesAssignedToOtherAO: noRows,
   getAreasOutsideRegionalSalesHeadScope: noRows,
+  getGroupsAssignedToOtherASH: noRows,
   getUnknownAreas: noRows,
   getGroupsInRegion: rows(
     { GroupCode: 1, GroupName: "CENTRAL NCR", RegionCode: 1, RegionName: "NCR" },

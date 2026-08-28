@@ -562,6 +562,41 @@ WHERE aob.UserCode <> @UserCode
   };
 };
 
+export const checkAreaSalesHeadExists = (groupCode) => {
+  const request = new sql.Request();
+  const group = asInt(groupCode);
+
+  request.input("GroupCode", sql.Int, Number.isFinite(group) ? group : null);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT TOP 1 u.UserCode
+      FROM banc.area_sales_head_areas a
+      INNER JOIN banc.Users u ON u.UserCode = a.UserCode
+      WHERE a.GroupCode = @GroupCode AND u.IsActive >= 0
+      `),
+  };
+};
+
+export const getGroupsAssignedToOtherASH = (userCode, groupCodes) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, userCode);
+  request.input("GroupCodes", sql.NVarChar, groupCodes);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT DISTINCT a.GroupCode
+FROM banc.area_sales_head_areas a
+INNER JOIN banc.Users u ON u.UserCode = a.UserCode
+INNER JOIN STRING_SPLIT(@GroupCodes, ',') s
+        ON a.GroupCode = CAST(s.value AS INT)
+WHERE a.UserCode <> @UserCode AND u.IsActive >= 0
+      `),
+  };
+};
+
 export const getAreasOutsideRegionalSalesHeadScope = (rshUserCode, groupCodes) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, rshUserCode);

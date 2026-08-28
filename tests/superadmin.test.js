@@ -225,6 +225,10 @@ test("a superadmin assigning areas skips the region check but not the existence 
     getUserScopeById: approved({ Role: AREA_SALES_HEAD, UserCode: "PHL-ASH-1165" }),
     isAshInRegionalScope: noRows,
     getAreasOutsideRegionalSalesHeadScope: rows({ GroupCode:5 }),
+    // One Area Sales Head per group binds the superadmin too. The region check
+    // is the caller's own scope and is theirs to skip; this one is a rule about
+    // the data and nobody is above it.
+    getGroupsAssignedToOtherASH: noRows,
     getUnknownAreas: rows({ GroupCode:99 }),
   });
 
@@ -238,6 +242,8 @@ test("a superadmin assigning areas skips the region check but not the existence 
   const names = calls.map((c) => c.name);
   assert.equal(names.includes("isAshInRegionalScope"), false);
   assert.equal(names.includes("getAreasOutsideRegionalSalesHeadScope"), false);
+  // But the one-head-per-group rule still runs.
+  assert.equal(names.includes("getGroupsAssignedToOtherASH"), true);
 });
 
 test("the target must still exist and still be approved", async () => {

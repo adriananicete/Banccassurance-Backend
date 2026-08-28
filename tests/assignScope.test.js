@@ -29,6 +29,7 @@ const areasModel = (overrides) => ({
   getUserScopeById: target({ IsActive: true, Role: AREA_SALES_HEAD }),
   isAshInRegionalScope: scopeHit,
   getAreasOutsideRegionalSalesHeadScope: noRows,
+  getGroupsAssignedToOtherASH: noRows,
   replaceAreaSalesHeadAreas: replaced,
   ...overrides,
 });
