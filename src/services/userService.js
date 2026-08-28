@@ -407,12 +407,6 @@ export const getUsersForApproval = async (user, options = {}) => {
 };
 
 export const deleteUser = async (user, userId) => {
-  if (process.env.NODE_ENV === "production")
-    throwHttpError(
-      403,
-      "Account deletion is disabled outside development and UAT. Deactivate the account instead.",
-    );
-
   const id = Number(userId);
 
   if (!Number.isInteger(id) || id <= 0)
@@ -437,6 +431,11 @@ export const deleteUser = async (user, userId) => {
       );
   }
 
+  if (process.env.NODE_ENV === "production" && !isPending(targetUser.IsActive))
+    throwHttpError(
+      403,
+      "In production only a pending registration can be deleted. Deactivate an approved account instead.",
+    );
 
   try {
     await userModel

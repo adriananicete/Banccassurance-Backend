@@ -115,17 +115,56 @@ test("a foreign key violation answers 409 rather than 500", async () => {
   assert.match(error.message, /referrals/i);
 });
 
-test("it is refused outright in production", async () => {
+const inProduction = async (action) => {
   const previous = process.env.NODE_ENV;
   process.env.NODE_ENV = "production";
 
-  const { service } = await withUserService(model());
-  const error = await captureThrown(() => service.deleteUser(ADMIN, 1784));
+  try {
+    return await action();
+  } finally {
+    process.env.NODE_ENV = previous;
+  }
+};
 
-  process.env.NODE_ENV = previous;
+test("in production an approved account cannot be deleted", async () => {
+  // Deletion is irreversible and an approved account has history behind it --
+  // a login, maybe referrals. Deactivation is the tool for those, once A17
+  // lands. Until then production simply refuses.
+  const { service } = await withUserService(model());
+
+  const error = await inProduction(() =>
+    captureThrown(() => service.deleteUser(ADMIN, 1784)),
+  );
 
   assert.equal(error.statusCode, 403);
-  assert.match(error.message, /Deactivate the account instead/);
+  assert.match(error.message, /Deactivate an approved account instead/);
+});
+
+test("in production a pending registration can still be deleted", async () => {
+  // The case this endpoint exists for, and the one that keeps happening: a
+  // registration with a typo in the email. Email, UserCode and EmployeeNo are
+  // all unique-constrained, so a wrong row holds that address permanently and
+  // the person cannot re-register until it goes. A pending account has no
+  // login, no referrals and no history -- removing it cancels a mistake rather
+  // than erasing a record.
+  const { service } = await withUserService(
+    model({ getUserScopeById: target({ IsActive: 0 }) }),
+  );
+
+  const result = await inProduction(() => service.deleteUser(ADMIN, 1784));
+
+  assert.equal(result.success, true);
+  assert.equal(result.userCode, "PHL-AO-00003");
+});
+
+test("outside production an approved account is deletable, so the gate is the environment", async () => {
+  // Non-vacuous half: refusing every approved account everywhere would pass the
+  // production test above and quietly remove the whole point of the endpoint.
+  const { service } = await withUserService(model());
+
+  const result = await service.deleteUser(ADMIN, 1784);
+
+  assert.equal(result.success, true);
 });
 
 test("a missing user is a 404 and a non-numeric id is a 400", async () => {
