@@ -368,6 +368,40 @@ export const getReferralById = async (id, user) => {
   return rest;
 };
 
+export const deleteReferral = async (id, user) => {
+  if (process.env.NODE_ENV === "production")
+    throwHttpError(
+      403,
+      "Referrals cannot be deleted in production. A referral is a client record.",
+    );
+
+  const found = await referralModel.getReferralForDeletion(id).run();
+
+  if (!found.recordset || found.recordset.length === 0)
+    throwHttpError(404, "Referral not found");
+
+  const referral = found.recordset[0];
+
+  if (referral.ReferrerCode !== user.UserCode)
+    throwHttpError(403, "You can only delete a referral you created.");
+
+  await referralModel
+    .deleteReferral(id, {
+      actorUserCode: user.UserCode,
+      action: "REFERRAL_DELETED",
+      entityType: "REFERRAL",
+      entityId: referral.ReferralNo,
+      detail: referral.Status,
+    })
+    .run();
+
+  return {
+    success: true,
+    message: "Referral deleted.",
+    referralNo: referral.ReferralNo,
+  };
+};
+
 export const uploadConsent = async (email, filePath) => {
   const result = await referralModel.uploadConsentFile(email, filePath).run();
 

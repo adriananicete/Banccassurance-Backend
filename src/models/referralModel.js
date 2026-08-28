@@ -1,4 +1,5 @@
 import sql from '../config/db.js'
+import * as auditModel from './auditModel.js'
 import { asInt } from '../utils/sqlValue.js'
 
 export const getPlans = () => {
@@ -162,6 +163,48 @@ export const getReferralById = (id) => {
   const request = new sql.Request()
   request.input('Id', sql.UniqueIdentifier, id)
   return { request, run: () => request.execute('[banc].[usp_sel_referral_by_id]') }
+}
+
+export const getReferralForDeletion = (id) => {
+  const request = new sql.Request()
+  request.input('Id', sql.UniqueIdentifier, id)
+  return {
+    request,
+    run: () => request.query(`
+      SELECT [Id], [ReferralNo], [ReferrerCode], [Status]
+      FROM [banc].[Referrals]
+      WHERE [Id] = @Id
+    `)
+  }
+}
+
+export const deleteReferral = (id, audit) => {
+  return {
+    run: async () => {
+      const transaction = new sql.Transaction()
+      await transaction.begin();
+
+      try {
+        const request = new sql.Request(transaction);
+        request.input('Id', sql.UniqueIdentifier, id)
+
+        await request.query(`
+          UPDATE [banc].[consent_request]
+          SET [ConsumedAt] = NULL, [ConsumedByReferralId] = NULL
+          WHERE [ConsumedByReferralId] = @Id
+        `)
+
+        await auditModel.insert(audit, transaction).run()
+
+        await request.query(`DELETE FROM [banc].[Referrals] WHERE [Id] = @Id`)
+
+        await transaction.commit()
+      } catch (error) {
+        await transaction.rollback()
+        throw error
+      }
+    }
+  }
 }
 
 
