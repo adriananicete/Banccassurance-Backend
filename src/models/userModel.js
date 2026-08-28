@@ -391,6 +391,35 @@ WHERE a.UserCode = @AshUserCode AND r.UserCode = @RshUserCode`),
 };
 
 
+export const deleteUser = (userId, userCode, audit) => {
+  return {
+    run: async () => {
+      const transaction = new sql.Transaction()
+      await transaction.begin();
+
+      try {
+        const request = new sql.Request(transaction);
+        request.input('UserId', sql.Int, userId)
+        request.input('UserCode', sql.NVarChar, userCode)
+
+        await request.query(`DELETE FROM banc.Notifications WHERE UserCode = @UserCode`)
+        await request.query(`DELETE FROM banc.account_officer_branches WHERE UserCode = @UserCode`)
+        await request.query(`DELETE FROM banc.area_sales_head_areas WHERE UserCode = @UserCode`)
+        await request.query(`DELETE FROM banc.regional_sales_head_areas WHERE UserCode = @UserCode`)
+
+        await auditModel.insert(audit, transaction).run()
+
+        await request.query(`DELETE FROM banc.Users WHERE UserId = @UserId`)
+
+        await transaction.commit()
+      } catch (error) {
+        await transaction.rollback()
+        throw error
+      }
+    }
+  }
+}
+
 export const replaceAccountOfficerBranches = (userCode, branchCodes, audit) => {
   return {
     run: async () => {

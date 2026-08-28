@@ -71,6 +71,16 @@ export const createTopLevelUser = async (req, res, next) => {
   }
 }
 
+export const deleteUser = async (req, res, next) => {
+  try {
+    const { userId } = req.params
+    const result = await userService.deleteUser(req.user, userId)
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const approveRejectUser = async (req, res, next) => {
   try {
     const { userId, action } = req.body

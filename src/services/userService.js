@@ -406,6 +406,65 @@ export const getUsersForApproval = async (user, options = {}) => {
   };
 };
 
+export const deleteUser = async (user, userId) => {
+  if (process.env.NODE_ENV === "production")
+    throwHttpError(
+      403,
+      "Account deletion is disabled outside development and UAT. Deactivate the account instead.",
+    );
+
+  const id = Number(userId);
+
+  if (!Number.isInteger(id) || id <= 0)
+    throwHttpError(400, "User id must be a whole number");
+
+  const found = await userModel.getUserScopeById(id).run();
+
+  if (found.recordset.length === 0) throwHttpError(404, "Not Found");
+
+  const targetUser = found.recordset[0];
+
+  if (targetUser.UserCode === user.UserCode)
+    throwHttpError(400, "You cannot delete your own account.");
+
+  if (targetUser.Role === SUPERADMIN) {
+    const held = await userModel.countUsersByRole(SUPERADMIN).run();
+
+    if ((held.recordset[0]?.Total ?? 0) <= 1)
+      throwHttpError(
+        409,
+        "This is the only superadmin. Deleting it would leave nobody able to approve a Sector Head or a Department Head.",
+      );
+  }
+
+
+  try {
+    await userModel
+      .deleteUser(id, targetUser.UserCode, {
+        actorUserCode: user.UserCode,
+        action: "USER_DELETED",
+        entityType: "USER",
+        entityId: targetUser.UserCode,
+        detail: targetUser.Role,
+      })
+      .run();
+  } catch (error) {
+    if (error?.number === 547)
+      throwHttpError(
+        409,
+        "This account is referenced by rows that outlive it, referrals most likely. Delete or reassign those first.",
+      );
+
+    throw error;
+  }
+
+  return {
+    success: true,
+    message: "Account deleted.",
+    userCode: targetUser.UserCode,
+  };
+};
+
 export const approveRejectUser = async (user, userId, action) => {
   const getUserScopeById = await userModel.getUserScopeById(userId).run();
   if (getUserScopeById.recordset.length === 0) {
