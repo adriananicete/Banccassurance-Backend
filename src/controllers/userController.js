@@ -20,13 +20,13 @@ export const register = async (req, res, next) => {
     const {
       firstName, middleName, lastName, suffix,
       birthday, email, mobileNumber,
-      role, groupCode, branchCode, employeeNo
+      role, groupCode, branchCode, regionCode, employeeNo
     } = req.body
 
     const result = await userService.register({
       firstName, middleName, lastName, suffix,
       birthday, email, mobileNumber,
-      role, groupCode, branchCode, employeeNo
+      role, groupCode, branchCode, regionCode, employeeNo
     })
 
     return res.json(result)
