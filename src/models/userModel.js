@@ -104,6 +104,7 @@ export const checkOrRegisterUser = ({
   mobileNumber,
   role,
   groupCode,
+  regionCode,
   branchCode,
   passwordHash,
   employeeNo,
@@ -121,6 +122,7 @@ export const checkOrRegisterUser = ({
     request.input("MobileNumber", sql.NVarChar, mobileNumber);
     request.input("Role", sql.NVarChar, role);
     request.input("GroupCode", sql.NVarChar, asText(groupCode));
+    request.input("RegionCode", sql.Int, asInt(regionCode));
     request.input("BranchCode", sql.Int, asInt(branchCode));
     request.input("PasswordHash", sql.NVarChar, passwordHash);
     request.input("EmployeeNo", sql.NVarChar, employeeNo || null);

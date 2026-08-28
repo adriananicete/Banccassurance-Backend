@@ -351,6 +351,32 @@ test("an Area Sales Head claims no scope at registration", async () => {
   );
 });
 
+test("the region reaches the insert, and only for the role that sends one", async () => {
+  // usp_ins_register_user gained @RegionCode on 2026-08-28, with a NULL default
+  // so it could land before this binding. Users.RegionCode is what makes a
+  // pending Area Sales Head visible to the Regional Sales Head who must approve
+  // them -- the head holds no group until after approval, so nothing else says
+  // whose queue it belongs in.
+  const ash = await withUserService(happyPath());
+  await ash.service.register(fields({
+    role: AREA_SALES_HEAD, groupCode: null, branchCode: null, regionCode: 1,
+  }));
+
+  assert.equal(
+    ash.calls.find((c) => c.name === "checkOrRegisterUser").args[0].regionCode,
+    1,
+  );
+
+  // Every other role leaves it null, the way BranchCode is null for an AO.
+  const ao = await withUserService(happyPath());
+  await ao.service.register(fields({ role: ACCOUNT_OFFICER, groupCode: 5 }));
+
+  assert.equal(
+    ao.calls.find((c) => c.name === "checkOrRegisterUser").args[0].regionCode ?? null,
+    null,
+  );
+});
+
 test("an Account Officer does store its AreaCode on the user row", async () => {
   const { service, calls } = await withUserService(happyPath());
   await service.register(fields({ role: ACCOUNT_OFFICER, groupCode: 5 }));

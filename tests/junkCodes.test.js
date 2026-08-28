@@ -181,6 +181,24 @@ test("every approver lookup binds a group through asInt, not Number", async () =
   }
 });
 
+test("the registration insert binds RegionCode as an int, never as text", async () => {
+  // @RegionCode is INT in the procedure while @GroupCode is NVARCHAR(50), so the
+  // two cannot be bound the same way. tedious refuses a type mismatch before the
+  // query is sent and it surfaces as a 500, which is the whole subject of this
+  // file.
+  const { inputs } = await captureQuery((m) =>
+    m.checkOrRegisterUser({
+      email: "ash@example.com", checkOnly: false, firstName: "A", lastName: "B",
+      birthday: "1980-01-01", mobileNumber: "0917", employeeNo: "X",
+      role: "AREA_SALES_HEAD", regionCode: "1", passwordHash: "h",
+    }).run(),
+  );
+
+  const region = inputs.find((i) => i.name === "RegionCode");
+
+  assert.equal(region.value, 1);
+});
+
 test("the region lookup binds through asInt too", async () => {
   // The new one on the same unauthenticated path. Without this, regionCode
   // "abc" becomes NaN and sql.Int refuses it before the query is sent -- the
