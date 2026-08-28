@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { scopeHit, scopeMiss, rows } from "./helpers/stubModel.js";
 import { withUserService, noRows, target, captureThrown } from "./helpers/userService.js";
 import {
@@ -198,6 +199,25 @@ test("the scope conflict check runs before anything is written", async () => {
   );
 });
 
+test("the assign routes are named for what they set, not for what they store", async () => {
+  // The three PUTs were named a tier apart from what they do, a leftover of the
+  // AreaCode -> GroupCode rename: /areas set groups, /groups set a region.
+  // /:userId/region is the one that moved on 2026-08-28, so the path says what
+  // the Department Head is choosing rather than what lands in the table.
+  //
+  // ⚠️ /areas still sets groups. Renaming it frees /groups for the Area Sales
+  // Head's own groups, which is what a reader reaches for first -- not done, and
+  // worth doing in the same frontend bundle rather than a second one.
+  const source = await readFile(
+    new URL("../src/routes/userRoutes.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(source, /router\.put\('\/:userId\/region'/);
+  assert.match(source, /router\.get\('\/:userId\/region'/);
+  assert.doesNotMatch(source, /'\/:userId\/groups'/);
+});
+
 test("the Department Head names a region and holds every group in it", async () => {
   // The Department Head holds the whole tenant, so there is no scope of their
   // own to check against -- any region is theirs to assign.
@@ -217,6 +237,51 @@ test("the Department Head names a region and holds every group in it", async () 
   assert.equal(result.data.regionCode, 1);
   assert.equal(result.data.regionName, "NCR");
   assert.deepEqual(result.data.groupCodes, [1, 2, 3]);
+});
+
+const heldRow = (overrides) => ({
+  GroupCode: 1,
+  GroupName: "CENTRAL NCR",
+  RegionCode: 1,
+  RegionName: "NCR",
+  ...overrides,
+});
+
+test("the read hands back the region its PUT takes", async () => {
+  // read -> edit -> write is the documented flow, so the GET has to return the
+  // key the PUT expects. Since the PUT moved to regionCode, a screen handed only
+  // groupCodes would have nothing to send back.
+  const { service } = await withUserService(
+    groupsModel({
+      getRegionalSalesHeadScope: rows(heldRow(), heldRow({ GroupCode: 2, GroupName: "NORTH NCR" })),
+    }),
+  );
+
+  const result = await service.getRegionalSalesHeadAreas(dh, 1784);
+
+  assert.equal(result.data.regionCode, 1);
+  assert.equal(result.data.regionName, "NCR");
+  assert.deepEqual(result.data.groupCodes, [1, 2]);
+});
+
+test("a head whose groups straddle two regions reports no single region", async () => {
+  // Unreachable through the PUT now, but older rows can hold it. Naming one of
+  // the two would be a guess, and the screen would send that guess back and
+  // silently move the head into that region alone.
+  const { service } = await withUserService(
+    groupsModel({
+      getRegionalSalesHeadScope: rows(
+        heldRow(),
+        heldRow({ GroupCode: 4, GroupName: "BICOL", RegionCode: 2, RegionName: "Luzon" }),
+      ),
+    }),
+  );
+
+  const result = await service.getRegionalSalesHeadAreas(dh, 1784);
+
+  assert.equal(result.data.regionCode, null);
+  assert.equal(result.data.regionName, null);
+  assert.deepEqual(result.data.groupCodes, [1, 4]);
 });
 
 test("the region reaches the write, not the groups it expanded to", async () => {

@@ -35,12 +35,12 @@ router.get('/assignable-branches', requireAuth, requireRole(AREA_SALES_HEAD, SUP
 
 router.get('/:userId/branches', requireAuth, requireRole(AREA_SALES_HEAD, SUPERADMIN), getAccountOfficerBranches)
 router.get('/:userId/areas', requireAuth, requireRole(REGIONAL_SALES_HEAD, SUPERADMIN), getAreaSalesHeadAreas)
-router.get('/:userId/groups', requireAuth, requireRole(DEPARTMENT_HEAD, SUPERADMIN), getRegionalSalesHeadAreas)
+router.get('/:userId/region', requireAuth, requireRole(DEPARTMENT_HEAD, SUPERADMIN), getRegionalSalesHeadAreas)
 
 router.delete('/:userId', requireAuth, requireRole(SUPERADMIN), deleteUser)
 
 router.put('/:userId/branches', requireAuth, requireRole(AREA_SALES_HEAD, SUPERADMIN), replaceAccountOfficerBranches)
 router.put('/:userId/areas', requireAuth, requireRole(REGIONAL_SALES_HEAD, SUPERADMIN), replaceAreaSalesHeadAreas)
-router.put('/:userId/groups', requireAuth, requireRole(DEPARTMENT_HEAD, SUPERADMIN), replaceRegionalSalesHeadAreas)
+router.put('/:userId/region', requireAuth, requireRole(DEPARTMENT_HEAD, SUPERADMIN), replaceRegionalSalesHeadAreas)
 
 export default router

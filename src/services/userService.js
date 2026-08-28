@@ -964,11 +964,16 @@ export const getRegionalSalesHeadAreas = async (user, userId) => {
     .getRegionalSalesHeadScope(targetUser.UserCode)
     .run();
 
+  const regions = [...new Set(result.recordset.map((row) => row.RegionCode))];
+  const holdsOneRegion = regions.length === 1;
+
   return {
     success: true,
     data: {
       userId: targetUser.UserId,
       userCode: targetUser.UserCode,
+      regionCode: holdsOneRegion ? regions[0] : null,
+      regionName: holdsOneRegion ? result.recordset[0].RegionName ?? null : null,
       groupCodes: result.recordset.map((row) => row.GroupCode),
       groups: result.recordset.map(groupScope),
     },
