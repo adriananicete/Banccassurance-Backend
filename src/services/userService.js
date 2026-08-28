@@ -750,36 +750,35 @@ export const replaceAreaSalesHeadAreas = async (user, userId, groupCodes) => {
   };
 };
 
-export const replaceRegionalSalesHeadAreas = async (
-  user,
-  userId,
-  groupCodes,
-) => {
-  const areas = normalizeCodes(groupCodes, "groupCodes");
+export const replaceRegionalSalesHeadAreas = async (user, userId, regionCode) => {
+  const region = Number(regionCode);
+
+  if (!Number.isInteger(region) || region <= 0)
+    throwHttpError(400, "regionCode must be a whole number");
+
   const targetUser = await loadAssignTarget(
     userId,
     REGIONAL_SALES_HEAD,
     "a Regional Sales Head",
   );
 
-  if (areas.length > 0) {
-    const unknown = await userModel.getUnknownAreas(areas.join(",")).run();
-    if (unknown.recordset.length > 0)
-      throwHttpError(
-        400,
-        `These groups do not exist: ${unknown.recordset
-          .map((row) => row.GroupCode)
-          .join(", ")}`,
-      );
-  }
+  const groups = await userModel.getGroupsInRegion(region).run();
+
+  if (groups.recordset.length === 0)
+    throwHttpError(
+      400,
+      `Region ${region} has no groups, so this would assign nothing. Check the region code, and that every group in it carries a RegionCode.`,
+    );
+
+  const areas = groups.recordset.map((row) => row.GroupCode);
 
   await userModel
-    .replaceRegionalSalesHeadAreas(targetUser.UserCode, areas.join(","), {
+    .replaceRegionalSalesHeadAreas(targetUser.UserCode, region, {
       actorUserCode: user.UserCode,
       action: "GROUPS_ASSIGNED",
       entityType: "SCOPE",
       entityId: targetUser.UserCode,
-      detail: areas.join(","),
+      detail: `region ${region}: ${areas.join(",")}`,
     })
     .run();
 
@@ -788,6 +787,8 @@ export const replaceRegionalSalesHeadAreas = async (
     data: {
       userId: targetUser.UserId,
       userCode: targetUser.UserCode,
+      regionCode: region,
+      regionName: groups.recordset[0].RegionName ?? null,
       groupCodes: areas,
     },
   };

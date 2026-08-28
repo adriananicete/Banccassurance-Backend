@@ -34,7 +34,11 @@ const areasModel = (overrides) => ({
 
 const groupsModel = (overrides) => ({
   getUserScopeById: target({ IsActive: true, Role: REGIONAL_SALES_HEAD }),
-  getUnknownAreas: noRows,
+  getGroupsInRegion: rows(
+    { GroupCode: 1, GroupName: "CENTRAL NCR", RegionCode: 1, RegionName: "NCR" },
+    { GroupCode: 2, GroupName: "NORTH NCR", RegionCode: 1, RegionName: "NCR" },
+    { GroupCode: 3, GroupName: "SOUTH NCR", RegionCode: 1, RegionName: "NCR" },
+  ),
   replaceRegionalSalesHeadAreas: replaced,
   ...overrides,
 });
@@ -50,14 +54,51 @@ test("an empty set is refused for areas alone, and the message says why", async 
   assert.match(error.message, /deactivate/i);
 });
 
-test("an empty set is accepted for branches and for groups", async () => {
+test("an empty set is accepted for branches", async () => {
+  // Clearing an Account Officer's branches is a real operation -- somebody is
+  // moving, and their branches go to whoever takes over.
   const branches = await withUserService(branchesModel());
   const cleared = await branches.service.replaceAccountOfficerBranches(ash, 1784, []);
-  assert.deepEqual(cleared.data.branchCodes, []);
 
-  const groups = await withUserService(groupsModel());
-  const emptied = await groups.service.replaceRegionalSalesHeadAreas(dh, 1784, []);
-  assert.deepEqual(emptied.data.groupCodes, []);
+  assert.deepEqual(cleared.data.branchCodes, []);
+});
+
+test("a region holding no groups is refused rather than clearing the head's scope", async () => {
+  // Changed 2026-08-28 with the move to assigning by region. There is no empty
+  // set to send any more -- a region either has groups or it does not.
+  //
+  // ⚠️ An empty result here is almost never "this region is empty on purpose".
+  // group_areas.RegionCode is still nullable (DBA A13), so a group seeded
+  // without a region belongs to no region at all and silently drops out. A 200
+  // would tell the Department Head the assignment worked while the head held
+  // nothing, and that surfaces two people away: the next Area Sales Head to
+  // register into one of those groups gets "No Regional Sales Head is assigned",
+  // which is how groups 7, 8 and 9 went unnoticed on 2026-08-27.
+  const { service, calls } = await withUserService(
+    groupsModel({ getGroupsInRegion: noRows }),
+  );
+
+  const error = await captureThrown(() =>
+    service.replaceRegionalSalesHeadAreas(dh, 1784, 9),
+  );
+
+  assert.equal(error?.statusCode, 400);
+  assert.match(error.message, /no groups/i);
+  assert.match(error.message, /RegionCode/);
+  assert.equal(calls.some((c) => c.name === "replaceRegionalSalesHeadAreas"), false);
+});
+
+test("a non-numeric region is refused before the target is looked up", async () => {
+  // asInt turns "abc" into NaN and sql.Int refuses NaN before the query is sent,
+  // which is the EPARAM 500 that PR #116 took out of registration.
+  const { service, calls } = await withUserService(groupsModel());
+
+  const error = await captureThrown(() =>
+    service.replaceRegionalSalesHeadAreas(dh, 1784, "abc"),
+  );
+
+  assert.equal(error?.statusCode, 400);
+  assert.deepEqual(calls, []);
 });
 
 test("the empty-areas refusal happens before the target is even looked up", async () => {
@@ -157,30 +198,39 @@ test("the scope conflict check runs before anything is written", async () => {
   );
 });
 
-test("the Department Head assigns groups with no scope check of their own", async () => {
+test("the Department Head names a region and holds every group in it", async () => {
+  // The Department Head holds the whole tenant, so there is no scope of their
+  // own to check against -- any region is theirs to assign.
   const { service, calls } = await withUserService(groupsModel());
-  await service.replaceRegionalSalesHeadAreas(dh, 1784, [1, 2, 3]);
+  const result = await service.replaceRegionalSalesHeadAreas(dh, 1784, 1);
 
-  // No `record` at the end any more -- the audit row is written inside
+  // No `record` at the end -- the audit row is written inside
   // replaceRegionalSalesHeadAreas, on its transaction.
   assert.deepEqual(calls.map((call) => call.name), [
     "getUserScopeById",
-    "getUnknownAreas",
+    "getGroupsInRegion",
     "replaceRegionalSalesHeadAreas",
   ]);
+
+  // The response says what the region expanded to. A caller that sent one
+  // number and gets one number back has no way to see what it meant.
+  assert.equal(result.data.regionCode, 1);
+  assert.equal(result.data.regionName, "NCR");
+  assert.deepEqual(result.data.groupCodes, [1, 2, 3]);
 });
 
-test("a group code that does not exist is a 400, not a 403", async () => {
-  const { service } = await withUserService(
-    groupsModel({ getUnknownAreas: rows({ GroupCode: 99 }) }),
-  );
+test("the region reaches the write, not the groups it expanded to", async () => {
+  // The expansion happens once, in SQL, inside the transaction. Passing the
+  // group list down instead would mean the service read one set of groups and
+  // the insert wrote another if group_areas changed between the two.
+  const { service, calls } = await withUserService(groupsModel());
+  await service.replaceRegionalSalesHeadAreas(dh, 1784, 1);
 
-  const error = await captureThrown(() =>
-    service.replaceRegionalSalesHeadAreas(dh, 1784, [1, 99]),
-  );
+  const [, second] = calls.find(
+    (c) => c.name === "replaceRegionalSalesHeadAreas",
+  ).args;
 
-  assert.equal(error?.statusCode, 400);
-  assert.match(error.message, /99/);
+  assert.equal(second, 1);
 });
 
 test("each assign endpoint refuses a target holding the wrong role", async () => {

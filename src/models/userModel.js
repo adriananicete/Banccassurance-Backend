@@ -476,7 +476,7 @@ WHERE LTRIM(RTRIM(value)) <> ''`)
   }
 }
 
-export const replaceRegionalSalesHeadAreas = (userCode, groupCodes, audit) => {
+export const replaceRegionalSalesHeadAreas = (userCode, regionCode, audit) => {
   return {
     run: async () => {
       const transaction = new sql.Transaction()
@@ -485,18 +485,20 @@ export const replaceRegionalSalesHeadAreas = (userCode, groupCodes, audit) => {
       try {
         const request = new sql.Request(transaction);
         request.input('UserCode', sql.NVarChar, userCode)
-        request.input('GroupCodes', sql.NVarChar, groupCodes)
+        request.input('RegionCode', sql.Int, asInt(regionCode))
 
         await request.query(`DELETE FROM banc.regional_sales_head_areas WHERE UserCode = @UserCode`)
-        await request.query(`INSERT INTO banc.regional_sales_head_areas (UserCode, GroupCode, RegionCode)
+
+        const inserted = await request.query(`INSERT INTO banc.regional_sales_head_areas (UserCode, GroupCode, RegionCode)
 SELECT @UserCode, g.GroupCode, g.RegionCode
-FROM STRING_SPLIT(@GroupCodes, ',') s
-INNER JOIN banc.group_areas g ON g.GroupCode = CAST(s.value AS INT)
-WHERE LTRIM(RTRIM(s.value)) <> ''`)
+FROM banc.group_areas g
+WHERE g.RegionCode = @RegionCode`)
 
         await auditModel.insert(audit, transaction).run()
 
         await transaction.commit()
+
+        return inserted.rowsAffected[0] ?? 0
       } catch (error) {
         await transaction.rollback()
         throw error
@@ -504,6 +506,22 @@ WHERE LTRIM(RTRIM(s.value)) <> ''`)
     }
   }
 }
+
+export const getGroupsInRegion = (regionCode) => {
+  const request = new sql.Request();
+  request.input("RegionCode", sql.Int, asInt(regionCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT g.GroupCode, g.GroupName, g.RegionCode, r.RegionName
+FROM banc.group_areas g
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+WHERE g.RegionCode = @RegionCode
+ORDER BY g.GroupCode
+      `),
+  };
+};
 
 export const getBranchesOutsideAreaSalesHeadScope = (ashUserCode, branchCodes) => {
   const request = new sql.Request();

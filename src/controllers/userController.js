@@ -217,10 +217,10 @@ export const replaceAreaSalesHeadAreas = async (req, res, next) => {
 export const replaceRegionalSalesHeadAreas = async (req, res, next) => {
   try {
     const { userId } = req.params
-    const { groupCodes } = req.body
+    const { regionCode } = req.body
 
     const result = await userService.replaceRegionalSalesHeadAreas(
-      req.user, userId, groupCodes
+      req.user, userId, regionCode
     )
     return res.json(result)
   } catch (error) {

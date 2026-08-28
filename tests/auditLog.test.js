@@ -160,6 +160,10 @@ const assignModel = (role) => ({
   getBranchesAssignedToOtherAO: noRows,
   getAreasOutsideRegionalSalesHeadScope: noRows,
   getUnknownAreas: noRows,
+  getGroupsInRegion: rows(
+    { GroupCode: 1, GroupName: "CENTRAL NCR", RegionCode: 1, RegionName: "NCR" },
+    { GroupCode: 2, GroupName: "NORTH NCR", RegionCode: 1, RegionName: "NCR" },
+  ),
   replaceAccountOfficerBranches: () => ({ run: async () => ({}) }),
   replaceAreaSalesHeadAreas: () => ({ run: async () => ({}) }),
   replaceRegionalSalesHeadAreas: () => ({ run: async () => ({}) }),
@@ -175,7 +179,10 @@ test("each scope assignment carries its own action with the codes it applied", a
   const cases = [
     ["ACCOUNT_OFFICER", (s) => s.replaceAccountOfficerBranches(ASH, 1, [40, 41]), "replaceAccountOfficerBranches", "BRANCHES_ASSIGNED", "40,41"],
     ["AREA_SALES_HEAD", (s) => s.replaceAreaSalesHeadAreas(RSH, 1, [5, 6]), "replaceAreaSalesHeadAreas", "AREAS_ASSIGNED", "5,6"],
-    ["REGIONAL_SALES_HEAD", (s) => s.replaceRegionalSalesHeadAreas(DH, 1, [1, 2]), "replaceRegionalSalesHeadAreas", "GROUPS_ASSIGNED", "1,2"],
+    // The Regional Sales Head is assigned a region, so the log records the
+    // region and what it expanded to. "region 1" alone would not say which
+    // groups the head actually held that day, and group_areas can change.
+    ["REGIONAL_SALES_HEAD", (s) => s.replaceRegionalSalesHeadAreas(DH, 1, 1), "replaceRegionalSalesHeadAreas", "GROUPS_ASSIGNED", "region 1: 1,2"],
   ];
 
   for (const [role, call, modelFn, action, detail] of cases) {
