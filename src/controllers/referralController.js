@@ -181,6 +181,25 @@ export const getReferralById = async (req, res, next) => {
   }
 };
 
+export const deleteReferral = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !isValidGuid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or missing unique identifier format",
+      });
+    }
+
+    const result = await referralService.deleteReferral(id.trim(), req.user);
+
+    return res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getReferralCounts = async (req, res, next) => {
   try {
     const result = await referralService.getReferralCounts(req.user);
