@@ -759,8 +759,6 @@ const groupScope = (row) => ({
   regionName: row.RegionName ?? null,
   groupCode: row.GroupCode ?? null,
   groupName: row.GroupName ?? null,
-  clusterCode: row.ClusterCode ?? null,
-  clusterName: row.ClusterName ?? null,
 });
 
 const branchScope = (row) => ({

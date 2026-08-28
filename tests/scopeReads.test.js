@@ -41,13 +41,14 @@ const selfRow = (overrides) =>
     ...overrides,
   });
 
+// No cluster columns: the three queries feeding groupScope select group and
+// region only. A fixture carrying columns the query cannot return would let a
+// mapper reading them pass a test it should fail.
 const groupRow = (overrides) => ({
   GroupCode: 1,
   GroupName: "NORTH NCR",
   RegionCode: 1,
   RegionName: "NCR",
-  ClusterCode: null,
-  ClusterName: null,
   ...overrides,
 });
 
@@ -461,6 +462,40 @@ test("a cluster is joined on its group as well as its code", async () => {
 
     assert.match(query, /JOIN banc\.clusters c ON c\.ClusterCode = \w+\.ClusterCode AND c\.GroupCode = \w+\.GroupCode/i);
   }
+});
+
+test("a group scope has no cluster keys, and a branch scope keeps them", async () => {
+  // groupScope emitted clusterCode and clusterName until 2026-08-28. After
+  // PR #120 nothing feeding it selects a cluster -- getGroupScope,
+  // getRegionalSalesHeadScope and getAreaSalesHeadScope all read group and
+  // region only -- so the pair was null for every role, always. A key that can
+  // only ever be null describes a tier the server does not hold, and a client
+  // reading it as "no cluster assigned yet" would be reading a promise.
+  //
+  // branchScope keeps both: its three queries reach a cluster through
+  // branches.ClusterCode, which is real ancestry for display.
+  //
+  // Assert the whole set on each. Naming only the two removed keys would pass
+  // while a third was quietly dropped, and a lost scope key surfaces as a wrong
+  // scope on screen rather than as an error.
+  const { service } = await withUserService({
+    getUserScopeById: selfRow({ Role: ACCOUNT_OFFICER, GroupCode: 1 }),
+    getGroupScope: rows(groupRow()),
+    getAccountOfficerBranchScope: rows(branchRow({ ClusterCode: 4, ClusterName: "Quezon City" })),
+  });
+
+  const result = await service.getOwnScope(session({ Role: ACCOUNT_OFFICER }));
+
+  assert.deepEqual(
+    Object.keys(result.data.scopes[0]).sort(),
+    ["code", "groupCode", "groupName", "level", "name", "regionCode", "regionName"],
+  );
+  assert.deepEqual(
+    Object.keys(result.data.branches[0]).sort(),
+    ["branchCode", "branchName", "clusterCode", "clusterName",
+     "groupCode", "groupName", "regionCode", "regionName"],
+  );
+  assert.equal(result.data.branches[0].clusterCode, 4);
 });
 
 test("an Area Sales Head's scope carries no cluster, from either column", async () => {
