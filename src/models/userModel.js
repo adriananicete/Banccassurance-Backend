@@ -354,10 +354,10 @@ export const isAshInRegionalScope = (rshUserCode, ashUserCode) => {
   return {
     request,
     run: () =>
-      request.query(`SELECT 1 AS InScope
-FROM banc.area_sales_head_areas a
-INNER JOIN banc.regional_sales_head_areas r ON a.GroupCode = r.GroupCode
-WHERE a.UserCode = @AshUserCode AND r.UserCode = @RshUserCode`),
+      request.query(`SELECT TOP 1 1 AS InScope
+FROM banc.Users u
+INNER JOIN banc.regional_sales_head_areas r ON r.RegionCode = u.RegionCode
+WHERE u.UserCode = @AshUserCode AND r.UserCode = @RshUserCode`),
   };
 };
 
