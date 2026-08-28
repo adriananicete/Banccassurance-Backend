@@ -127,6 +127,10 @@ export const loginStep1 = async (identifier, password) => {
     );
   }
 
+  if (user.StatusCode !== "ACTIVE") {
+    throwHttpError(401, "Invalid credentials");
+  }
+
   const email = user.Email;
   const otp = generateOtp();
 
