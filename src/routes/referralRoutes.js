@@ -1,58 +1,31 @@
 import express from 'express'
 import {
   createReferral,
-  sendConsent,
   updateReferralProfiling,
-  getReferrerByCode,  
-  getPlans,
-  confirmConsent,
-  checkConsent,
+  getReferrerByCode,
   getReferrals,
   updateReferralStatus,
   getReferralById,
-  uploadConsent,
-  getUserNotifications,
-  clearUserNotifications,
-  markNotificationAsRead,     
-  markAllNotificationsAsRead
+  getReferralCounts,
+  deleteReferral,
 } from '../controllers/referralController.js'
-import multer from 'multer'
+import { requireAuth, requireRole } from '../middleware/auth.js'
+import { ACCOUNT_OFFICER, BRANCH_HEAD, BRANCH_STAFF, referralCreatorRoles } from '../utils/constant.js';
 
-const router = express.Router()
-const upload = multer({ dest: 'uploads/' })
+const router = express.Router();
 
-// ==========================================
-// ⭐ 1. LITERAL NOTIFICATION ROUTES (ABSOLUTE TOP)
-// ==========================================
-// Putting these at the absolute peak guarantees Express never mistakes them for a generic dynamic parameter.
-router.get('/notifications', getUserNotifications)
-router.post('/notifications/clear', clearUserNotifications)
-router.put('/notifications/mark-all-read', markAllNotificationsAsRead)
-router.put('/notifications/:id/read', markNotificationAsRead)
+router.get('/', requireAuth, getReferrals)
+router.get('/counts', requireAuth, getReferralCounts)
+router.get('/referrer', requireAuth, getReferrerByCode)
 
-// ==========================================
-// 2. Static / Fixed text routes 
-// ==========================================
-router.post('/', createReferral)
-router.post('/send-consent', sendConsent)
-router.post('/resend-consent', sendConsent)
-router.get('/confirm-consent', confirmConsent)
-router.get('/check-consent', checkConsent)
-router.get('/plans', getPlans)
-router.get('/', getReferrals)
+router.post('/', requireAuth, requireRole(...referralCreatorRoles), createReferral)
 
-// ==========================================
-// 3. Specific routes with sub-parameters
-// ==========================================
-router.get('/referrer/:code', getReferrerByCode)
-router.put('/:id/profiling', updateReferralProfiling)
-router.put('/:id/status', updateReferralStatus)
-router.post('/upload-consent', upload.single('consentFile'), uploadConsent)
-router.post('/list', getReferrals) 
+// Keep every static path above this line. Anything declared after /:id is
+// swallowed by the param match and surfaces as a 400 "invalid GUID".
 
-// ==========================================
-// 4. Generic ID route (MUST BE AT THE VERY BOTTOM)
-// ==========================================
-router.get('/:id', getReferralById)
+router.get('/:id', requireAuth, getReferralById)
+router.delete('/:id', requireAuth, requireRole(...referralCreatorRoles), deleteReferral)
+router.put('/:id/profiling', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF), updateReferralProfiling)
+router.put('/:id/status', requireAuth, requireRole(ACCOUNT_OFFICER), updateReferralStatus)
 
 export default router

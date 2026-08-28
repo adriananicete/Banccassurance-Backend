@@ -1,14 +1,15 @@
 import express from 'express'
-import { sendOtp, verifyOtp, loginStep1, changePassword, uploadProfilePhoto, upload, getGroups, getBranches} from '../controllers/authController.js'
+import {
+    verifyOtp, loginStep1, logout
+} from '../controllers/authController.js'
+import { requireAuth } from '../middleware/auth.js'
+import { loginLimiter, loginIpLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router()
 
-router.post('/send-otp', sendOtp)
-router.post('/verify-otp', verifyOtp)
-router.post('/login-step1', loginStep1)
-router.post('/change-password', changePassword)
-router.post('/upload-photo', upload.single('photo'), uploadProfilePhoto)
-router.get('/groups', getGroups)
-router.get('/branches', getBranches)
+router.post('/verify-otp', loginIpLimiter, loginLimiter, verifyOtp)
+router.post('/login-step1', loginIpLimiter, loginLimiter, loginStep1)
+
+router.post('/logout', requireAuth, logout)
 
 export default router

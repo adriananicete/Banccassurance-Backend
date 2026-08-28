@@ -1,48 +1,82 @@
-import express from 'express'
-import cors from 'cors'
-import cookieParser from 'cookie-parser' // 👈 Added: Needed to parse HTTP-Only Cookies
-import referralRoutes from './routes/referralRoutes.js'
-import { connectDB } from './config/db.js'
-import authRoutes from './routes/authRoutes.js'
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import referralRoutes from "./routes/referralRoutes.js";
+import { connectDB } from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js";
+import { errorHandler } from "./middleware/errorHandler.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import path from "path";
+import { fileURLToPath } from "url";
+import { globalLimiter } from "./middleware/rateLimiter.js";
+import underwritingRoutes from "./routes/underwritingRoutes.js"
+import userRoutes from "./routes/userRoutes.js";
+import lookupRoutes from "./routes/lookupRoutes.js";
+import consentRoutes from "./routes/consentRoutes.js";
+import auditRoutes from "./routes/auditRoutes.js";
+import { API_VERSION_PREFIX } from "./utils/constant.js";
 
-import path from 'path'
-import { fileURLToPath } from 'url'
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-const app = express()
-const PORT = 5000
+const trustProxy = process.env.TRUST_PROXY;
+if (trustProxy) {
+  const hops = Number(trustProxy);
+  app.set("trust proxy", Number.isInteger(hops) ? hops : trustProxy);
+} else if (process.env.NODE_ENV === "production") {
+  console.warn(
+    "TRUST_PROXY is not set. If anything sits in front of this app, every " +
+      "request will look like it came from that one address and all users " +
+      "will share a single rate-limit bucket.",
+  );
+}
 
-
-app.use(cors({
-  origin: 'http://localhost:3000', // 👈 Restricts access strictly to your React application domain/port
-  credentials: true                // 👈 CRUCIAL: Allows your browser and backend to share authorization cookies
-}))
-
-// ✅ Cookie Parser (⚠️ Must be placed BEFORE any API route declarations)
-app.use(cookieParser())
-
-app.use(express.json())
-
-// ✅ Test route
-app.get('/', (req, res) => {
-  res.send('API is running...')
-})
-
-// ✅ API Routes
-app.use('/api/referrals', referralRoutes)
-app.use('/api/auth', authRoutes)
+// Temporary: allow a second local dev port (3001) alongside the default 3000
+// until the frontend settles on one. Remove 3001 once that's no longer needed.
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(",").map((origin) => origin.trim())
+  : ["http://localhost:3000", "http://localhost:3001"];
 
 app.use(
-  '/uploads',
-  express.static(path.join(__dirname, '../avatar_uploads'))
-)
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  }),
+);
 
-// ✅ Connect to Database
-connectDB()
+app.use(cookieParser());
 
-// ✅ Start Server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+app.use(globalLimiter);
+
+app.get("/", (req, res) => {
+  res.send("API is running...");
+});
+
+app.use(`${API_VERSION_PREFIX}/notifications`, notificationRoutes);
+app.use(`${API_VERSION_PREFIX}/referrals`, referralRoutes);
+app.use(`${API_VERSION_PREFIX}/auth`, authRoutes);
+app.use(`${API_VERSION_PREFIX}/users`, userRoutes);
+app.use(`${API_VERSION_PREFIX}/lookups`, lookupRoutes);
+app.use(`${API_VERSION_PREFIX}/consent`, consentRoutes);
+app.use(`${API_VERSION_PREFIX}/underwriting/referrals`, underwritingRoutes);
+app.use(`${API_VERSION_PREFIX}/audit`, auditRoutes);
+
+app.use("/uploads", express.static(path.join(__dirname, "../avatar_uploads")));
+
+app.use(errorHandler);
+
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}).catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 })
