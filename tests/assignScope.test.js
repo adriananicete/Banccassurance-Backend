@@ -199,23 +199,30 @@ test("the scope conflict check runs before anything is written", async () => {
   );
 });
 
-test("the assign routes are named for what they set, not for what they store", async () => {
-  // The three PUTs were named a tier apart from what they do, a leftover of the
-  // AreaCode -> GroupCode rename: /areas set groups, /groups set a region.
-  // /:userId/region is the one that moved on 2026-08-28, so the path says what
-  // the Department Head is choosing rather than what lands in the table.
+test("each assign route is named for what the caller chooses", async () => {
+  // All three were a tier apart from what they do, a leftover of the AreaCode ->
+  // GroupCode rename: /areas set groups and /groups set a region. Both moved on
+  // 2026-08-28, and the order mattered -- /groups had to be vacated by the
+  // Regional Sales Head before the Area Sales Head could take it.
   //
-  // ⚠️ /areas still sets groups. Renaming it frees /groups for the Area Sales
-  // Head's own groups, which is what a reader reaches for first -- not done, and
-  // worth doing in the same frontend bundle rather than a second one.
+  //   /:userId/branches   an Account Officer's branches      branchCodes
+  //   /:userId/groups     an Area Sales Head's groups        groupCodes
+  //   /:userId/region     a Regional Sales Head's region     regionCode
+  //
+  // Assert the whole set. Renaming one and leaving another is how they drifted
+  // apart in the first place, and a half-done rename reads as deliberate.
   const source = await readFile(
     new URL("../src/routes/userRoutes.js", import.meta.url),
     "utf8",
   );
 
-  assert.match(source, /router\.put\('\/:userId\/region'/);
-  assert.match(source, /router\.get\('\/:userId\/region'/);
-  assert.doesNotMatch(source, /'\/:userId\/groups'/);
+  for (const path of ["branches", "groups", "region"]) {
+    assert.match(source, new RegExp(`router\\.get\\('/:userId/${path}'`), path);
+    assert.match(source, new RegExp(`router\\.put\\('/:userId/${path}'`), path);
+  }
+
+  // The name that meant two different tiers on two different endpoints.
+  assert.doesNotMatch(source, /'\/:userId\/areas'/);
 });
 
 test("the Department Head names a region and holds every group in it", async () => {
