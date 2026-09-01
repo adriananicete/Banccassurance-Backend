@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { captureSql, restoreSqlCapture } from "./helpers/captureSql.js";
 import { withStubbedModules, rows } from "./helpers/stubModel.js";
 import { captureThrown } from "./helpers/userService.js";
+import reportRoutes from "../src/routes/reportRoutes.js";
 
 const REPORT_MODEL = "../../src/models/reportModel.js";
 const REPORT_SERVICE = "../../src/services/reportService.js";
@@ -215,6 +216,19 @@ test("the export refuses a status outside the eight", async () => {
 
   assert.equal(error?.statusCode, 400);
   assert.equal(calls.length, 0);
+});
+
+test("the summary route carries requireAuth and no requireRole", async () => {
+  // Every role gets a report -- BusinessLogic.md §10, superseding "Branch Staff
+  // get no report". A requireRole here would be a second scoping decision
+  // sitting above the procedure's own role block, and the two would drift.
+  //
+  // Two handlers: requireAuth and the controller. Three would mean a role guard
+  // crept in; one would mean the session did not.
+  const layer = reportRoutes.stack.find((l) => l.route?.path === "/summary");
+
+  assert.ok(layer, "GET /reports/summary is not mounted");
+  assert.equal(layer.route.stack.length, 2);
 });
 
 test("verified maps to a bit, and anything else is no filter", async () => {

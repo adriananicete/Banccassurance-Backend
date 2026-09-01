@@ -15,6 +15,7 @@ import userRoutes from "./routes/userRoutes.js";
 import lookupRoutes from "./routes/lookupRoutes.js";
 import consentRoutes from "./routes/consentRoutes.js";
 import auditRoutes from "./routes/auditRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
 import { API_VERSION_PREFIX } from "./utils/constant.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -67,6 +68,7 @@ app.use(`${API_VERSION_PREFIX}/lookups`, lookupRoutes);
 app.use(`${API_VERSION_PREFIX}/consent`, consentRoutes);
 app.use(`${API_VERSION_PREFIX}/underwriting/referrals`, underwritingRoutes);
 app.use(`${API_VERSION_PREFIX}/audit`, auditRoutes);
+app.use(`${API_VERSION_PREFIX}/reports`, reportRoutes);
 
 app.use("/uploads", express.static(path.join(__dirname, "../avatar_uploads")));
 
