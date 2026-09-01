@@ -57,6 +57,9 @@ export const getExportRows = async (query, user) => {
   return { period, rows: result.recordset };
 };
 
+const DAY = "yyyy-mm-dd";
+const MINUTE = "yyyy-mm-dd hh:mm";
+
 export const exportColumns = [
   { header: "Referral No", key: "ReferralNo", width: 20 },
   { header: "First Name", key: "FirstName", width: 18 },
@@ -72,16 +75,17 @@ export const exportColumns = [
   { header: "Referrer", key: "ReferrerName", width: 24 },
   { header: "Relationship", key: "Relationship", width: 18 },
   { header: "Status", key: "Status", width: 16 },
-  { header: "Status Date", key: "StatusDate", width: 20 },
+  { header: "Status Date", key: "StatusDate", width: 14, style: { numFmt: DAY } },
   { header: "Consent", key: "ConsentStatus", width: 14 },
-  { header: "Consent Confirmed", key: "ConsentConfirmedAt", width: 22 },
-  { header: "Created", key: "CreatedAt", width: 22 },
+  { header: "Consent Confirmed", key: "ConsentConfirmedAt", width: 22, style: { numFmt: MINUTE } },
+  { header: "Created", key: "CreatedAt", width: 22, style: { numFmt: MINUTE } },
 ];
 
 const dateColumns = ["StatusDate", "ConsentConfirmedAt", "CreatedAt"];
 
+
 export const writeReferralWorkbook = async (rows, stream) => {
-  const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream });
+  const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream, useStyles: true });
   const sheet = workbook.addWorksheet("Referrals");
 
   sheet.columns = exportColumns;

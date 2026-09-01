@@ -87,6 +87,30 @@ test("timestamps read as Manila wall time, not UTC", async () => {
   assert.equal(cell.toISOString(), "2026-09-01T07:52:55.000Z");
 });
 
+test("the header row is bold", async () => {
+  // Not decoration. WorkbookWriter defaults useStyles to false and silently
+  // writes no styles at all -- the header had been set bold since the export
+  // shipped and never was. Nothing failed, because nothing looked. This is the
+  // cheapest assertion that the style pipeline is switched on.
+  const sheet = await reopen(await collect([referral()]));
+
+  assert.equal(sheet.getRow(1).font?.bold, true);
+});
+
+test("Created carries the time and Status Date does not", async () => {
+  // Excel's default format for a date cell drops the time, which hid the whole
+  // point of the Manila shift: 9/1/2026 alone cannot be told from 9/1/2026, and
+  // the difference between 07:52 and 15:52 is what the shift exists to get
+  // right. StatusDate is a date in the schema and stays one.
+  const sheet = await reopen(await collect([referral()]));
+  const cell = (key) =>
+    sheet.getRow(2).getCell(exportColumns.findIndex((c) => c.key === key) + 1);
+
+  assert.match(cell("CreatedAt").numFmt, /hh:mm/);
+  assert.match(cell("ConsentConfirmedAt").numFmt, /hh:mm/);
+  assert.doesNotMatch(cell("StatusDate").numFmt, /hh:mm/);
+});
+
 test("a null timestamp stays null rather than becoming an epoch date", async () => {
   // ConsentConfirmedAt is null on a referral consented by upload. Shifting null
   // by eight hours would render 1 January 1970 in the cell.
