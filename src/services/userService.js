@@ -199,6 +199,11 @@ export const getGroups = async () => {
   return result.recordset;
 };
 
+export const getRegions = async () => {
+  const result = await userModel.getRegions().run();
+  return result.recordset;
+};
+
 export const getBranches = async (groupCode, search, options = {}) => {
   const result = await userModel.getBranches(groupCode, search, options).run();
 

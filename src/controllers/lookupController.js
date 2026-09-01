@@ -3,6 +3,15 @@ import * as referralService from '../services/referralService.js'
 import { paging } from '../utils/paging.js'
 import { branchListPageSize } from '../utils/constant.js'
 
+export const getRegions = async (req, res, next) => {
+  try {
+    const data = await userService.getRegions()
+    res.json({ success: true, data })
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const getGroups = async (req, res, next) => {
   try {
     const data = await userService.getGroups()
