@@ -64,6 +64,9 @@ export const resolvePeriod = (query = {}, now = new Date()) => {
   return { preset, from: start, toExclusive: end };
 };
 
+export const asManilaWallTime = (value) =>
+  value instanceof Date ? new Date(value.getTime() + MANILA_OFFSET_MS) : value;
+
 export const periodLabel = ({ from, toExclusive }) => {
   const first = manilaCalendarDate(from);
   const last = manilaCalendarDate(new Date(toExclusive.getTime() - 1));

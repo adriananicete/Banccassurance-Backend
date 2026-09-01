@@ -1,7 +1,8 @@
+import ExcelJS from "exceljs";
 import * as reportModel from "../models/reportModel.js";
 import { throwHttpError } from "../utils/error.js";
 import { reportGroupBy, validStatus, verifiedMap } from "../utils/constant.js";
-import { resolvePeriod } from "../utils/reportPeriod.js";
+import { resolvePeriod, asManilaWallTime } from "../utils/reportPeriod.js";
 
 export const getSummary = async (query, user) => {
   const groupBy = String(query.groupBy ?? "").trim().toUpperCase();
@@ -54,4 +55,45 @@ export const getExportRows = async (query, user) => {
     .run();
 
   return { period, rows: result.recordset };
+};
+
+export const exportColumns = [
+  { header: "Referral No", key: "ReferralNo", width: 20 },
+  { header: "First Name", key: "FirstName", width: 18 },
+  { header: "Last Name", key: "LastName", width: 18 },
+  { header: "Email", key: "Email", width: 28 },
+  { header: "Branch Code", key: "BranchCode", width: 12 },
+  { header: "Branch", key: "BranchName", width: 28 },
+  { header: "Group Code", key: "GroupCode", width: 12 },
+  { header: "Group", key: "GroupName", width: 20 },
+  { header: "AO Code", key: "AOCode", width: 16 },
+  { header: "Account Officer", key: "AOName", width: 24 },
+  { header: "Referrer Code", key: "ReferrerCode", width: 16 },
+  { header: "Referrer", key: "ReferrerName", width: 24 },
+  { header: "Relationship", key: "Relationship", width: 18 },
+  { header: "Status", key: "Status", width: 16 },
+  { header: "Status Date", key: "StatusDate", width: 20 },
+  { header: "Consent", key: "ConsentStatus", width: 14 },
+  { header: "Consent Confirmed", key: "ConsentConfirmedAt", width: 22 },
+  { header: "Created", key: "CreatedAt", width: 22 },
+];
+
+const dateColumns = ["StatusDate", "ConsentConfirmedAt", "CreatedAt"];
+
+export const writeReferralWorkbook = async (rows, stream) => {
+  const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream });
+  const sheet = workbook.addWorksheet("Referrals");
+
+  sheet.columns = exportColumns;
+  sheet.getRow(1).font = { bold: true };
+
+  for (const row of rows) {
+    const shifted = { ...row };
+    for (const column of dateColumns) shifted[column] = asManilaWallTime(row[column]);
+
+    sheet.addRow(shifted).commit();
+  }
+
+  sheet.commit();
+  await workbook.commit();
 };
