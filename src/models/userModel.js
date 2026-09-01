@@ -76,6 +76,19 @@ export const getGroups = () => {
   };
 };
 
+export const getRegions = () => {
+  const request = new sql.Request();
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT RegionCode, RegionName
+      FROM banc.regions
+      ORDER BY RegionName
+    `),
+  };
+};
+
 export const getBranches = (groupCode, search, options = {}) => {
   const request = new sql.Request();
   const area = asInt(groupCode);
