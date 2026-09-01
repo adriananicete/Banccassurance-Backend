@@ -12,6 +12,9 @@ export const validStatus = ["Referred","Presented","Closed Pending","Approved","
 
 export const sortWhitelist = ["Name", "Email", "ConsentStatus", "Status", "CreatedAt", "StatusDate"];
 export const sortDirections = ["ASC", "DESC"];
+
+export const reportGroupBy = ["REGION", "AREA", "BRANCH", "AO"];
+export const reportPresets = ["thisMonth", "3months", "6months", "annual", "custom"];
 export const verifiedMap = {
   verified: 1,
   "not-verified": 0
