@@ -1,97 +1,51 @@
 import { escapeHtml } from '../utils/validators.js'
 
 export const consentEmailTemplate = (confirmLink, name) => `
-    <p><strong>Dear Valued Client,${name ? ` ${escapeHtml(name)},` : ''}</strong></p>
+    <div style="font-family:Arial,Helvetica,sans-serif; font-size:15px; line-height:1.6; color:#333333; max-width:560px;">
 
-    <p>Good day!</p>
+      <p style="margin:0 0 16px;"><strong>Dear Valued Client,${name ? ` ${escapeHtml(name)},` : ''}</strong></p>
 
-    <p>
-      As part of the Bancassurance financial needs assessment, client profiling, referral, and
-      product presentation process, Philippine Life Financial Assurance Corp. (&ldquo;PhilLife&rdquo;)
-      may collect and process the personal information you provide in this form.
-    </p>
+      <p style="margin:0 0 16px;">Good day!</p>
 
-    <p>
-      By providing your consent, you authorize PhilLife and its duly authorized representatives to
-      collect, use, store, disclose, and otherwise process your personal information, as applicable,
-      for the following purposes:
-    </p>
+      <p style="margin:0 0 16px;">
+        As part of the Bancassurance financial needs assessment, client profiling, referral, and
+        product presentation process, Philippine Life Financial Assurance Corp.
+        (&ldquo;PhilLife&rdquo;) needs your consent before we may collect and process your personal
+        information.
+      </p>
 
-    <ol>
-      <li>Conducting financial and insurance needs assessment and client profiling;</li>
-      <li>Identifying insurance products that may be appropriate for your stated needs and financial profile;</li>
-      <li>Preparing and presenting insurance product proposals;</li>
-      <li>Facilitating your referral or endorsement between the authorized LANDBANK personnel and PhilLife Account Officer handling your bancassurance transaction;</li>
-      <li>Processing and administering an insurance application or policy, should you decide to apply for a product;</li>
-      <li>Providing account servicing and client support; and</li>
-      <li>Complying with applicable legal, regulatory, audit, and record-keeping requirements.</li>
-    </ol>
+      <p style="margin:0 0 24px;">
+        Please review the full Consent for Endorsement and Data Processing, which explains what
+        information is collected, how it is used and disclosed, how long it is kept, and your rights
+        under the Data Privacy Act.
+      </p>
 
-    <p>
-      The personal information processed may include your identification and contact information,
-      employment or business information, financial profile, existing financial products, insurance
-      or banking needs and preferences, and other information you voluntarily provide for the
-      purposes stated above.
-    </p>
-
-    <p>
-      Your personal information may be disclosed, where necessary, to PhilLife, LANDBANK, their duly
-      authorized personnel and service providers, and government or regulatory authorities when
-      required by applicable law or regulation, subject to appropriate data privacy and security
-      safeguards.
-    </p>
-
-    <p>
-      Your personal information shall be retained only for as long as necessary to fulfill the
-      purposes stated above and applicable legal and regulatory requirements, after which it shall
-      be securely disposed of in accordance with applicable retention policies.
-    </p>
-
-    <p>
-      You may withdraw your consent where processing is based on consent, subject to applicable
-      legal or contractual limitations. Withdrawal shall not affect processing lawfully undertaken
-      before such withdrawal or processing that PhilLife is otherwise required or permitted by law
-      to undertake.
-    </p>
-
-    <p>
-      You may exercise your rights under the Data Privacy Act, including your rights to access,
-      object, rectify, erase or block your personal data, and file a complaint with the National
-      Privacy Commission.
-    </p>
-
-    <p>
-      <a href="${confirmLink}"
-          style="display:inline-block; padding:10px 20px; background-color:#1e3a8a; color:white; text-decoration:none; border-radius:5px;">
+      <p style="margin:0 0 16px;">
+        <a href="${confirmLink}"
+           style="display:inline-block; padding:12px 28px; background-color:#1e3a8a; color:#ffffff; text-decoration:none; border-radius:6px; font-size:16px; font-weight:bold;">
           Review and Give Consent
-      </a>
-    </p>
+        </a>
+      </p>
 
-    <p style="color:#666; font-size:13px;">
-      Opening this link does not record anything on its own. Your consent is
-      recorded only when you press <strong>I Agree</strong> on that page.
-    </p>
+      <p style="margin:0 0 24px; color:#666666; font-size:13px;">
+        Opening this link does not record anything on its own. Your consent is
+        recorded only when you press <strong>I Agree</strong> on that page.
+      </p>
 
-    <p>
-      This consent shall remain valid unless withdrawn in writing.
-    </p>
+      <p style="margin:0 0 6px;">Should you have any questions or concerns, please feel free to contact us:</p>
 
-    <p>
-      Should you have any questions or concerns, please feel free to contact us:
-    </p>
+      <p style="margin:0 0 24px; color:#555555;">
+        Email: bancassurance@phillife.com.ph <br/>
+        Telephone: (02) 7798-5433 <br/>
+        Mobile: 0998-xxxxxxxxx
+      </p>
 
-    <p>
-      Email: bancassurance@phillife.com.ph <br/>
-      Telephone: (02) 7798-5433 <br/>
-      Mobile: 0998-xxxxxxxxx
-    </p>
+      <p style="margin:0 0 16px;">Thank you for your trust and support.</p>
 
-    <p>
-      Thank you for your trust and support.
-    </p>
+      <p style="margin:0;">
+        <strong>Best regards,</strong><br/>
+        PHILLIFE BANCASSURANCE
+      </p>
 
-    <p>
-      <strong>Best regards,</strong><br/>
-      PHILLIFE BANCASSURANCE
-    </p>
+    </div>
   `;
