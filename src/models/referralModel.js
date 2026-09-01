@@ -44,7 +44,6 @@ export const updateProfiling = (id, fields) => {
   request.input('HomeAddress', sql.NVarChar, fields.homeAddress)
   request.input('MessengerName', sql.NVarChar, fields.messengerName)
   request.input('CompanyName', sql.NVarChar, fields.companyName)
-  request.input('Position', sql.NVarChar, fields.position)
   request.input('LengthOfService', sql.NVarChar, fields.lengthOfService)
   request.input('MonthlyIncomeRange', sql.NVarChar, fields.monthlyIncomeRange)
   request.input('ExistingProducts', sql.NVarChar, fields.existingProducts)

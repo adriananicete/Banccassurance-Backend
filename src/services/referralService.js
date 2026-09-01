@@ -216,11 +216,15 @@ export const sendConsent = async (email, token, name, branchName, referrerName, 
 };
 
 export const updateReferralProfiling = async (id, data, user) => {
-  const referrer = await referralModel.getReferralContactInfo(id).run();
+  const found = await referralModel.getReferralContactInfo(id).run();
 
-  if (referrer.recordset.length === 0) throwHttpError(404, "Not Found");
-  if (referrer.recordset[0].ReferrerCode !== user.UserCode)
-    throwHttpError(403, "Forbidden");
+  if (found.recordset.length === 0) throwHttpError(404, "Not Found");
+
+  const referral = found.recordset[0];
+  const holder =
+    user.Role === ACCOUNT_OFFICER ? referral.AOCode : referral.ReferrerCode;
+
+  if (holder !== user.UserCode) throwHttpError(403, "Forbidden");
 
   await referralModel
     .updateProfiling(id, {
@@ -230,7 +234,6 @@ export const updateReferralProfiling = async (id, data, user) => {
       homeAddress: data.homeAddress,
       messengerName: data.messengerName,
       companyName: data.companyName,
-      position: data.position,
       lengthOfService: data.lengthOfService,
       monthlyIncomeRange: data.monthlyIncomeRange,
       existingProducts: formatArray(data.existingProducts),

@@ -25,7 +25,7 @@ router.post('/', requireAuth, requireRole(...referralCreatorRoles), createReferr
 
 router.get('/:id', requireAuth, getReferralById)
 router.delete('/:id', requireAuth, requireRole(...referralCreatorRoles), deleteReferral)
-router.put('/:id/profiling', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF), updateReferralProfiling)
+router.put('/:id/profiling', requireAuth, requireRole(BRANCH_HEAD, BRANCH_STAFF, ACCOUNT_OFFICER), updateReferralProfiling)
 router.put('/:id/status', requireAuth, requireRole(ACCOUNT_OFFICER), updateReferralStatus)
 
 export default router
