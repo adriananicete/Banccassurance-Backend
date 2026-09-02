@@ -50,6 +50,15 @@ export const referralCreatorRoles = [BRANCH_STAFF, BRANCH_HEAD, ACCOUNT_OFFICER]
 
 export const approverRoles = [BRANCH_HEAD, GROUP_HEAD, SECTOR_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD, SUPERADMIN];
 
+export const APPROVE = 'APPROVE';
+export const REJECT = 'REJECT';
+export const DEACTIVATE = 'DEACTIVATE';
+export const REACTIVATE = 'REACTIVATE';
+
+export const registrationActions = [APPROVE, REJECT];
+export const membershipActions = [DEACTIVATE, REACTIVATE];
+export const approvalActions = [...registrationActions, ...membershipActions];
+
 export const minimumLengthPassword = 8;
 
 export const branchListPageSize = 100;

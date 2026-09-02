@@ -9,11 +9,18 @@ import {
 } from "./emailService.js";
 import {
   ACCOUNT_OFFICER,
+  APPROVE,
+  approvalActions,
   approverRoles,
   AREA_SALES_HEAD,
   BRANCH_HEAD,
   BRANCH_STAFF,
+  DEACTIVATE,
   DEPARTMENT_HEAD,
+  membershipActions,
+  REACTIVATE,
+  registrationActions,
+  REJECT,
   GROUP_HEAD,
   minimumLengthPassword,
   REGIONAL_SALES_HEAD,
@@ -34,6 +41,7 @@ const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
 
 const isApproved = (isActive) => isActive === true || isActive === 1;
 const isPending = (isActive) => isActive === false || isActive === 0;
+const isDeactivated = (isActive) => isActive === -1;
 
 export const alwaysRequiredFields = {
   firstName: "First name",
@@ -477,11 +485,38 @@ export const deleteUser = async (user, userId) => {
 };
 
 export const approveRejectUser = async (user, userId, action) => {
+  if (!approvalActions.includes(action))
+    throwHttpError(400, `Unknown action. Use one of: ${approvalActions.join(", ")}.`);
+
   const getUserScopeById = await userModel.getUserScopeById(userId).run();
   if (getUserScopeById.recordset.length === 0) {
     throwHttpError(404, "Not Found");
   }
   const targetUser = getUserScopeById.recordset[0];
+
+  if (targetUser.UserCode === user.UserCode)
+    throwHttpError(400, "You cannot change the status of your own account.");
+
+  if (membershipActions.includes(action)) {
+    if (user.Role !== SUPERADMIN)
+      throwHttpError(403, "Only a superadmin can deactivate or reactivate an account.");
+
+    if (action === DEACTIVATE && !isApproved(targetUser.IsActive))
+      throwHttpError(400, "Only an approved account can be deactivated.");
+
+    if (action === REACTIVATE) {
+      if (!isDeactivated(targetUser.IsActive))
+        throwHttpError(400, "Only a deactivated account can be reactivated.");
+
+      if (!targetUser.AgentCode)
+        throwHttpError(
+          400,
+          "This account was rejected at registration, not deactivated. It cannot be reactivated; it has never been approved.",
+        );
+    }
+
+    return runApprovalAction(user, targetUser, userId, action);
+  }
 
   if (user.Role === BRANCH_HEAD) {
     if (
@@ -525,15 +560,11 @@ export const approveRejectUser = async (user, userId, action) => {
       throwHttpError(403, 'Forbidden')
     }
   } else if (user.Role === SUPERADMIN) {
-    if (action === "APPROVE" && !superadminApprovableRoles.includes(targetUser.Role)) {
+    if (action === APPROVE && !superadminApprovableRoles.includes(targetUser.Role)) {
       throwHttpError(
         403,
         "A superadmin approves Sector Heads and Department Heads. Every other role is approved by the role above it.",
       );
-    }
-
-    if (targetUser.UserCode === user.UserCode) {
-      throwHttpError(400, "You cannot deactivate your own account.");
     }
   } else {
     throwHttpError(403, "Forbidden");
@@ -542,28 +573,44 @@ export const approveRejectUser = async (user, userId, action) => {
   if (!isPending(targetUser.IsActive))
     throwHttpError(400, "This user has already been approved or rejected.");
 
+  return runApprovalAction(user, targetUser, userId, action);
+};
+
+const auditActions = {
+  [APPROVE]: "USER_APPROVED",
+  [REJECT]: "USER_REJECTED",
+  [DEACTIVATE]: "USER_DEACTIVATED",
+  [REACTIVATE]: "USER_REACTIVATED",
+};
+
+const runApprovalAction = async (user, targetUser, userId, action) => {
   const result = await userModel.approveRejectUser(userId, action).run();
-  const { Success, Message, FirstName, Email, UserCode } = result.recordset[0];
+  const row = result.recordset[0];
 
-  if (Success === 1) {
-    await record({
-      actorUserCode: user.UserCode,
-      action: action === "APPROVE" ? "USER_APPROVED" : "USER_REJECTED",
-      entityType: "USER",
-      entityId: targetUser.UserCode,
-      detail: targetUser.Role,
-    });
+  if (!row)
+    throwHttpError(500, "The account status could not be changed. Please try again.");
 
+  const { Success, Message, FirstName, Email, UserCode } = row;
+
+  if (Success !== 1) return { success: false, message: Message };
+
+  await record({
+    actorUserCode: user.UserCode,
+    action: auditActions[action],
+    entityType: "USER",
+    entityId: targetUser.UserCode,
+    detail: targetUser.Role,
+  });
+
+  if (registrationActions.includes(action)) {
     try {
       await sendApprovalEmail(Email, FirstName, UserCode, action);
     } catch (error) {
       console.error(error);
     }
-
-    return { success: true, message: Message };
   }
 
-  return { success: false, message: Message };
+  return { success: true, message: Message };
 };
 
 export const createTopLevelUser = async (actor, fields) => {
