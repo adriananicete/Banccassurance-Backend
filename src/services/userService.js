@@ -484,7 +484,9 @@ export const deleteUser = async (user, userId) => {
   };
 };
 
-export const approveRejectUser = async (user, userId, action) => {
+export const approveRejectUser = async (user, userId, requestedAction) => {
+  const action = String(requestedAction ?? "").trim().toUpperCase();
+
   if (!approvalActions.includes(action))
     throwHttpError(400, `Unknown action. Use one of: ${approvalActions.join(", ")}.`);
 
@@ -502,13 +504,23 @@ export const approveRejectUser = async (user, userId, action) => {
       throwHttpError(403, "Only a superadmin can deactivate or reactivate an account.");
 
     if (action === DEACTIVATE && !isApproved(targetUser.IsActive))
-      throwHttpError(400, "Only an approved account can be deactivated.");
+      throwHttpError(
+        400,
+        isPending(targetUser.IsActive)
+          ? "A pending registration cannot be deactivated. Reject it instead."
+          : "This account is already inactive.",
+      );
 
     if (action === REACTIVATE) {
       if (!isDeactivated(targetUser.IsActive))
-        throwHttpError(400, "Only a deactivated account can be reactivated.");
+        throwHttpError(
+          400,
+          isPending(targetUser.IsActive)
+            ? "A pending registration cannot be reactivated. Approve it instead."
+            : "This account is already active.",
+        );
 
-      if (!targetUser.AgentCode)
+      if (targetUser.AgentCode == null)
         throwHttpError(
           400,
           "This account was rejected at registration, not deactivated. It cannot be reactivated; it has never been approved.",

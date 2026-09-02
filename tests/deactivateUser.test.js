@@ -23,9 +23,11 @@ const changed = rows({
   UserCode: "PHL-AO-1168",
 });
 
-// An approved account: IsActive 1 and an AgentCode minted by APPROVE.
+// An approved account: IsActive 1 and an AgentCode minted by APPROVE. AgentCode
+// is BIGINT and generated as ISNULL(MAX(AgentCode), 600000) + 1, so it is a
+// number in the 600001 range rather than a formatted string.
 const approvedTarget = (overrides) =>
-  target({ IsActive: 1, AgentCode: "AG-00042", ...overrides });
+  target({ IsActive: 1, AgentCode: 600042, ...overrides });
 
 const acting = (targetStub) => ({
   getUserScopeById: targetStub,
@@ -46,6 +48,39 @@ test("an unknown action is refused before the database is touched", async () => 
   assert.equal(error?.statusCode, 400);
   assert.match(error.message, /unknown action/i);
   assert.deepEqual(calls, []);
+});
+
+test("an action longer than the procedure's parameter cannot truncate into a real one", async () => {
+  // @Action is NVARCHAR(10) and DEACTIVATE is exactly ten characters, so the
+  // procedure's parameter has no headroom. userModel binds sql.NVarChar with no
+  // length, and SQL Server truncates silently on assignment to a narrower
+  // parameter -- so "DEACTIVATEX" would arrive as "DEACTIVATE" and revoke an
+  // account. The whitelist runs before the bind, which is what closes it.
+  const { service, calls } = await withUserService(acting(approvedTarget()));
+
+  const error = await captureThrown(() =>
+    service.approveRejectUser(superadmin, 1784, "DEACTIVATEX"),
+  );
+
+  assert.equal(error?.statusCode, 400);
+  assert.deepEqual(calls, []);
+});
+
+test("the action is normalised the way the procedure normalises it", async () => {
+  // The procedure runs UPPER(LTRIM(RTRIM(@Action))) before it compares, so
+  // lowercase and padded actions have always worked. Validating the raw string
+  // would refuse callers the procedure accepts today -- a new restriction this
+  // branch has no reason to introduce -- so the service normalises first and
+  // sends the normalised value on.
+  const { service, calls } = await withUserService(acting(approvedTarget()));
+
+  const result = await service.approveRejectUser(superadmin, 1784, "  deactivate  ");
+
+  assert.equal(result.success, true);
+  assert.deepEqual(
+    calls.find((call) => call.name === "approveRejectUser").args,
+    [1784, "DEACTIVATE"],
+  );
 });
 
 test("only a superadmin may deactivate or reactivate", async () => {
@@ -93,10 +128,18 @@ test("a superadmin deactivates an approved account", async () => {
   );
 });
 
-test("only an approved account can be deactivated", async () => {
-  // A pending row and an already-revoked one both refuse here rather than at the
-  // procedure, so the caller gets the reason instead of Success = 0.
-  for (const IsActive of [false, 0, -1]) {
+test("only an approved account can be deactivated, and the refusal names the right action", async () => {
+  // These refuse here rather than at the procedure, so they must not be less
+  // useful than the procedure's own messages -- it answers "Pending users cannot
+  // be deactivated. Use REJECT." and intercepting it with something vaguer would
+  // be a downgrade.
+  const cases = [
+    [false, /reject it instead/i],
+    [0, /reject it instead/i],
+    [-1, /already inactive/i],
+  ];
+
+  for (const [IsActive, expected] of cases) {
     const { service } = await withUserService(acting(approvedTarget({ IsActive })));
 
     const error = await captureThrown(() =>
@@ -104,12 +147,19 @@ test("only an approved account can be deactivated", async () => {
     );
 
     assert.equal(error?.statusCode, 400, `IsActive ${JSON.stringify(IsActive)}`);
-    assert.match(error.message, /approved account can be deactivated/i);
+    assert.match(error.message, expected, `IsActive ${JSON.stringify(IsActive)}`);
   }
 });
 
-test("only a deactivated account can be reactivated", async () => {
-  for (const IsActive of [true, 1, false, 0]) {
+test("only a deactivated account can be reactivated, and the refusal names the right action", async () => {
+  const cases = [
+    [true, /already active/i],
+    [1, /already active/i],
+    [false, /approve it instead/i],
+    [0, /approve it instead/i],
+  ];
+
+  for (const [IsActive, expected] of cases) {
     const { service } = await withUserService(acting(approvedTarget({ IsActive })));
 
     const error = await captureThrown(() =>
@@ -117,7 +167,7 @@ test("only a deactivated account can be reactivated", async () => {
     );
 
     assert.equal(error?.statusCode, 400, `IsActive ${JSON.stringify(IsActive)}`);
-    assert.match(error.message, /deactivated account can be reactivated/i);
+    assert.match(error.message, expected, `IsActive ${JSON.stringify(IsActive)}`);
   }
 });
 
@@ -130,7 +180,10 @@ test("a rejected registration cannot be reactivated into an approved account", a
   // AgentCode is what tells them apart: it is minted on APPROVE and never
   // cleared, so it is a durable record of "approved at least once", which is the
   // question IsActive cannot answer.
-  for (const AgentCode of [null, undefined, ""]) {
+  //
+  // The check is `== null` rather than a falsy test because the column is BIGINT
+  // and 0 is a number it could hold.
+  for (const AgentCode of [null, undefined]) {
     const { service, calls } = await withUserService(
       acting(approvedTarget({ IsActive: -1, AgentCode })),
     );
