@@ -17,7 +17,6 @@ const login = async (user) => {
     {
       [USER_SERVICE]: {
         verifyOtp: async () => ({ user }),
-        findByUserCode: async () => ({ FullName: "Ana Reyes" }),
       },
     },
     AUTH_CONTROLLER,
@@ -125,9 +124,42 @@ test("the rest of the session is unchanged", async () => {
 
   assert.deepEqual(
     Object.keys(payload).filter((key) => key !== "iat" && key !== "exp").sort(),
-    ["AOCode", "BranchCode", "GroupCode", "Role", "UserCode", "UserId"],
+    ["BranchCode", "GroupCode", "Role", "UserCode", "UserId"],
   );
   assert.equal(payload.UserCode, "USR-GRH-0031");
   assert.equal(payload.Role, "GROUP_HEAD");
   assert.equal(payload.BranchCode, 255);
+});
+
+test("no AOCode is stamped into the token, even when the row carries one", async () => {
+  // AOCode was the last field frozen at login: the token lasts eight hours and a
+  // branch reassignment inside that window made the stamped value wrong. Every
+  // other field became a live read in PR #119. The fixture must carry an AOCode
+  // for this to bite -- jwt.sign drops undefined keys, so a row without one lets
+  // a revert to user.AOCode pass while proving nothing.
+  const { cookie } = await login(groupHead({ AOCode: "PHL-AO-1168" }));
+
+  assert.equal("AOCode" in payloadOf(cookie), false);
+});
+
+test("neither AOCode nor aoFullName survives in the login response", async () => {
+  // The value was a snapshot taken at registration, and its failure mode was that
+  // it was sometimes right: a Landbank account registered after its Account
+  // Officer got the branch carried the correct code, one registered before
+  // carried null for ever. GET /referrals/referrer resolves it live instead.
+  const { body } = await login(groupHead({ AOCode: "PHL-AO-1168" }));
+
+  assert.equal(body.success, true);
+  assert.equal("AOCode" in body.user, false);
+  assert.equal("aoFullName" in body.user, false);
+});
+
+test("the login response no longer reads the Account Officer's row", async () => {
+  // The AOCode lookup was the only caller of userService.findByUserCode. If a
+  // revert brings the call back, the stub set no longer defines it and this
+  // throws rather than silently costing a query on every login.
+  const { body, thrown } = await login(groupHead({ AOCode: "PHL-AO-1168" }));
+
+  assert.equal(thrown, null);
+  assert.equal(body.user.UserCode, "USR-GRH-0031");
 });

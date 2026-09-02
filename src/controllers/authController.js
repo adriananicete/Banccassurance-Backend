@@ -11,20 +11,12 @@ export const verifyOtp = async (req, res, next) => {
 
     const { user } = result
 
-    let aoFullName = null
-    if (user.AOCode) {
-      const accountOfficer = await userService.findByUserCode(user.AOCode)
-      aoFullName = accountOfficer ? accountOfficer.FullName : null
-    }
-
-
     const tokenPayload = {
       UserId: user.UserId,
       UserCode: user.UserCode,
       Role: user.Role,
       BranchCode: user.BranchCode,
-      GroupCode: user.GroupCode,
-      AOCode: user.AOCode
+      GroupCode: user.GroupCode
     }
 
     const token = jwt.sign(
@@ -50,8 +42,6 @@ export const verifyOtp = async (req, res, next) => {
         Photo: user.Photo,
         BranchCode: user.BranchCode,
         GroupCode: user.GroupCode,
-        AOCode: user.AOCode,
-        aoFullName: aoFullName,
         EmployeeNo: user.EmployeeNo,
       }
     })
