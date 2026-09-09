@@ -42,10 +42,7 @@ export const getExportRows = async (query, user) => {
   if (status !== null && !validStatus.includes(status))
     throwHttpError(400, "Invalid status value");
 
-  // The export defaults to everything in the caller's scope. The five presets
-  // are there to narrow it, so a bare download should not silently be one month.
-  // getSummary keeps thisMonth -- it feeds a screen that opens on load.
-  const period = resolvePeriod(query, new Date(), "allTime");
+  const period = resolvePeriod(query);
 
   const result = await reportModel
     .getReferralsForExport(user, {

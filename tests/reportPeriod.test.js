@@ -21,7 +21,7 @@ const midSeptember = new Date("2026-09-15T04:00:00.000Z");
 test("thisMonth runs from Manila midnight to Manila midnight", async () => {
   // The assertion the whole file exists for. Manila 2026-09-01 00:00 is
   // 2026-08-31 16:00 UTC -- the previous calendar day in UTC terms.
-  const period = resolvePeriod({}, midSeptember);
+  const period = resolvePeriod({ preset: "thisMonth" }, midSeptember);
 
   assert.equal(iso(period.from), "2026-08-31T16:00:00.000Z");
   assert.equal(iso(period.toExclusive), "2026-09-30T16:00:00.000Z");
@@ -32,7 +32,7 @@ test("a referral made at 07:30 on the first falls inside that month", async () =
   // September stores as 2026-08-31T23:30Z. A period starting at UTC midnight on
   // the 1st would miss it and file it in August; starting at Manila midnight
   // catches it.
-  const period = resolvePeriod({}, midSeptember);
+  const period = resolvePeriod({ preset: "thisMonth" }, midSeptember);
   const referral = new Date("2026-08-31T23:30:00.000Z");
 
   assert.ok(referral >= period.from, "the first eight hours of the month were lost");
@@ -40,7 +40,7 @@ test("a referral made at 07:30 on the first falls inside that month", async () =
 });
 
 test("the last instant of the month is inside and the next is not", async () => {
-  const period = resolvePeriod({}, midSeptember);
+  const period = resolvePeriod({ preset: "thisMonth" }, midSeptember);
 
   assert.ok(new Date("2026-09-30T15:59:59.999Z") < period.toExclusive);
   assert.ok(new Date("2026-09-30T16:00:00.000Z") >= period.toExclusive);
@@ -93,15 +93,21 @@ test("allTime reaches back past the first referral and up to now", async () => {
   assert.equal(iso(all.toExclusive), "2026-09-30T16:00:00.000Z");
 });
 
-test("the fallback is what the caller passes, and thisMonth when it passes nothing", async () => {
-  assert.equal(resolvePeriod({}, midSeptember, "allTime").preset, "allTime");
-  assert.equal(resolvePeriod({}, midSeptember).preset, "thisMonth");
+test("no preset means everything, on both endpoints", async () => {
+  assert.equal(resolvePeriod({}, midSeptember).preset, "allTime");
 });
 
-test("a bare export asks the database for everything, and a bare summary does not", async () => {
+test("an explicit preset still wins over the default", async () => {
+  const period = resolvePeriod({ preset: "thisMonth" }, midSeptember);
+
+  assert.equal(period.preset, "thisMonth");
+  assert.equal(iso(period.from), "2026-08-31T16:00:00.000Z");
+});
+
+test("a bare summary and a bare export both ask the database for everything", async () => {
   // The wiring, not the helper. resolvePeriod having an allTime branch proves
-  // nothing about which caller uses it -- reverting getExportRows to the default
-  // fallback passed every other test in this file.
+  // nothing about what the two services do with it -- when the export was the
+  // only one changed, reverting it passed every other test in this file.
   const { service, calls } = await withStubbedModules(
     {
       [REPORT_MODEL]: {
@@ -118,18 +124,23 @@ test("a bare export asks the database for everything, and a bare summary does no
   const exported = calls.find((c) => c.name === "getReferralsForExport").args[1];
   const summarised = calls.find((c) => c.name === "getReferralCounts").args[1];
 
-  assert.equal(exported.DateFrom.getUTCFullYear(), 1999, "the export was narrowed to a period");
-  assert.ok(
-    summarised.DateFrom.getUTCFullYear() >= 2026,
-    "the summary must not fetch all history on load",
-  );
+  assert.equal(exported.DateFrom.getUTCFullYear(), 1999, "the export was narrowed");
+  assert.equal(summarised.DateFrom.getUTCFullYear(), 1999, "the summary was narrowed");
 });
 
-test("an explicit preset still wins over the fallback", async () => {
-  const period = resolvePeriod({ preset: "thisMonth" }, midSeptember, "allTime");
+test("a period the caller did ask for still reaches the database", async () => {
+  // The non-vacuous half. A service that ignored the query entirely and always
+  // sent the floor would pass the test above.
+  const { service, calls } = await withStubbedModules(
+    { [REPORT_MODEL]: { getReferralCounts: rows() } },
+    REPORT_SERVICE,
+  );
 
-  assert.equal(period.preset, "thisMonth");
-  assert.equal(iso(period.from), "2026-08-31T16:00:00.000Z");
+  await service.getSummary({ groupBy: "AREA", preset: "thisMonth" }, USER);
+
+  const sent = calls.find((c) => c.name === "getReferralCounts").args[1];
+
+  assert.ok(sent.DateFrom.getUTCFullYear() >= 2026, "an explicit preset was ignored");
 });
 
 test("an all-time file is labelled by name rather than by its sentinel date", async () => {
@@ -138,7 +149,7 @@ test("an all-time file is labelled by name rather than by its sentinel date", as
   const all = resolvePeriod({ preset: "allTime" }, midSeptember);
 
   assert.equal(periodLabel(all), "all-time");
-  assert.match(periodLabel(resolvePeriod({}, midSeptember)), /^2026-09-01-to-2026-09-30$/);
+  assert.match(periodLabel(resolvePeriod({ preset: "thisMonth" }, midSeptember)), /^2026-09-01-to-2026-09-30$/);
 });
 
 test("annual is gone and is refused by name", async () => {
@@ -221,7 +232,7 @@ test("an unknown preset is refused and the message lists the real ones", async (
 test("the filename label reads as Manila days, not UTC ones", async () => {
   // The label is what the client sees on the downloaded file. Reading the
   // exclusive bound directly would name 30 September as 1 October.
-  const period = resolvePeriod({}, midSeptember);
+  const period = resolvePeriod({ preset: "thisMonth" }, midSeptember);
 
   assert.equal(periodLabel(period), "2026-09-01-to-2026-09-30");
 });

@@ -40,8 +40,11 @@ const parseDayOnly = (value, label) => {
 // before the first referral is the same answer without the question.
 const ALL_TIME_FLOOR = manilaMidnight(2000, 0, 1);
 
-export const resolvePeriod = (query = {}, now = new Date(), fallback = "thisMonth") => {
-  const preset = query.preset ?? fallback;
+// Both report endpoints default to everything. A summary that defaults to one
+// month mislabels itself -- somebody opening the screen reads the numbers as
+// totals -- and the presets exist to narrow either of them.
+export const resolvePeriod = (query = {}, now = new Date()) => {
+  const preset = query.preset ?? "allTime";
 
   if (!reportPresets.includes(preset))
     throwHttpError(400, `Invalid preset. Allowed values: ${reportPresets.join(", ")}`);
