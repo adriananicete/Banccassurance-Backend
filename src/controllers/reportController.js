@@ -34,7 +34,11 @@ export const exportReferrals = async (req, res, next) => {
       `attachment; filename="referrals-${periodLabel(period)}.xlsx"`,
     );
 
-    await reportService.writeReferralWorkbook(rows, res);
+    await reportService.writeReferralWorkbook(rows, res, {
+      role: req.user.Role,
+      period,
+      generatedAt: new Date(),
+    });
   } catch (error) {
     next(error);
   }
