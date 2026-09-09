@@ -291,6 +291,8 @@ export const confirmConsentRequest = async (token) => {
 };
 
 export const checkConsent = async (email) => {
+  if (!email || !isValidEmail(email)) throwHttpError(400, 'Invalid Email')
+
   const result = await referralModel.checkConsent(email).run();
   if (result.recordset.length === 0) return "PENDING";
 
