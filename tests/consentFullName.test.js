@@ -18,6 +18,7 @@ const withConsent = () =>
       [REFERRAL_MODEL]: {
         insertConsentRequest: () => ({ run: async () => ({ rowsAffected: [1] }) }),
         getConsentRequestByToken: rows({ Status: "PENDING", ConsumedAt: null }),
+        checkConsent: rows({ Status: "PENDING" }),
       },
       [USER_MODEL]: { getBranchScope: rows({ BranchName: "Makati" }) },
       [EMAIL_SERVICE]: { sendConsentEmail: async () => {} },

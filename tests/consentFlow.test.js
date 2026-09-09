@@ -24,6 +24,7 @@ const withConsent = (overrides = {}, emailOverrides = {}) =>
       [REFERRAL_MODEL]: {
         insertConsentRequest: affected(1),
         getConsentRequestByToken: rows({ Status: "PENDING", ConsumedAt: null }),
+        checkConsent: rows({ Status: "PENDING" }),
         uploadConsentFile: affected(1),
         ...overrides,
       },

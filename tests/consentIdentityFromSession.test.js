@@ -43,6 +43,7 @@ const withConsent = (branchRow = { BranchName: "Pasig Capitol" }) =>
     {
       [REFERRAL_MODEL]: {
         insertConsentRequest: () => ({ run: async () => ({ rowsAffected: [1] }) }),
+        checkConsent: rows({ Status: "PENDING" }),
       },
       [USER_MODEL]: {
         getBranchScope: branchRow === null ? rows() : rows(branchRow),

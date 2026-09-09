@@ -221,6 +221,14 @@ const resolveConsentIdentity = async (user) => {
 export const sendConsent = async (email, token, name, fullName, user) => {
   if(!email || !isValidEmail(email)) throwHttpError(400, 'Invalid Email')
 
+  const existing = await checkConsent(email);
+
+  if (validConsentStatus.includes(existing))
+    throwHttpError(
+      409,
+      `This client has already given consent. Create the referral instead — sending another request would cancel the consent you already have.`,
+    );
+
   const { referrerName, branchName } = await resolveConsentIdentity(user);
 
   await referralModel.insertConsentRequest(email, token).run();
