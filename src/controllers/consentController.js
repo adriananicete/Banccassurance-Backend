@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 import * as referralService from "../services/referralService.js";
 import { consentConfirmedTemplate } from "../templates/consentConfirmedTemplate.js";
-import { consentInvalidTemplate } from "../templates/consentInvalidTemplate.js";
+import { consentInvalidTemplate, supersededReason } from "../templates/consentInvalidTemplate.js";
 import { consentFormTemplate } from "../templates/consentFormTemplate.js";
-import { validConsentStatus } from "../utils/constant.js";
+import { SUPERSEDED, validConsentStatus } from "../utils/constant.js";
 
 export const sendConsent = async (req, res, next) => {
   try {
@@ -28,6 +28,9 @@ export const confirmConsent = async (req, res) => {
     const { token, name, branchName, referrerName, fullName } = req.query;
 
     const consent = await referralService.validateConsentToken(token)
+
+    if (consent.Status === SUPERSEDED)
+      return res.status(410).send(consentInvalidTemplate(supersededReason))
 
     if (validConsentStatus.includes(consent.Status))
       return res.send(consentConfirmedTemplate(null, { name, branchName, referrerName }))
@@ -85,6 +88,9 @@ export const confirmConsentPost = async (req, res) => {
     res.send(consentConfirmedTemplate(null, { name, branchName, referrerName }))
   } catch (error) {
     console.error("❌ Confirm Consent Error:", error);
+
+    if (error.statusCode === 410)
+      return res.status(410).send(consentInvalidTemplate(supersededReason));
 
     res.status(400).send(consentInvalidTemplate());
   }

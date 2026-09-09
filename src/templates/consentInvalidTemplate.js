@@ -1,4 +1,18 @@
-export const consentInvalidTemplate = () => `
+import { escapeHtml } from '../utils/validators.js'
+
+const invalidReason = {
+  heading: 'Invalid or Expired Link',
+  body: 'The consent confirmation link is no longer valid or has already been used.',
+  advice: 'Please contact your branch representative for assistance.',
+}
+
+export const supersededReason = {
+  heading: 'This Link Has Been Replaced',
+  body: 'A newer consent request was sent to this email address, so this link is no longer active.',
+  advice: 'Please open the most recent consent email and use the link there.',
+}
+
+export const consentInvalidTemplate = (reason = invalidReason) => `
       <!DOCTYPE html>
       <html>
       <head>
@@ -41,12 +55,12 @@ export const consentInvalidTemplate = () => `
       <body>
         <div class="card">
           <div class="icon">❌</div>
-          <h2>Invalid or Expired Link</h2>
+          <h2>${escapeHtml(reason.heading)}</h2>
           <p>
-            The consent confirmation link is no longer valid or has already been used.
+            ${escapeHtml(reason.body)}
           </p>
           <p>
-            Please contact your branch representative for assistance.
+            ${escapeHtml(reason.advice)}
           </p>
         </div>
       </body>

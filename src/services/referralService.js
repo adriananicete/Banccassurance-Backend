@@ -14,6 +14,7 @@ import {
   referralCreatorRoles,
   SECTOR_HEAD,
   statusTransitions,
+  SUPERSEDED,
   validConsentStatus,
   validStatus,
 } from "../utils/constant.js";
@@ -281,13 +282,20 @@ export const confirmConsentRequest = async (token) => {
   if(confirmConsent.rowsAffected[0] > 0) return;
 
   const existing = await validateConsentToken(token);
+
+  if(existing.Status === SUPERSEDED)
+    throwHttpError(410, 'This consent request was replaced by a newer one.')
+
   if(!validConsentStatus.includes(existing.Status))
     throwHttpError(404, `This consent request is ${existing.Status} and cannot be confirmed.`)
 };
 
 export const checkConsent = async (email) => {
   const result = await referralModel.checkConsent(email).run();
-  return result.recordset.length > 0 ? result.recordset[0].Status : "PENDING";
+  if (result.recordset.length === 0) return "PENDING";
+
+  const status = result.recordset[0].Status;
+  return status === SUPERSEDED ? "PENDING" : status;
 };
 
 export const getReferralsByRole = async (user, pagination) => {
