@@ -184,6 +184,51 @@ export const getUserScopeById = (userId) => {
   };
 };
 
+export const getUserScopeByCode = (userCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, asText(userCode));
+  return {
+    request,
+    run: () =>
+      request.query(
+        `SELECT UserId, UserCode, IsActive, Role, BranchCode, GroupCode,
+                COALESCE(FullName, FirstName + ' ' + LastName) AS FullName
+         FROM banc.Users WHERE UserCode = @UserCode`,
+      ),
+  };
+};
+
+export const isBranchInAccountOfficerScope = (userCode, branchCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, asText(userCode));
+  request.input("BranchCode", sql.Int, asInt(branchCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+        SELECT 1 AS InScope
+        FROM banc.account_officer_branches
+        WHERE UserCode = @UserCode AND BranchCode = @BranchCode
+      `),
+  };
+};
+
+export const shareAGroupAshRsh = (ashUserCode, rshUserCode) => {
+  const request = new sql.Request();
+  request.input("AshUserCode", sql.NVarChar, asText(ashUserCode));
+  request.input("RshUserCode", sql.NVarChar, asText(rshUserCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+        SELECT TOP 1 1 AS InScope
+        FROM banc.area_sales_head_areas a
+        INNER JOIN banc.regional_sales_head_areas r ON r.GroupCode = a.GroupCode
+        WHERE a.UserCode = @AshUserCode AND r.UserCode = @RshUserCode
+      `),
+  };
+};
+
 export const getSuperadmins = () => {
   const request = new sql.Request();
   return {
