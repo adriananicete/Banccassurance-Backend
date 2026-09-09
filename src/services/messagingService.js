@@ -1,5 +1,6 @@
 import * as userModel from "../models/userModel.js";
 import * as messagingModel from "../models/messagingModel.js";
+import { deliver } from "../realtime/socketServer.js";
 import { throwHttpError } from "../utils/error.js";
 import {
   ACCOUNT_OFFICER,
@@ -199,7 +200,26 @@ export const sendMessage = async (user, conversationId, body) => {
     .insertMessage(conversationId, user.UserCode, text)
     .run();
 
-  return written.recordset[0];
+  const message = written.recordset[0];
+  const recipient = other.recordset[0].UserCode;
+
+  // The message is stored. Everything below is delivery, and delivery must
+  // never fail a send that has already succeeded -- the rule safeNotify follows
+  // next door, for the same reason.
+  let delivered = false;
+
+  try {
+    delivered = deliver(recipient, "message:new", { conversationId, message });
+
+    // "Delivered" means it reached them, so only a live connection sets the
+    // watermark. Offline leaves it, and the sender sees "sent" until the
+    // recipient comes back.
+    if (delivered) await messagingModel.markDelivered(conversationId, recipient).run();
+  } catch (error) {
+    console.error(`delivery for message ${message.Id} failed:`, error);
+  }
+
+  return { ...message, Delivered: delivered };
 };
 
 export const markConversationRead = async (user, conversationId) => {
