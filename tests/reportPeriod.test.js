@@ -46,14 +46,44 @@ test("the presets count the current month as one of the N", async () => {
   // share an implementation.
   const three = resolvePeriod({ preset: "3months" }, midSeptember);
   const six = resolvePeriod({ preset: "6months" }, midSeptember);
-  const year = resolvePeriod({ preset: "annual" }, midSeptember);
 
   assert.equal(iso(three.from), "2026-06-30T16:00:00.000Z");
   assert.equal(iso(six.from), "2026-03-31T16:00:00.000Z");
-  assert.equal(iso(year.from), "2025-09-30T16:00:00.000Z");
 
-  for (const period of [three, six, year])
+  for (const period of [three, six])
     assert.equal(iso(period.toExclusive), "2026-09-30T16:00:00.000Z");
+});
+
+test("thisYear starts on 1 January, not twelve months ago", async () => {
+  // This replaced `annual` on 2026-09-09, and the difference is the whole point.
+  // `annual` counted back twelve months like the other presets, so in September
+  // it ran from the previous October -- which is not what anybody means when
+  // they ask what this year's referrals are. A rolling twelve months is what
+  // `custom` is for.
+  const year = resolvePeriod({ preset: "thisYear" }, midSeptember);
+
+  assert.equal(iso(year.from), "2025-12-31T16:00:00.000Z");
+  assert.equal(iso(year.toExclusive), "2026-09-30T16:00:00.000Z");
+});
+
+test("thisYear in January is one month long, not empty and not a year", async () => {
+  // The edge that would be got wrong: on 3 January the year so far is January,
+  // and the period has to be a real range rather than a zero-width one.
+  const january = new Date("2026-01-03T04:00:00.000Z");
+  const year = resolvePeriod({ preset: "thisYear" }, january);
+
+  assert.equal(iso(year.from), "2025-12-31T16:00:00.000Z");
+  assert.equal(iso(year.toExclusive), "2026-01-31T16:00:00.000Z");
+  assert.ok(year.from < year.toExclusive);
+});
+
+test("annual is gone and is refused by name", async () => {
+  // A stale caller must be told, not quietly given a different period. The
+  // message lists what is allowed.
+  const error = await captureThrown(() => resolvePeriod({ preset: "annual" }));
+
+  assert.equal(error?.statusCode, 400);
+  assert.match(error.message, /thisYear/);
 });
 
 test("a preset spanning a year boundary rolls the year", async () => {

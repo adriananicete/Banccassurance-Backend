@@ -19,7 +19,6 @@ const monthsBack = {
   thisMonth: 1,
   "3months": 3,
   "6months": 6,
-  annual: 12,
 };
 
 const parseDayOnly = (value, label) => {
@@ -58,8 +57,12 @@ export const resolvePeriod = (query = {}, now = new Date()) => {
   }
 
   const today = manilaCalendarDate(now);
-  const start = manilaMidnight(today.year, today.month - (monthsBack[preset] - 1), 1);
   const end = manilaMidnight(today.year, today.month + 1, 1);
+
+  const start =
+    preset === "thisYear"
+      ? manilaMidnight(today.year, 0, 1)
+      : manilaMidnight(today.year, today.month - (monthsBack[preset] - 1), 1);
 
   return { preset, from: start, toExclusive: end };
 };
