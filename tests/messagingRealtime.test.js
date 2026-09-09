@@ -230,3 +230,51 @@ test("the message goes to the other participant, never back to the sender", asyn
   assert.equal(seen[0].event, "message:new");
   assert.equal(seen[0].payload.conversationId, 12);
 });
+
+// ------------------------------------------------------------ the seen tick
+
+const withMarkRead = (deliverImpl) =>
+  withStubbedModules(
+    {
+      [MESSAGING_MODEL]: {
+        getParticipation: rows({ ConversationId: 12, UserCode: OFFICER.UserCode }),
+        getOtherParticipant: rows({ UserCode: STAFF.UserCode }),
+        markRead: () => ({ run: async () => ({ rowsAffected: [1] }) }),
+      },
+      [SOCKET_SERVER]: { deliver: deliverImpl },
+    },
+    MESSAGING,
+  );
+
+test("⭐ the seen tick reaches the sender, and only the sender", async () => {
+  // Without this the sender's window says "delivered" until something else
+  // makes it re-read -- the tick would land on a refresh rather than when the
+  // recipient actually opened the thread.
+  const seen = [];
+  const { service } = await withMarkRead((userCode, event, payload) => {
+    seen.push({ userCode, event, payload });
+    return true;
+  });
+
+  await service.markConversationRead(OFFICER, 12);
+
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0].userCode, STAFF.UserCode, "never back to the reader");
+  assert.equal(seen[0].event, "message:read");
+  assert.equal(seen[0].payload.conversationId, 12);
+  assert.equal(seen[0].payload.readerUserCode, OFFICER.UserCode);
+});
+
+test("⭐ a receipt that fails to deliver does not fail the read that was recorded", async () => {
+  // markRead has already written both watermarks. Letting a socket failure
+  // reach the caller would leave the reader's own badge stuck on a number the
+  // database says is zero.
+  const { service, calls } = await withMarkRead(() => {
+    throw new Error("socket server is down");
+  });
+
+  const result = await service.markConversationRead(OFFICER, 12);
+
+  assert.equal(result.success, true);
+  assert.ok(calls.find((c) => c.name === "markRead"), "the write still happened");
+});

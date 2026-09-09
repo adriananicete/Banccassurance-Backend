@@ -174,6 +174,53 @@ test("reading a conversation you are not in is a 404", async () => {
   assert.equal(calls.some((c) => c.name === "listMessages"), false);
 });
 
+test("⭐ reading carries the other side's two watermarks, not the caller's", async () => {
+  // Sent, delivered and seen are the OTHER person's timestamps -- your own say
+  // nothing about your outgoing messages. Returning the caller's row here would
+  // render every message you sent as seen the moment you opened the thread.
+  const { service } = await withSend({
+    getOtherParticipant: rows({
+      UserCode: OFFICER.UserCode,
+      LastDeliveredAt: new Date("2026-09-09T03:05:00.000Z"),
+      LastReadAt: new Date("2026-09-09T03:04:00.000Z"),
+    }),
+  });
+
+  const result = await service.readConversation(STAFF, 12, { PageNumber: 1, PageSize: 20 });
+
+  assert.equal(result.receipts.userCode, OFFICER.UserCode);
+  assert.equal(result.receipts.lastDeliveredAt.toISOString(), "2026-09-09T03:05:00.000Z");
+  assert.equal(result.receipts.lastReadAt.toISOString(), "2026-09-09T03:04:00.000Z");
+});
+
+test("a side that has never opened the conversation reports nulls, not missing keys", async () => {
+  // ⚠️ A missing key and a null read the same in JavaScript and differently in
+  // a template. Both watermarks are always present so the three states are
+  // decidable from the response alone.
+  const { service } = await withSend({
+    getOtherParticipant: rows({ UserCode: OFFICER.UserCode }),
+  });
+
+  const result = await service.readConversation(STAFF, 12, { PageNumber: 1, PageSize: 20 });
+
+  assert.deepEqual(result.receipts, {
+    userCode: OFFICER.UserCode,
+    lastDeliveredAt: null,
+    lastReadAt: null,
+  });
+});
+
+test("a conversation with nobody else in it reads with null receipts rather than throwing", async () => {
+  // Sending refuses this with a 409. Reading must not -- the history is still
+  // the caller's, and a crash on the read would hide it.
+  const { service } = await withSend({ getOtherParticipant: rows() });
+
+  const result = await service.readConversation(STAFF, 12, { PageNumber: 1, PageSize: 20 });
+
+  assert.equal(result.receipts, null);
+  assert.deepEqual(result.data, []);
+});
+
 // ------------------------------------------------------- the watermarks
 
 test("⭐ marking read sets delivered as well, in one statement", async () => {

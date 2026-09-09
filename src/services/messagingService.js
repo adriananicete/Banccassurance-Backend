@@ -159,16 +159,31 @@ const loadConversation = async (user, conversationId) => {
   return mine.recordset[0];
 };
 
+// Sent, delivered and seen are three states out of two timestamps, and they are
+// the OTHER side's. A message is delivered when their LastDeliveredAt has
+// reached its CreatedAt and seen when their LastReadAt has -- so the whole
+// receipt for a page of messages is two values, not a column per row.
+const receiptsFor = (row) =>
+  row
+    ? {
+        userCode: row.UserCode,
+        lastDeliveredAt: row.LastDeliveredAt ?? null,
+        lastReadAt: row.LastReadAt ?? null,
+      }
+    : null;
+
 export const readConversation = async (user, conversationId, options) => {
   await loadConversation(user, conversationId);
 
   const result = await messagingModel.listMessages(conversationId, options).run();
+  const other = await messagingModel.getOtherParticipant(conversationId, user.UserCode).run();
 
   const totalCount = result.recordset[0]?.TotalCount ?? 0;
   const rows = result.recordset.map(({ TotalCount, ...rest }) => rest);
 
   return {
     data: rows,
+    receipts: receiptsFor(other.recordset[0]),
     pagination: {
       page: options.PageNumber,
       pageSize: options.PageSize,
@@ -226,6 +241,25 @@ export const markConversationRead = async (user, conversationId) => {
   await loadConversation(user, conversationId);
 
   await messagingModel.markRead(conversationId, user.UserCode).run();
+
+  // The sender is the one who needs to know, and only they. Without this their
+  // window says "delivered" until something else makes them re-read -- the tick
+  // would land on a refresh rather than when it happened.
+  try {
+    const other = await messagingModel.getOtherParticipant(conversationId, user.UserCode).run();
+    const sender = other.recordset[0]?.UserCode;
+
+    if (sender)
+      deliver(sender, "message:read", {
+        conversationId,
+        readerUserCode: user.UserCode,
+        readAt: new Date().toISOString(),
+      });
+  } catch (error) {
+    // Read is recorded either way. Telling the other side is delivery, and
+    // delivery never fails a write that has already succeeded.
+    console.error(`read receipt for conversation ${conversationId} failed:`, error);
+  }
 
   return { success: true, message: "Conversation marked as read." };
 };

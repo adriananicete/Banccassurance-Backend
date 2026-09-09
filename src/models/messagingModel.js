@@ -225,6 +225,10 @@ export const unreadCount = (userCode) => {
   };
 };
 
+// The other side's two watermarks come back with the user code, because every
+// caller that wants one wants the other: sending needs the code to check
+// permission and to deliver, reading needs the timestamps to render sent,
+// delivered or seen. One seek answers both.
 export const getOtherParticipant = (conversationId, userCode) => {
   const request = new sql.Request();
   request.input("ConversationId", sql.BigInt, asInt(conversationId));
@@ -233,7 +237,7 @@ export const getOtherParticipant = (conversationId, userCode) => {
     request,
     run: () =>
       request.query(`
-        SELECT TOP 1 UserCode
+        SELECT TOP 1 UserCode, LastDeliveredAt, LastReadAt
         FROM banc.conversation_participants
         WHERE ConversationId = @ConversationId AND UserCode <> @UserCode
       `),
