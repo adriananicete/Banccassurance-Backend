@@ -2,6 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { resolvePeriod, periodLabel } from "../src/utils/reportPeriod.js";
 import { captureThrown } from "./helpers/userService.js";
+import { withStubbedModules, rows } from "./helpers/stubModel.js";
+
+const REPORT_MODEL = "../../src/models/reportModel.js";
+const REPORT_SERVICE = "../../src/services/reportService.js";
+
+const USER = { UserCode: "USR-BRH-00001", Role: "BRANCH_HEAD", BranchCode: 3, GroupCode: 1 };
 
 // Referrals.CreatedAt is UTC and the users are in Manila, UTC+8 with no daylight
 // saving. A report period is a run of Manila days, so every boundary here is a
@@ -75,6 +81,64 @@ test("thisYear in January is one month long, not empty and not a year", async ()
   assert.equal(iso(year.from), "2025-12-31T16:00:00.000Z");
   assert.equal(iso(year.toExclusive), "2026-01-31T16:00:00.000Z");
   assert.ok(year.from < year.toExclusive);
+});
+
+test("allTime reaches back past the first referral and up to now", async () => {
+  // The floor is a sentinel rather than an open bound: the procedure takes a
+  // range and we have never been told it accepts a NULL DateFrom. Twenty-six
+  // years before the first referral is the same answer without the question.
+  const all = resolvePeriod({ preset: "allTime" }, midSeptember);
+
+  assert.equal(iso(all.from), "1999-12-31T16:00:00.000Z");
+  assert.equal(iso(all.toExclusive), "2026-09-30T16:00:00.000Z");
+});
+
+test("the fallback is what the caller passes, and thisMonth when it passes nothing", async () => {
+  assert.equal(resolvePeriod({}, midSeptember, "allTime").preset, "allTime");
+  assert.equal(resolvePeriod({}, midSeptember).preset, "thisMonth");
+});
+
+test("a bare export asks the database for everything, and a bare summary does not", async () => {
+  // The wiring, not the helper. resolvePeriod having an allTime branch proves
+  // nothing about which caller uses it -- reverting getExportRows to the default
+  // fallback passed every other test in this file.
+  const { service, calls } = await withStubbedModules(
+    {
+      [REPORT_MODEL]: {
+        getReferralsForExport: rows(),
+        getReferralCounts: rows(),
+      },
+    },
+    REPORT_SERVICE,
+  );
+
+  await service.getExportRows({}, USER);
+  await service.getSummary({ groupBy: "AREA" }, USER);
+
+  const exported = calls.find((c) => c.name === "getReferralsForExport").args[1];
+  const summarised = calls.find((c) => c.name === "getReferralCounts").args[1];
+
+  assert.equal(exported.DateFrom.getUTCFullYear(), 1999, "the export was narrowed to a period");
+  assert.ok(
+    summarised.DateFrom.getUTCFullYear() >= 2026,
+    "the summary must not fetch all history on load",
+  );
+});
+
+test("an explicit preset still wins over the fallback", async () => {
+  const period = resolvePeriod({ preset: "thisMonth" }, midSeptember, "allTime");
+
+  assert.equal(period.preset, "thisMonth");
+  assert.equal(iso(period.from), "2026-08-31T16:00:00.000Z");
+});
+
+test("an all-time file is labelled by name rather than by its sentinel date", async () => {
+  // periodLabel names the file and the report header. "1999-12-31-to-..." would
+  // read as a data error on a page somebody prints.
+  const all = resolvePeriod({ preset: "allTime" }, midSeptember);
+
+  assert.equal(periodLabel(all), "all-time");
+  assert.match(periodLabel(resolvePeriod({}, midSeptember)), /^2026-09-01-to-2026-09-30$/);
 });
 
 test("annual is gone and is refused by name", async () => {

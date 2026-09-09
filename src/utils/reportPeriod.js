@@ -35,8 +35,13 @@ const parseDayOnly = (value, label) => {
   return { year, month: month - 1, day };
 };
 
-export const resolvePeriod = (query = {}, now = new Date()) => {
-  const preset = query.preset ?? "thisMonth";
+// allTime needs a lower bound because the procedure takes a range, and we have
+// never been told whether it accepts a NULL DateFrom. A floor twenty-six years
+// before the first referral is the same answer without the question.
+const ALL_TIME_FLOOR = manilaMidnight(2000, 0, 1);
+
+export const resolvePeriod = (query = {}, now = new Date(), fallback = "thisMonth") => {
+  const preset = query.preset ?? fallback;
 
   if (!reportPresets.includes(preset))
     throwHttpError(400, `Invalid preset. Allowed values: ${reportPresets.join(", ")}`);
@@ -59,6 +64,9 @@ export const resolvePeriod = (query = {}, now = new Date()) => {
   const today = manilaCalendarDate(now);
   const end = manilaMidnight(today.year, today.month + 1, 1);
 
+  if (preset === "allTime")
+    return { preset, from: ALL_TIME_FLOOR, toExclusive: end };
+
   const start =
     preset === "thisYear"
       ? manilaMidnight(today.year, 0, 1)
@@ -70,7 +78,9 @@ export const resolvePeriod = (query = {}, now = new Date()) => {
 export const asManilaWallTime = (value) =>
   value instanceof Date ? new Date(value.getTime() + MANILA_OFFSET_MS) : value;
 
-export const periodLabel = ({ from, toExclusive }) => {
+export const periodLabel = ({ preset, from, toExclusive }) => {
+  if (preset === "allTime") return "all-time";
+
   const first = manilaCalendarDate(from);
   const last = manilaCalendarDate(new Date(toExclusive.getTime() - 1));
   const pad = (n) => String(n).padStart(2, "0");
