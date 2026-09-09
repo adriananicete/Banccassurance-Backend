@@ -14,7 +14,7 @@ export const sortWhitelist = ["Name", "Email", "ConsentStatus", "Status", "Creat
 export const sortDirections = ["ASC", "DESC"];
 
 export const reportGroupBy = ["REGION", "AREA", "BRANCH", "AO"];
-export const reportPresets = ["thisMonth", "3months", "6months", "annual", "custom"];
+export const reportPresets = ["allTime", "thisMonth", "3months", "6months", "thisYear", "custom"];
 export const verifiedMap = {
   verified: 1,
   "not-verified": 0

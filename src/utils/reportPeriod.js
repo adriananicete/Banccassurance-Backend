@@ -19,7 +19,6 @@ const monthsBack = {
   thisMonth: 1,
   "3months": 3,
   "6months": 6,
-  annual: 12,
 };
 
 const parseDayOnly = (value, label) => {
@@ -36,8 +35,16 @@ const parseDayOnly = (value, label) => {
   return { year, month: month - 1, day };
 };
 
+// allTime needs a lower bound because the procedure takes a range, and we have
+// never been told whether it accepts a NULL DateFrom. A floor twenty-six years
+// before the first referral is the same answer without the question.
+const ALL_TIME_FLOOR = manilaMidnight(2000, 0, 1);
+
+// Both report endpoints default to everything. A summary that defaults to one
+// month mislabels itself -- somebody opening the screen reads the numbers as
+// totals -- and the presets exist to narrow either of them.
 export const resolvePeriod = (query = {}, now = new Date()) => {
-  const preset = query.preset ?? "thisMonth";
+  const preset = query.preset ?? "allTime";
 
   if (!reportPresets.includes(preset))
     throwHttpError(400, `Invalid preset. Allowed values: ${reportPresets.join(", ")}`);
@@ -58,8 +65,15 @@ export const resolvePeriod = (query = {}, now = new Date()) => {
   }
 
   const today = manilaCalendarDate(now);
-  const start = manilaMidnight(today.year, today.month - (monthsBack[preset] - 1), 1);
   const end = manilaMidnight(today.year, today.month + 1, 1);
+
+  if (preset === "allTime")
+    return { preset, from: ALL_TIME_FLOOR, toExclusive: end };
+
+  const start =
+    preset === "thisYear"
+      ? manilaMidnight(today.year, 0, 1)
+      : manilaMidnight(today.year, today.month - (monthsBack[preset] - 1), 1);
 
   return { preset, from: start, toExclusive: end };
 };
@@ -67,7 +81,9 @@ export const resolvePeriod = (query = {}, now = new Date()) => {
 export const asManilaWallTime = (value) =>
   value instanceof Date ? new Date(value.getTime() + MANILA_OFFSET_MS) : value;
 
-export const periodLabel = ({ from, toExclusive }) => {
+export const periodLabel = ({ preset, from, toExclusive }) => {
+  if (preset === "allTime") return "all-time";
+
   const first = manilaCalendarDate(from);
   const last = manilaCalendarDate(new Date(toExclusive.getTime() - 1));
   const pad = (n) => String(n).padStart(2, "0");
