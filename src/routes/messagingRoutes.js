@@ -2,22 +2,35 @@ import express from 'express'
 import {
   canMessage,
   listConversations,
+  markRead,
   openConversation,
+  readConversation,
+  sendMessage,
+  unreadCount,
 } from '../controllers/messagingController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
+import { messageLimiter } from '../middleware/rateLimiter.js'
 import { messagingRoles } from '../utils/constant.js'
 
 const router = express.Router()
 
-// The route refuses the three roles with no messaging, so they get a 403 rather
-// than an empty answer. The service checks the same list again -- the route
-// cannot see who the target is, and the rule belongs with the rule.
-router.get('/can/:userCode', requireAuth, requireRole(...messagingRoles), canMessage)
+const mayMessage = [requireAuth, requireRole(...messagingRoles)]
 
-// /conversations sits above nothing that could swallow it today, but the
-// referral and user routers have both been bitten by a static path declared
-// below a /:id one. Keep the static paths first as a habit.
-router.get('/conversations', requireAuth, requireRole(...messagingRoles), listConversations)
-router.post('/conversations', requireAuth, requireRole(...messagingRoles), openConversation)
+// ⚠️ Every static path sits above the first /:id one. referralRoutes and
+// userRoutes have both been bitten by this: a static path declared below a
+// param route is swallowed rather than 404, and surfaces as a 400 about a
+// malformed id, which sends a frontend developer looking in their own code.
+router.get('/can/:userCode', ...mayMessage, canMessage)
+router.get('/unread-count', ...mayMessage, unreadCount)
+router.get('/conversations', ...mayMessage, listConversations)
+router.post('/conversations', ...mayMessage, openConversation)
+
+router.get('/conversations/:id', ...mayMessage, readConversation)
+router.put('/conversations/:id/read', ...mayMessage, markRead)
+
+// ⚠️ messageLimiter must stay below requireAuth. keyByUser reads req.user, and
+// above requireAuth there is none -- it degrades to per-IP silently, which is
+// the behaviour the per-user limiters exist to remove.
+router.post('/conversations/:id', ...mayMessage, messageLimiter, sendMessage)
 
 export default router

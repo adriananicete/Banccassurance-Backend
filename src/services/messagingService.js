@@ -145,6 +145,77 @@ export const openDirectConversation = async (user, targetUserCode) => {
   return { conversation: created.recordset[0], created: true };
 };
 
+const MAX_BODY = 4000;
+
+// Membership is stored; permission is live. You are in the conversation because
+// you were added, and you may post because the rule still holds -- so an
+// Account Officer moved off a branch keeps the history and loses the reply box.
+const loadConversation = async (user, conversationId) => {
+  const mine = await messagingModel.getParticipation(conversationId, user.UserCode).run();
+
+  if (mine.recordset.length === 0) throwHttpError(404, "Conversation not found.");
+
+  return mine.recordset[0];
+};
+
+export const readConversation = async (user, conversationId, options) => {
+  await loadConversation(user, conversationId);
+
+  const result = await messagingModel.listMessages(conversationId, options).run();
+
+  const totalCount = result.recordset[0]?.TotalCount ?? 0;
+  const rows = result.recordset.map(({ TotalCount, ...rest }) => rest);
+
+  return {
+    data: rows,
+    pagination: {
+      page: options.PageNumber,
+      pageSize: options.PageSize,
+      totalCount,
+      totalPages: Math.ceil(totalCount / options.PageSize),
+    },
+  };
+};
+
+export const sendMessage = async (user, conversationId, body) => {
+  const text = typeof body === "string" ? body.trim() : "";
+
+  if (!text) throwHttpError(400, "A message cannot be empty.");
+  if (text.length > MAX_BODY)
+    throwHttpError(400, `A message cannot be longer than ${MAX_BODY} characters.`);
+
+  await loadConversation(user, conversationId);
+
+  const other = await messagingModel.getOtherParticipant(conversationId, user.UserCode).run();
+
+  if (other.recordset.length === 0)
+    throwHttpError(409, "This conversation has nobody else in it.");
+
+  // Re-checked on every send, never cached onto the row. This is the half that
+  // makes a conversation readable but not replyable after a scope change.
+  await assertCanMessage(user, other.recordset[0].UserCode);
+
+  const written = await messagingModel
+    .insertMessage(conversationId, user.UserCode, text)
+    .run();
+
+  return written.recordset[0];
+};
+
+export const markConversationRead = async (user, conversationId) => {
+  await loadConversation(user, conversationId);
+
+  await messagingModel.markRead(conversationId, user.UserCode).run();
+
+  return { success: true, message: "Conversation marked as read." };
+};
+
+export const getUnreadCount = async (user) => {
+  const result = await messagingModel.unreadCount(user.UserCode).run();
+
+  return { total: result.recordset[0]?.Total ?? 0 };
+};
+
 export const listConversations = async (user, options) => {
   const result = await messagingModel.listForUser(user.UserCode, options).run();
 

@@ -128,6 +128,103 @@ export const getParticipation = (conversationId, userCode) => {
   };
 };
 
+export const insertMessage = (conversationId, senderUserCode, body) => {
+  const request = new sql.Request();
+  request.input("ConversationId", sql.BigInt, asInt(conversationId));
+  request.input("SenderUserCode", sql.NVarChar, asText(senderUserCode));
+  request.input("Body", sql.NVarChar, asText(body));
+  return {
+    request,
+    run: () =>
+      request.query(`
+        INSERT INTO banc.messages (ConversationId, SenderUserCode, Body)
+        OUTPUT INSERTED.Id, INSERTED.ConversationId, INSERTED.SenderUserCode,
+               INSERTED.Body, INSERTED.CreatedAt
+        VALUES (@ConversationId, @SenderUserCode, @Body)
+      `),
+  };
+};
+
+// Newest first, and the ORDER BY carries Id as well as CreatedAt. Two messages
+// can share a DATETIME2, and a paged read with an unstable sort repeats or
+// skips a row at the page boundary. IX_messages_Conversation_CreatedAt is
+// ascending and SQL Server scans it backwards for this.
+export const listMessages = (conversationId, options) => {
+  const request = new sql.Request();
+  request.input("ConversationId", sql.BigInt, asInt(conversationId));
+  request.input("PageNumber", sql.Int, asInt(options.PageNumber) ?? 1);
+  request.input("PageSize", sql.Int, asInt(options.PageSize) ?? 20);
+
+  return {
+    request,
+    run: () =>
+      request.query(`
+        SELECT m.Id, m.SenderUserCode, m.Body, m.CreatedAt,
+               COUNT(*) OVER() AS TotalCount
+        FROM banc.messages m
+        WHERE m.ConversationId = @ConversationId AND m.DeletedAt IS NULL
+        ORDER BY m.CreatedAt DESC, m.Id DESC
+        OFFSET (@PageNumber - 1) * @PageSize ROWS
+        FETCH NEXT @PageSize ROWS ONLY
+      `),
+  };
+};
+
+// Seen always sets delivered too. A conversation opened without a live event
+// behind it -- a fresh page load -- would otherwise read as seen but never
+// delivered, which is impossible in reality and renders as a defect.
+export const markRead = (conversationId, userCode) => {
+  const request = new sql.Request();
+  request.input("ConversationId", sql.BigInt, asInt(conversationId));
+  request.input("UserCode", sql.NVarChar, asText(userCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+        UPDATE banc.conversation_participants
+        SET LastReadAt = SYSUTCDATETIME(),
+            LastDeliveredAt = SYSUTCDATETIME()
+        WHERE ConversationId = @ConversationId AND UserCode = @UserCode
+      `),
+  };
+};
+
+export const markDelivered = (conversationId, userCode) => {
+  const request = new sql.Request();
+  request.input("ConversationId", sql.BigInt, asInt(conversationId));
+  request.input("UserCode", sql.NVarChar, asText(userCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+        UPDATE banc.conversation_participants
+        SET LastDeliveredAt = SYSUTCDATETIME()
+        WHERE ConversationId = @ConversationId AND UserCode = @UserCode
+      `),
+  };
+};
+
+// One number for the message icon. Counted across every conversation the caller
+// is in, never across a page -- a badge derived from returned rows caps at the
+// page size and looks right until somebody has more than twenty unread.
+export const unreadCount = (userCode) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, asText(userCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+        SELECT COUNT(*) AS Total
+        FROM banc.conversation_participants me
+        INNER JOIN banc.messages m ON m.ConversationId = me.ConversationId
+        WHERE me.UserCode = @UserCode
+          AND m.DeletedAt IS NULL
+          AND m.SenderUserCode <> @UserCode
+          AND (me.LastReadAt IS NULL OR m.CreatedAt > me.LastReadAt)
+      `),
+  };
+};
+
 export const getOtherParticipant = (conversationId, userCode) => {
   const request = new sql.Request();
   request.input("ConversationId", sql.BigInt, asInt(conversationId));
