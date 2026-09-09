@@ -166,6 +166,7 @@ test("assigning branches skips the caller's scope checks but not the one-AO rule
     getUserScopeById: approved({ Role: ACCOUNT_OFFICER, UserCode: "PHL-AO-1170" }),
     isAreaInAreaSalesHeadScope: noRows,
     getBranchesOutsideAreaSalesHeadScope: rows({ BranchCode: 999 }),
+    getBranchesOutsideGroup: noRows,
     getBranchesAssignedToOtherAO: noRows,
     replaceAccountOfficerBranches: () => ({ run: async () => ({ recordset: [] }) }),
   });
@@ -177,11 +178,34 @@ test("assigning branches skips the caller's scope checks but not the one-AO rule
   assert.equal(names.includes("isAreaInAreaSalesHeadScope"), false, "caller scope skipped");
   assert.equal(names.includes("getBranchesOutsideAreaSalesHeadScope"), false, "area check skipped");
   assert.equal(names.includes("getBranchesAssignedToOtherAO"), true, "ownership still enforced");
+  // Added 2026-09-09 with the group rule. The two checks above are about the
+  // caller's authority and a superadmin has none to check; this one is about
+  // whether the data would be valid, so it runs for everybody.
+  assert.equal(names.includes("getBranchesOutsideGroup"), true, "the group rule still applies");
+});
+
+test("a superadmin cannot put a branch outside the Account Officer's own group", async () => {
+  // The superadmin skips every scope check above, which is what makes this
+  // worth its own case: without it, the one caller who can reach any branch is
+  // the one caller who can break the rule.
+  const { service } = await withUserService({
+    getUserScopeById: approved({ Role: ACCOUNT_OFFICER, UserCode: "PHL-AO-1170", GroupCode: 1 }),
+    getBranchesOutsideGroup: rows({ BranchCode: 58 }),
+  });
+
+  const error = await captureThrown(() =>
+    service.replaceAccountOfficerBranches(ADMIN, 1784, [58]),
+  );
+
+  assert.equal(error?.statusCode, 400);
+  assert.match(error.message, /not in group 1/i);
+  assert.match(error.message, /58/);
 });
 
 test("a branch held by another Account Officer is still a 409 for a superadmin", async () => {
   const { service } = await withUserService({
     getUserScopeById: approved({ Role: ACCOUNT_OFFICER, UserCode: "PHL-AO-1170" }),
+    getBranchesOutsideGroup: noRows,
     getBranchesAssignedToOtherAO: rows({ BranchCode: 58 }),
   });
 

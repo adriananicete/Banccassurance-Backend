@@ -157,6 +157,7 @@ const assignModel = (role) => ({
   isAreaInAreaSalesHeadScope: scopeHit,
   isAshInRegionalScope: scopeHit,
   getBranchesOutsideAreaSalesHeadScope: noRows,
+  getBranchesOutsideGroup: noRows,
   getBranchesAssignedToOtherAO: noRows,
   getAreasOutsideRegionalSalesHeadScope: noRows,
   getGroupsAssignedToOtherASH: noRows,

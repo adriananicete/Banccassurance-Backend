@@ -509,6 +509,27 @@ ORDER BY g.GroupCode
   };
 };
 
+export const getBranchesOutsideGroup = (groupCode, branchCodes) => {
+  const request = new sql.Request();
+  request.input("GroupCode", sql.Int, asInt(groupCode));
+  request.input("BranchCodes", sql.NVarChar, branchCodes);
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT DISTINCT CAST(s.value AS INT) AS BranchCode
+FROM STRING_SPLIT(@BranchCodes, ',') s
+WHERE LTRIM(RTRIM(s.value)) <> ''
+  AND NOT EXISTS (
+      SELECT 1
+      FROM banc.branches b
+      WHERE b.BranchCode = CAST(s.value AS INT)
+        AND b.GroupCode = @GroupCode
+  )
+      `),
+  };
+};
+
 export const getBranchesOutsideAreaSalesHeadScope = (ashUserCode, branchCodes) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, ashUserCode);

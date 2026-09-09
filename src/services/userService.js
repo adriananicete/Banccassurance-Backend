@@ -731,6 +731,24 @@ export const replaceAccountOfficerBranches = async (
         );
     }
 
+    // An Account Officer's branches must all sit in the Account Officer's own
+    // group. The check above validates them against the CALLER's groups, and an
+    // Area Sales Head may hold several by design -- so one holding groups 1 and
+    // 2 could otherwise hand a group 2 branch to a group 1 officer and pass.
+    //
+    // This binds the superadmin too. It is a rule about the data, not about the
+    // caller's authority, the same way one Area Sales Head per group is.
+    const outsideGroup = await userModel
+      .getBranchesOutsideGroup(targetUser.GroupCode, joined)
+      .run();
+    if (outsideGroup.recordset.length > 0)
+      throwHttpError(
+        400,
+        `These branches are not in group ${targetUser.GroupCode}, which is ${targetUser.UserCode}'s group: ${outsideGroup.recordset
+          .map((row) => row.BranchCode)
+          .join(", ")}`,
+      );
+
     const taken = await userModel
       .getBranchesAssignedToOtherAO(targetUser.UserCode, joined)
       .run();

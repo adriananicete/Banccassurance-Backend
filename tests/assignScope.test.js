@@ -17,9 +17,10 @@ const dh = { Role: DEPARTMENT_HEAD, UserCode: "PHL-DH-0001" };
 const replaced = () => ({ run: async () => {} });
 
 const branchesModel = (overrides) => ({
-  getUserScopeById: target({ IsActive: true, Role: ACCOUNT_OFFICER }),
+  getUserScopeById: target({ IsActive: true, Role: ACCOUNT_OFFICER, GroupCode: 1 }),
   isAreaInAreaSalesHeadScope: scopeHit,
   getBranchesOutsideAreaSalesHeadScope: noRows,
+  getBranchesOutsideGroup: noRows,
   getBranchesAssignedToOtherAO: noRows,
   replaceAccountOfficerBranches: replaced,
   ...overrides,
@@ -185,6 +186,66 @@ test("branches outside the caller's own groups are a 403 naming them", async () 
 
   assert.equal(error?.statusCode, 403);
   assert.match(error.message, /999/);
+});
+
+// An Account Officer's branches must all sit in the Account Officer's own
+// group. The check above validates them against the CALLER's groups, and that
+// is not the same rule -- an Area Sales Head may hold several groups by design,
+// so one holding groups 1 and 2 passed both checks while handing a group 2
+// branch to a group 1 officer. Found by reading on 2026-09-09.
+
+test("a branch outside the Account Officer's own group is refused, naming it", async () => {
+  // The caller's scope check passes here on purpose: this is the hole. The
+  // branch is inside the Area Sales Head's groups and outside the officer's.
+  const { service } = await withUserService(
+    branchesModel({
+      getBranchesOutsideAreaSalesHeadScope: noRows,
+      getBranchesOutsideGroup: rows({ BranchCode: 60 }),
+    }),
+  );
+
+  const error = await captureThrown(() =>
+    service.replaceAccountOfficerBranches(ash, 1784, [60]),
+  );
+
+  assert.equal(error?.statusCode, 400);
+  assert.match(error.message, /not in group 1/i);
+  assert.match(error.message, /60/);
+});
+
+test("the group check reads the officer's group, not the caller's", async () => {
+  // The argument assertion, and the whole point. Passing the caller's UserCode
+  // here would reproduce the defect exactly and every other test would pass.
+  const { service, calls } = await withUserService(branchesModel());
+
+  await service.replaceAccountOfficerBranches(ash, 1784, [58, 59]);
+
+  const args = calls.find((c) => c.name === "getBranchesOutsideGroup").args;
+
+  assert.equal(args[0], 1, "the group came from somewhere other than the target");
+  assert.equal(args[1], "58,59");
+});
+
+test("nothing is written when a branch is outside the officer's group", async () => {
+  const { service, calls } = await withUserService(
+    branchesModel({ getBranchesOutsideGroup: rows({ BranchCode: 60 }) }),
+  );
+
+  await captureThrown(() => service.replaceAccountOfficerBranches(ash, 1784, [60]));
+
+  assert.equal(calls.some((c) => c.name === "replaceAccountOfficerBranches"), false);
+});
+
+test("clearing an officer's branches is still allowed", async () => {
+  // An empty set skips the whole block, so the group rule must not make a
+  // clear impossible. Unlike an Area Sales Head's groups, an empty branch set
+  // is legitimate -- it is how an officer is stood down.
+  const { service, calls } = await withUserService(branchesModel());
+
+  const result = await service.replaceAccountOfficerBranches(ash, 1784, []);
+
+  assert.equal(result.success, true);
+  assert.equal(calls.some((c) => c.name === "getBranchesOutsideGroup"), false);
 });
 
 test("the scope conflict check runs before anything is written", async () => {
