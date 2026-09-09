@@ -233,3 +233,49 @@ test("a failed insert is not followed by an approval", async () => {
   assert.equal(error?.statusCode, 409);
   assert.equal(calls.some((c) => c.name === "approveRejectUser"), false);
 });
+
+// createTopLevelUser is three writes and no transaction. Collapsing it into one
+// was considered on 2026-09-09 and dropped: usp_ins_register_user takes
+// @IsActive, so an insert-already-approved is possible, but it does not mint the
+// AgentCode -- and AgentCode == null is exactly what the REACTIVATE guard reads
+// as "rejected at registration, never approved". A one-write create would make
+// an active Sector Head that could never be reactivated after a deactivation.
+//
+// Not worth a DBA change for an endpoint that runs about twice in the system's
+// lifetime -- there is one Sector Head and one Department Head, capped. What is
+// worth having is the failure saying what happened, which is what these two
+// cover.
+
+test("an approval that fails still names the account it left pending", async () => {
+  // The half that was missing. A failure here leaves a PENDING top-level account
+  // holding the single seat for its role, so the next attempt answers 409 "the
+  // role is limited to 1 account" -- and without the user code in this message
+  // there is nothing pointing at the row that has to be approved or deleted.
+  const { service } = await withUserService(
+    createPath({
+      approveRejectUser: () => ({
+        run: async () => {
+          throw new Error("deadlock victim");
+        },
+      }),
+    }),
+  );
+
+  const error = await captureThrown(() => service.createTopLevelUser(ADMIN, fields()));
+
+  assert.equal(error?.statusCode, 500);
+  assert.match(error.message, /USR-SEC-0002/);
+  assert.match(error.message, /approvals list/i);
+});
+
+test("a lookup that finds nothing gives the same answer as an approval that throws", async () => {
+  // Two different failures, one recovery. They used to read differently, and the
+  // one that threw did not identify the account at all.
+  const { service } = await withUserService(createPath({ findUserIdByCode: noRows }));
+
+  const error = await captureThrown(() => service.createTopLevelUser(ADMIN, fields()));
+
+  assert.equal(error?.statusCode, 500);
+  assert.match(error.message, /USR-SEC-0002/);
+  assert.match(error.message, /approvals list/i);
+});

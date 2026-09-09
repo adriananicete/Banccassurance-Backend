@@ -639,9 +639,14 @@ export const createTopLevelUser = async (actor, fields) => {
 
   const found = await userModel.findUserIdByCode(created.userCode).run();
   if (found.recordset.length === 0)
-    throwHttpError(500, "The account was created but could not be approved. Please approve it from the approvals list.");
+    throwHttpError(500, `${created.userCode} was created but could not be approved. Approve it from the approvals list.`);
 
-  await userModel.approveRejectUser(found.recordset[0].UserId, "APPROVE").run();
+  try {
+    await userModel.approveRejectUser(found.recordset[0].UserId, "APPROVE").run();
+  } catch (error) {
+    console.error(error);
+    throwHttpError(500, `${created.userCode} was created but could not be approved. Approve it from the approvals list.`);
+  }
 
   await record({
     actorUserCode: actor.UserCode,
