@@ -1,4 +1,5 @@
 import * as userModel from "../models/userModel.js";
+import * as messagingModel from "../models/messagingModel.js";
 import { throwHttpError } from "../utils/error.js";
 import {
   ACCOUNT_OFFICER,
@@ -119,4 +120,44 @@ export const assertCanMessage = async (user, targetUserCode) => {
     throwHttpError(403, "You cannot message this person.");
 
   return target;
+};
+
+// The two user codes SORTED, which is what makes UX_conversations_Direct work.
+// Unsorted, 'A|B' and 'B|A' are different strings and the unique index permits
+// exactly the duplicate it exists to prevent. The index cannot check this --
+// it is the application's job and this one line is all of it.
+export const directKeyFor = (one, two) => [one, two].sort().join("|");
+
+export const openDirectConversation = async (user, targetUserCode) => {
+  const target = await assertCanMessage(user, targetUserCode);
+
+  const directKey = directKeyFor(user.UserCode, target.UserCode);
+
+  const existing = await messagingModel.findDirectConversation(directKey).run();
+
+  if (existing.recordset.length > 0)
+    return { conversation: existing.recordset[0], created: false };
+
+  const created = await messagingModel
+    .createDirectConversation(directKey, user.UserCode, target.UserCode)
+    .run();
+
+  return { conversation: created.recordset[0], created: true };
+};
+
+export const listConversations = async (user, options) => {
+  const result = await messagingModel.listForUser(user.UserCode, options).run();
+
+  const totalCount = result.recordset[0]?.TotalCount ?? 0;
+  const rows = result.recordset.map(({ TotalCount, ...rest }) => rest);
+
+  return {
+    data: rows,
+    pagination: {
+      page: options.PageNumber,
+      pageSize: options.PageSize,
+      totalCount,
+      totalPages: Math.ceil(totalCount / options.PageSize),
+    },
+  };
 };
