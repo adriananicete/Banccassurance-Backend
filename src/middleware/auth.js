@@ -40,6 +40,7 @@ export const requireAuth = async (req, res, next) => {
     req.user = {
       UserId: account.UserId,
       UserCode: account.UserCode,
+      FullName: account.FullName,
       Role: account.Role,
       BranchCode: account.BranchCode,
       GroupCode: account.GroupCode,

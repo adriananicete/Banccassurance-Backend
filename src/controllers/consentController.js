@@ -7,12 +7,12 @@ import { validConsentStatus } from "../utils/constant.js";
 
 export const sendConsent = async (req, res, next) => {
   try {
-    const { email, firstName, middleName, lastName, suffix, branchName, referrerName } = req.body;
+    const { email, firstName, middleName, lastName, suffix } = req.body;
     const token = uuidv4();
     const name = [firstName, lastName].filter(Boolean).join(' ');
     const fullName = [firstName, middleName, lastName, suffix].filter(Boolean).join(' ');
 
-    await referralService.sendConsent(email, token, name, branchName, referrerName, fullName);
+    await referralService.sendConsent(email, token, name, fullName, req.user);
 
     res.status(200).json({
       success: true,

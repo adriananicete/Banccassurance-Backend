@@ -177,7 +177,9 @@ export const getUserScopeById = (userId) => {
     request,
     run: () =>
       request.query(
-        `SELECT UserId, UserCode, IsActive, Role, BranchCode, GroupCode, AgentCode FROM banc.Users WHERE UserId = @UserId`,
+        `SELECT UserId, UserCode, IsActive, Role, BranchCode, GroupCode, AgentCode,
+                COALESCE(FullName, FirstName + ' ' + LastName) AS FullName
+         FROM banc.Users WHERE UserId = @UserId`,
       ),
   };
 };

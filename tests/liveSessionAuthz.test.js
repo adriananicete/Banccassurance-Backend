@@ -26,6 +26,7 @@ process.env.JWT_SECRET = "test-secret";
 const account = (overrides = {}) => ({
   UserId: 31,
   UserCode: "USR-GRH-0031",
+  FullName: "Jose Cruz",
   IsActive: 1,
   Role: "GROUP_HEAD",
   BranchCode: null,
@@ -128,8 +129,21 @@ test("an active account passes, carrying exactly the columns the row returns", a
   assert.equal(status, null);
   assert.deepEqual(
     Object.keys(user).sort(),
-    ["BranchCode", "GroupCode", "Role", "UserCode", "UserId"],
+    ["BranchCode", "FullName", "GroupCode", "Role", "UserCode", "UserId"],
   );
+});
+
+test("FullName is on the session, and it is read live like every other column", async () => {
+  // The consent email names the referrer, and it used to take that name from
+  // the request body -- so a staff member could put anybody's name on a notice
+  // a client receives. This column is what replaced it, which is why it is
+  // asserted here rather than only where it is consumed.
+  const { user } = await call(
+    account({ FullName: "Maria Santos" }),
+    tokenFor({ FullName: "Somebody Else" }),
+  );
+
+  assert.equal(user.FullName, "Maria Santos");
 });
 
 test("no token and a forged token are both refused before the database is touched", async () => {

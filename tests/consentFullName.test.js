@@ -4,11 +4,13 @@ import { withStubbedModules, rows } from "./helpers/stubModel.js";
 import { consentFormTemplate } from "../src/templates/consentFormTemplate.js";
 
 const REFERRAL_MODEL = "../../src/models/referralModel.js";
+const USER_MODEL = "../../src/models/userModel.js";
 const EMAIL_SERVICE = "../../src/services/emailService.js";
 const REFERRAL_SERVICE = "../../src/services/referralService.js";
 
 const TOKEN = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
 const CLIENT = "client@example.com";
+const STAFF = { UserCode: "USR-STF-00001", FullName: "Maria", BranchCode: 3 };
 
 const withConsent = () =>
   withStubbedModules(
@@ -17,6 +19,7 @@ const withConsent = () =>
         insertConsentRequest: () => ({ run: async () => ({ rowsAffected: [1] }) }),
         getConsentRequestByToken: rows({ Status: "PENDING", ConsumedAt: null }),
       },
+      [USER_MODEL]: { getBranchScope: rows({ BranchName: "Makati" }) },
       [EMAIL_SERVICE]: { sendConsentEmail: async () => {} },
     },
     REFERRAL_SERVICE,
@@ -25,7 +28,7 @@ const withConsent = () =>
 test("the full name reaches the email service alongside the short one", async () => {
   const { service, calls } = await withConsent();
 
-  await service.sendConsent(CLIENT, TOKEN, "Juan Cruz", "Makati", "Maria", "Juan Santos Cruz Jr.");
+  await service.sendConsent(CLIENT, TOKEN, "Juan Cruz", "Juan Santos Cruz Jr.", STAFF);
 
   const emailed = calls.find((c) => c.name === "sendConsentEmail").args;
 

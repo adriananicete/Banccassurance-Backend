@@ -4,11 +4,17 @@ import { withStubbedModules, rows } from "./helpers/stubModel.js";
 import { captureThrown } from "./helpers/userService.js";
 
 const REFERRAL_MODEL = "../../src/models/referralModel.js";
+const USER_MODEL = "../../src/models/userModel.js";
 const EMAIL_SERVICE = "../../src/services/emailService.js";
 const REFERRAL_SERVICE = "../../src/services/referralService.js";
 
 const TOKEN = "3f2504e0-4f89-11d3-9a0c-0305e82c3301";
 const CLIENT = "client@example.com";
+
+// The branch and the referrer's name come off the session now, so every call
+// carries a caller. See consentIdentityFromSession.test.js.
+const STAFF = { UserCode: "USR-STF-00001", FullName: "Maria Santos", BranchCode: 3 };
+const CLIENT_NAME = "Juan Santos Cruz";
 
 const affected = (count) => () => ({ run: async () => ({ rowsAffected: [count] }) });
 
@@ -21,6 +27,7 @@ const withConsent = (overrides = {}, emailOverrides = {}) =>
         uploadConsentFile: affected(1),
         ...overrides,
       },
+      [USER_MODEL]: { getBranchScope: rows({ BranchName: "Pasig Capitol" }) },
       [EMAIL_SERVICE]: { sendConsentEmail: async () => {}, ...emailOverrides },
     },
     REFERRAL_SERVICE,
@@ -35,7 +42,7 @@ test("a malformed email is refused before anything is written or sent", async ()
     const { service, calls } = await withConsent();
 
     const error = await captureThrown(() =>
-      service.sendConsent(bad, TOKEN, "Juan", "Makati", "Maria"),
+      service.sendConsent(bad, TOKEN, "Juan", CLIENT_NAME, STAFF),
     );
 
     assert.equal(error?.statusCode, 400, `email ${JSON.stringify(bad)}`);
@@ -48,7 +55,7 @@ test("the consent request is written before the email goes out", async () => {
   // no row behind it -- and clicking it would answer the invalid-consent page.
   const { service, calls } = await withConsent();
 
-  await service.sendConsent(CLIENT, TOKEN, "Juan", "Makati", "Maria");
+  await service.sendConsent(CLIENT, TOKEN, "Juan", CLIENT_NAME, STAFF);
 
   const order = calls.map((c) => c.name);
   assert.ok(order.indexOf("insertConsentRequest") < order.indexOf("sendConsentEmail"), order.join(" -> "));
@@ -59,7 +66,7 @@ test("the token reaching the row is the token reaching the email", async () => {
   // inbox points at a row that will never be found.
   const { service, calls } = await withConsent();
 
-  await service.sendConsent(CLIENT, TOKEN, "Juan", "Makati", "Maria");
+  await service.sendConsent(CLIENT, TOKEN, "Juan", CLIENT_NAME, STAFF);
 
   const written = calls.find((c) => c.name === "insertConsentRequest").args;
   const emailed = calls.find((c) => c.name === "sendConsentEmail").args;
@@ -78,7 +85,7 @@ test("a failing email does not hide the fact that a request now exists", async (
     },
   });
 
-  await assert.rejects(() => service.sendConsent(CLIENT, TOKEN, "Juan", "Makati", "Maria"));
+  await assert.rejects(() => service.sendConsent(CLIENT, TOKEN, "Juan", CLIENT_NAME, STAFF));
 });
 
 // -------------------------------------------------------- validateConsentToken

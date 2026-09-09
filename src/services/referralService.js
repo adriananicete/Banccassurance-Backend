@@ -208,8 +208,20 @@ export const createReferral = async (data, user) => {
   }
 };
 
-export const sendConsent = async (email, token, name, branchName, referrerName, fullName) => {
+const resolveConsentIdentity = async (user) => {
+  const referrerName = user?.FullName ?? null;
+
+  if (user?.BranchCode == null) return { referrerName, branchName: null };
+
+  const branch = await userModel.getBranchScope(user.BranchCode).run();
+
+  return { referrerName, branchName: branch.recordset[0]?.BranchName ?? null };
+};
+
+export const sendConsent = async (email, token, name, fullName, user) => {
   if(!email || !isValidEmail(email)) throwHttpError(400, 'Invalid Email')
+
+  const { referrerName, branchName } = await resolveConsentIdentity(user);
 
   await referralModel.insertConsentRequest(email, token).run();
   await sendConsentEmail(email, token, name, branchName, referrerName, fullName);
