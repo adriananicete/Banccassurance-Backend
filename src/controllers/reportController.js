@@ -11,6 +11,16 @@ export const getSummary = async (req, res, next) => {
   }
 };
 
+export const getDashboard = async (req, res, next) => {
+  try {
+    const data = await reportService.getDashboard(req.user);
+
+    res.json({ success: true, ...data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const exportReferrals = async (req, res, next) => {
   try {
     const { period, rows } = await reportService.getExportRows(req.query, req.user);

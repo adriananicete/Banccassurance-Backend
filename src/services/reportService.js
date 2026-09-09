@@ -1,8 +1,25 @@
 import ExcelJS from "exceljs";
 import * as reportModel from "../models/reportModel.js";
+import * as referralModel from "../models/referralModel.js";
 import { throwHttpError } from "../utils/error.js";
-import { reportGroupBy, validStatus, verifiedMap } from "../utils/constant.js";
+import {
+  AREA_SALES_HEAD,
+  DEPARTMENT_HEAD,
+  GROUP_HEAD,
+  REGIONAL_SALES_HEAD,
+  reportGroupBy,
+  SECTOR_HEAD,
+  validStatus,
+  verifiedMap,
+} from "../utils/constant.js";
 import { resolvePeriod, asManilaWallTime } from "../utils/reportPeriod.js";
+
+// The dashboard takes no period and is deliberately all-time.
+// usp_sel_referral_counts_by_role has no date parameters at all, so a dated
+// dashboard would show a total covering everything beside a breakdown covering
+// a month, and the two would not agree on screen. A dated question is what the
+// drill-down is for.
+const ALL_TIME = resolvePeriod({ preset: "allTime" });
 
 export const getSummary = async (query, user) => {
   const groupBy = String(query.groupBy ?? "").trim().toUpperCase();
@@ -33,6 +50,53 @@ export const getSummary = async (query, user) => {
       toExclusive: period.toExclusive.toISOString(),
     },
     rows: result.recordset,
+  };
+};
+
+// The level a role sees underneath itself, from the two trees in
+// BusinessLogic.md section 10:
+//
+//   Landbank    Tenant -> Group -> Branch
+//   PhilLife    Tenant -> Region -> Group -> Account Officer
+//
+// A role at the bottom of its tree has nothing below it and gets no breakdown.
+// That is Branch Head and Branch Staff on the Landbank side, and the Account
+// Officer on the PhilLife side -- an AO's own referrals carry BranchCode NULL,
+// so a branch breakdown would drop exactly the rows they care about most.
+// Every role still gets the by-status split, which always sums to the total.
+const dashboardLevel = {
+  [SECTOR_HEAD]: "AREA",
+  [GROUP_HEAD]: "BRANCH",
+  [DEPARTMENT_HEAD]: "REGION",
+  [REGIONAL_SALES_HEAD]: "AREA",
+  [AREA_SALES_HEAD]: "AO",
+};
+
+export const getDashboard = async (user) => {
+  const level = dashboardLevel[user.Role] ?? null;
+
+  const counts = await referralModel.getReferralCountsByRole(user).run();
+  const byStatus = counts.recordset;
+
+  const breakdown = level
+    ? (
+        await reportModel
+          .getReferralCounts(user, {
+            GroupBy: level,
+            ParentGroupCode: null,
+            ParentRegionCode: null,
+            DateFrom: ALL_TIME.from,
+            DateTo: ALL_TIME.toExclusive,
+          })
+          .run()
+      ).recordset
+    : [];
+
+  return {
+    total: byStatus.reduce((sum, row) => sum + row.Total, 0),
+    byStatus,
+    level,
+    breakdown,
   };
 };
 
