@@ -92,9 +92,60 @@ test("the header row is bold", async () => {
   // writes no styles at all -- the header had been set bold since the export
   // shipped and never was. Nothing failed, because nothing looked. This is the
   // cheapest assertion that the style pipeline is switched on.
+  //
+  // Read off a cell rather than the row: styling moved to per-cell when the
+  // header gained a fill, and row.font goes undefined without anything failing.
   const sheet = await reopen(await collect([referral()]));
 
-  assert.equal(sheet.getRow(1).font?.bold, true);
+  assert.equal(sheet.getRow(1).getCell(1).font?.bold, true);
+});
+
+test("the header is filled and its text is legible against the fill", async () => {
+  // A dark fill with the default black font is unreadable, and it renders that
+  // way only when somebody opens the file.
+  const sheet = await reopen(await collect([referral()]));
+  const cell = sheet.getRow(1).getCell(1);
+
+  assert.equal(cell.fill?.fgColor?.argb, "FF1F3864");
+  assert.equal(cell.font?.color?.argb, "FFFFFFFF");
+});
+
+test("the header row is frozen and filterable", async () => {
+  // Both are why the file is usable at all past thirty rows. In a streaming
+  // writer the freeze has to be passed at addWorksheet -- setting sheet.views
+  // afterwards is accepted and silently does nothing.
+  const sheet = await reopen(await collect([referral()]));
+
+  assert.equal(sheet.views?.[0]?.state, "frozen");
+  assert.equal(sheet.views?.[0]?.ySplit, 1);
+  assert.ok(sheet.autoFilter, "no autofilter on the header row");
+});
+
+test("data rows are banded, and the banding starts below the header", async () => {
+  // The first data row is unfilled and the second is filled. Getting this
+  // backwards puts a band directly under the header, which reads as a second
+  // header row.
+  //
+  // An unbanded cell reads back as { pattern: 'none' } rather than undefined --
+  // exceljs normalises it on load, so asserting on the pattern is what holds.
+  const sheet = await reopen(await collect([referral(), referral(), referral()]));
+  const fillOf = (row) => sheet.getRow(row).getCell(1).fill;
+
+  assert.notEqual(fillOf(2)?.pattern, "solid");
+  assert.equal(fillOf(3)?.fgColor?.argb, "FFF2F5FA");
+  assert.notEqual(fillOf(4)?.pattern, "solid");
+});
+
+test("neither code column survives", async () => {
+  // Removed 2026-09-09 on request. BranchName and GroupName carry the meaning;
+  // the codes were internal keys sitting in a file a person reads.
+  const sheet = await reopen(await collect([referral()]));
+  const headers = sheet.getRow(1).values.slice(1);
+
+  assert.equal(headers.includes("Branch Code"), false);
+  assert.equal(headers.includes("Group Code"), false);
+  assert.equal(headers.includes("Branch"), true);
+  assert.equal(headers.includes("Group"), true);
 });
 
 test("Created carries the time and Status Date does not", async () => {
@@ -123,12 +174,13 @@ test("a null timestamp stays null rather than becoming an epoch date", async () 
 });
 
 test("an Account Officer's own referral keeps its empty branch", async () => {
-  // BranchCode is NULL on every AO-created referral. The file must show the gap
-  // rather than a zero, because a zero reads as a branch code.
+  // BranchCode is NULL on every AO-created referral, and BranchName with it.
+  // The file must show the gap rather than filling it -- an AO's referral has
+  // no branch, and anything written there would be invented.
   const sheet = await reopen(
     await collect([referral({ BranchCode: null, BranchName: null })]),
   );
-  const column = exportColumns.findIndex((c) => c.key === "BranchCode") + 1;
+  const column = exportColumns.findIndex((c) => c.key === "BranchName") + 1;
 
   assert.equal(sheet.getRow(2).getCell(column).value, null);
 });
