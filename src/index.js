@@ -78,10 +78,6 @@ app.use("/uploads", express.static(path.join(__dirname, "../avatar_uploads")));
 
 app.use(errorHandler);
 
-// ⚠️ This was a bare app.listen until 2026-09-09. Every endpoint in the
-// application runs through this server, so a mistake here is total rather than
-// partial -- which is why the socket layer was the last of the five messaging
-// branches rather than the first.
 const httpServer = http.createServer(app);
 
 attachSocketServer(httpServer);

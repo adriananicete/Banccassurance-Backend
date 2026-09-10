@@ -63,10 +63,6 @@ export const consentUploadLimiter = rateLimit({
     legacyHeaders: false
 });
 
-// Sending is the only write in messaging, and 300 an hour is a person typing
-// fast rather than a person being throttled. It has to exist at all because
-// express-rate-limit never sees socket traffic -- if sending moved onto the
-// socket it would leave the throttle entirely, which is why sends stay on HTTP.
 export const messageLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: limits.message,

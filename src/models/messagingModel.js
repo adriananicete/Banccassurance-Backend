@@ -15,9 +15,6 @@ export const findDirectConversation = (directKey) => {
   };
 };
 
-// One transaction, because a conversation with no participants is unreachable
-// by everyone including the person who just created it -- the list reads
-// through conversation_participants.
 export const createDirectConversation = (directKey, createdBy, otherUserCode) => {
   const transaction = new sql.Transaction();
 
@@ -60,9 +57,6 @@ export const createDirectConversation = (directKey, createdBy, otherUserCode) =>
   };
 };
 
-// The caller's conversations, newest activity first, with the other person's
-// name resolved and the unread count computed across the whole conversation
-// rather than a page of it.
 export const listForUser = (userCode, options) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, asText(userCode));
@@ -145,10 +139,6 @@ export const insertMessage = (conversationId, senderUserCode, body) => {
   };
 };
 
-// Newest first, and the ORDER BY carries Id as well as CreatedAt. Two messages
-// can share a DATETIME2, and a paged read with an unstable sort repeats or
-// skips a row at the page boundary. IX_messages_Conversation_CreatedAt is
-// ascending and SQL Server scans it backwards for this.
 export const listMessages = (conversationId, options) => {
   const request = new sql.Request();
   request.input("ConversationId", sql.BigInt, asInt(conversationId));
@@ -170,9 +160,6 @@ export const listMessages = (conversationId, options) => {
   };
 };
 
-// Seen always sets delivered too. A conversation opened without a live event
-// behind it -- a fresh page load -- would otherwise read as seen but never
-// delivered, which is impossible in reality and renders as a defect.
 export const markRead = (conversationId, userCode) => {
   const request = new sql.Request();
   request.input("ConversationId", sql.BigInt, asInt(conversationId));
@@ -204,9 +191,6 @@ export const markDelivered = (conversationId, userCode) => {
   };
 };
 
-// One number for the message icon. Counted across every conversation the caller
-// is in, never across a page -- a badge derived from returned rows caps at the
-// page size and looks right until somebody has more than twenty unread.
 export const unreadCount = (userCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, asText(userCode));
@@ -225,10 +209,6 @@ export const unreadCount = (userCode) => {
   };
 };
 
-// The other side's two watermarks come back with the user code, because every
-// caller that wants one wants the other: sending needs the code to check
-// permission and to deliver, reading needs the timestamps to render sent,
-// delivered or seen. One seek answers both.
 export const getOtherParticipant = (conversationId, userCode) => {
   const request = new sql.Request();
   request.input("ConversationId", sql.BigInt, asInt(conversationId));

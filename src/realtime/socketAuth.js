@@ -1,9 +1,6 @@
 import jwt from "jsonwebtoken";
 import * as userModel from "../models/userModel.js";
 
-// The handshake carries the raw Cookie header rather than a parsed object, and
-// cookie-parser never runs on it. Reading the one cookie we need by hand keeps
-// this off a transitive dependency.
 export const readAuthCookie = (header) => {
   if (typeof header !== "string" || header === "") return null;
 
@@ -18,13 +15,6 @@ export const readAuthCookie = (header) => {
   return null;
 };
 
-// Exactly what requireAuth does, and for the same reason: the token is an
-// identity assertion and every authorisation value is read from the row.
-//
-// ⚠️ A socket then holds that answer for as long as it stays open, which is the
-// problem PR #119 exists to prevent on the HTTP side. Sending is safe because
-// it goes over HTTP and re-reads the row; receiving is not, which is what the
-// sweep in socketServer.js is for.
 export const authenticateHandshake = async (cookieHeader) => {
   const token = readAuthCookie(cookieHeader);
 

@@ -28,9 +28,6 @@ router.post('/conversations', ...mayMessage, openConversation)
 router.get('/conversations/:id', ...mayMessage, readConversation)
 router.put('/conversations/:id/read', ...mayMessage, markRead)
 
-// ⚠️ messageLimiter must stay below requireAuth. keyByUser reads req.user, and
-// above requireAuth there is none -- it degrades to per-IP silently, which is
-// the behaviour the per-user limiters exist to remove.
 router.post('/conversations/:id', ...mayMessage, messageLimiter, sendMessage)
 
 export default router
