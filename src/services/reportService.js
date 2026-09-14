@@ -6,13 +6,22 @@ import {
   AREA_SALES_HEAD,
   DEPARTMENT_HEAD,
   GROUP_HEAD,
+  maxReportMonths,
   REGIONAL_SALES_HEAD,
   reportGroupBy,
+  reportStatusColumns,
   SECTOR_HEAD,
   validStatus,
   verifiedMap,
 } from "../utils/constant.js";
-import { resolvePeriod, asManilaWallTime, periodLabel } from "../utils/reportPeriod.js";
+import {
+  resolvePeriod,
+  asManilaWallTime,
+  periodLabel,
+  manilaMonthStart,
+  splitIntoMonths,
+} from "../utils/reportPeriod.js";
+import { asInt } from "../utils/sqlValue.js";
 
 // The dashboard takes no period and is deliberately all-time.
 // usp_sel_referral_counts_by_role has no date parameters at all, so a dated
@@ -31,6 +40,8 @@ export const getSummary = async (query, user) => {
     );
 
   const period = resolvePeriod(query);
+
+  if (groupBy === "MONTH") return getMonthlySummary(query, user, period);
 
   const result = await reportModel
     .getReferralCounts(user, {
@@ -51,6 +62,66 @@ export const getSummary = async (query, user) => {
     },
     rows: result.recordset,
   };
+};
+
+const periodBody = (period) => ({
+  preset: period.preset,
+  from: period.from.toISOString(),
+  toExclusive: period.toExclusive.toISOString(),
+});
+
+const getMonthlySummary = async (query, user, period) => {
+  const parentGroupCode = asInt(query.parentGroupCode);
+  const parentRegionCode = asInt(query.parentRegionCode);
+
+  if (parentGroupCode != null && parentRegionCode != null)
+    throwHttpError(400, "groupBy=MONTH takes parentRegionCode or parentGroupCode, not both");
+
+  let range = period;
+
+  if (period.preset === "allTime") {
+    const first = await reportModel.getFirstReferralDate().run();
+    const firstCreatedAt = first.recordset[0]?.FirstCreatedAt ?? null;
+
+    if (!firstCreatedAt) return { groupBy: "MONTH", period: periodBody(period), rows: [] };
+
+    range = { ...period, from: manilaMonthStart(firstCreatedAt) };
+  }
+
+  const months = splitIntoMonths(range);
+
+  if (months.length > maxReportMonths)
+    throwHttpError(
+      400,
+      `groupBy=MONTH covers at most ${maxReportMonths} months; this period has ${months.length}`,
+    );
+
+  const level = parentGroupCode != null ? "AO" : "AREA";
+
+  const results = await Promise.all(
+    months.map((slice) =>
+      reportModel
+        .getReferralCounts(user, {
+          GroupBy: level,
+          ParentGroupCode: parentGroupCode,
+          ParentRegionCode: parentRegionCode,
+          DateFrom: slice.from,
+          DateTo: slice.toExclusive,
+        })
+        .run(),
+    ),
+  );
+
+  const rows = months.map((slice, index) => {
+    const row = { GroupCode: slice.month, GroupName: slice.month };
+
+    for (const column of reportStatusColumns)
+      row[column] = results[index].recordset.reduce((sum, r) => sum + (r[column] ?? 0), 0);
+
+    return row;
+  });
+
+  return { groupBy: "MONTH", period: periodBody(range), rows };
 };
 
 // The level a role sees underneath itself, from the two trees in
