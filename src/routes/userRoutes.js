@@ -12,7 +12,7 @@ import { photoUpload } from '../middleware/upload.js';
 import { verifyFileSignature } from '../middleware/verifyFileSignature.js';
 import { imageKinds } from '../utils/fileSignature.js';
 import { registerLimiter, checkEmailLimiter } from '../middleware/rateLimiter.js';
-import { approverRoles, AREA_SALES_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, SUPERADMIN } from '../utils/constant.js';
+import { approverRoles, AREA_SALES_HEAD, DEPARTMENT_HEAD, REGIONAL_SALES_HEAD, SECTOR_HEAD, SUPERADMIN } from '../utils/constant.js';
 
 const router = express.Router()
 
@@ -25,7 +25,7 @@ router.post('/upload-photo', requireAuth, photoUpload.single('photo'), verifyFil
 router.get('/approvals', requireAuth, requireRole(...approverRoles), getUsersForApproval)
 router.post('/approvals/action', requireAuth, requireRole(...approverRoles), approveRejectUser)
 
-router.get('/', requireAuth, requireRole(DEPARTMENT_HEAD, SUPERADMIN), listUsersByRole)
+router.get('/', requireAuth, requireRole(DEPARTMENT_HEAD, SECTOR_HEAD, SUPERADMIN), listUsersByRole)
 router.post('/', requireAuth, requireRole(SUPERADMIN), createTopLevelUser)
 
 router.get('/scope', requireAuth, getOwnScope)

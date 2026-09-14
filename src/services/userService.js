@@ -1116,16 +1116,11 @@ export const getAssignableBranches = async (user, groupCode) => {
   return { success: true, data: result.recordset.map(assignableBranch) };
 };
 
-const listableRoles = {
-  [REGIONAL_SALES_HEAD]: "listRegionalSalesHeads",
-  [AREA_SALES_HEAD]: "listAreaSalesHeads",
-};
-
-const byUser = (recordset) => {
+const byUser = (recordset, holds) => {
   const heads = new Map();
   for (const row of recordset) {
     if (!heads.has(row.UserId)) heads.set(row.UserId, { row, groups: [] });
-    if (row.GroupCode != null) heads.get(row.UserId).groups.push(row);
+    if (holds(row)) heads.get(row.UserId).groups.push(row);
   }
   return [...heads.values()];
 };
@@ -1150,28 +1145,71 @@ const areaScope = (groups) =>
     regionName: row.RegionName ?? null,
   }));
 
-export const listUsersByRole = async (role) => {
-  const wanted = String(role ?? "").trim().toUpperCase();
+const groupHeadScope = ([row]) =>
+  row
+    ? {
+        groupCode: row.GroupCode,
+        groupName: row.GroupName ?? null,
+        regionCode: row.RegionCode ?? null,
+        regionName: row.RegionName ?? null,
+      }
+    : null;
 
-  if (!listableRoles[wanted])
+const branchHeadScope = ([row]) =>
+  row
+    ? {
+        branchCode: row.BranchCode,
+        branchName: row.BranchName ?? null,
+        groupCode: row.GroupCode ?? null,
+        groupName: row.GroupName ?? null,
+        regionCode: row.RegionCode ?? null,
+        regionName: row.RegionName ?? null,
+      }
+    : null;
+
+const holdsGroup = (row) => row.GroupCode != null;
+const holdsBranch = (row) => row.BranchCode != null;
+
+const listableRoles = {
+  [REGIONAL_SALES_HEAD]: {
+    query: "listRegionalSalesHeads", holds: holdsGroup, scope: regionalScope, callers: [DEPARTMENT_HEAD],
+  },
+  [AREA_SALES_HEAD]: {
+    query: "listAreaSalesHeads", holds: holdsGroup, scope: areaScope, callers: [DEPARTMENT_HEAD],
+  },
+  [GROUP_HEAD]: {
+    query: "listGroupHeads", holds: holdsGroup, scope: groupHeadScope, callers: [SECTOR_HEAD],
+  },
+  [BRANCH_HEAD]: {
+    query: "listBranchHeads", holds: holdsBranch, scope: branchHeadScope, callers: [SECTOR_HEAD],
+  },
+};
+
+export const listUsersByRole = async (user, role) => {
+  const wanted = String(role ?? "").trim().toUpperCase();
+  const listing = listableRoles[wanted];
+
+  if (!listing)
     throwHttpError(
       400,
       `Invalid role. Allowed values: ${Object.keys(listableRoles).join(", ")}`,
     );
 
-  const result = await userModel[listableRoles[wanted]]().run();
-  const toScope = wanted === REGIONAL_SALES_HEAD ? regionalScope : areaScope;
+  if (user.Role !== SUPERADMIN && !listing.callers.includes(user.Role))
+    throwHttpError(403, "Forbidden");
+
+  const result = await userModel[listing.query]().run();
 
   return {
     success: true,
     role: wanted,
-    data: byUser(result.recordset).map(({ row, groups }) => ({
+    data: byUser(result.recordset, listing.holds).map(({ row, groups }) => ({
       userId: row.UserId,
       userCode: row.UserCode,
       fullName: row.FullName ?? null,
       photo: row.Photo ?? null,
       approved: isApproved(row.IsActive),
-      scope: toScope(groups),
+      scope: listing.scope(groups),
     })),
   };
 };
