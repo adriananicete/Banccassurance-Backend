@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import referralRoutes from "./routes/referralRoutes.js";
 import { connectDB } from "./config/db.js";
+import { corsOptions } from "./config/cors.js";
 import authRoutes from "./routes/authRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
@@ -39,18 +40,7 @@ if (trustProxy) {
   );
 }
 
-// Temporary: allow a second local dev port (3001) alongside the default 3000
-// until the frontend settles on one. Remove 3001 once that's no longer needed.
-const allowedOrigins = process.env.CLIENT_URL
-  ? process.env.CLIENT_URL.split(",").map((origin) => origin.trim())
-  : ["http://localhost:3000", "http://localhost:3001"];
-
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  }),
-);
+app.use(cors(corsOptions));
 
 app.use(cookieParser());
 
