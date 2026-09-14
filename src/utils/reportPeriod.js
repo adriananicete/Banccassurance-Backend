@@ -78,6 +78,37 @@ export const resolvePeriod = (query = {}, now = new Date()) => {
   return { preset, from: start, toExclusive: end };
 };
 
+export const manilaMonthStart = (instant) => {
+  const { year, month } = manilaCalendarDate(instant);
+  return manilaMidnight(year, month, 1);
+};
+
+export const splitIntoMonths = ({ from, toExclusive }) => {
+  const months = [];
+  let { year, month } = manilaCalendarDate(from);
+  let start = from;
+
+  while (start < toExclusive) {
+    const next = manilaMidnight(year, month + 1, 1);
+    const end = next < toExclusive ? next : toExclusive;
+
+    months.push({
+      month: `${year}-${String(month + 1).padStart(2, "0")}`,
+      from: start,
+      toExclusive: end,
+    });
+
+    start = end;
+    month += 1;
+    if (month === 12) {
+      month = 0;
+      year += 1;
+    }
+  }
+
+  return months;
+};
+
 export const asManilaWallTime = (value) =>
   value instanceof Date ? new Date(value.getTime() + MANILA_OFFSET_MS) : value;
 

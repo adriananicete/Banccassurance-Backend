@@ -24,6 +24,15 @@ export const getReferralCounts = (user, options) => {
   };
 };
 
+export const getFirstReferralDate = () => {
+  const request = new sql.Request();
+
+  return {
+    request,
+    run: () => request.query("SELECT MIN(CreatedAt) AS FirstCreatedAt FROM banc.Referrals"),
+  };
+};
+
 export const getReferralsForExport = (user, options) => {
   const request = new sql.Request();
   bindScope(request, user);
