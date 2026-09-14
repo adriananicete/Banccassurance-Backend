@@ -797,6 +797,41 @@ ORDER BY u.UserCode, g.GroupCode
   };
 };
 
+export const listGroupHeads = () => {
+  const request = new sql.Request();
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT u.UserId, u.UserCode, COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS FullName,
+       u.Photo, u.IsActive, g.GroupCode, g.GroupName, g.RegionCode, r.RegionName
+FROM banc.Users u
+LEFT JOIN banc.group_areas g ON g.GroupCode = u.GroupCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+WHERE u.Role = 'GROUP_HEAD' AND u.IsActive >= 0
+ORDER BY u.UserCode
+      `),
+  };
+};
+
+export const listBranchHeads = () => {
+  const request = new sql.Request();
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT u.UserId, u.UserCode, COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS FullName,
+       u.Photo, u.IsActive, b.BranchCode, b.BranchName, g.GroupCode, g.GroupName, g.RegionCode, r.RegionName
+FROM banc.Users u
+LEFT JOIN banc.branches b ON b.BranchCode = u.BranchCode
+LEFT JOIN banc.group_areas g ON g.GroupCode = b.GroupCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+WHERE u.Role = 'BRANCH_HEAD' AND u.IsActive >= 0
+ORDER BY u.UserCode
+      `),
+  };
+};
+
 export const getAssignableBranches = (ashUserCode, groupCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, asText(ashUserCode));
