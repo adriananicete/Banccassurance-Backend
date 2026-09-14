@@ -156,6 +156,15 @@ export const getAssignableBranches = async (req, res, next) => {
   }
 }
 
+export const listUsersByRole = async (req, res, next) => {
+  try {
+    const result = await userService.listUsersByRole(req.query.role)
+    return res.json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const getAccountOfficerBranches = async (req, res, next) => {
   try {
     const { userId } = req.params

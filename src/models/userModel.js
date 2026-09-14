@@ -759,6 +759,44 @@ ORDER BY g.GroupCode
   };
 };
 
+export const listRegionalSalesHeads = () => {
+  const request = new sql.Request();
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT u.UserId, u.UserCode, COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS FullName,
+       u.Photo, u.IsActive, g.GroupCode, g.RegionCode, r.RegionName
+FROM banc.Users u
+LEFT JOIN (banc.regional_sales_head_areas rsa
+           INNER JOIN banc.group_areas g ON g.GroupCode = rsa.GroupCode)
+       ON rsa.UserCode = u.UserCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+WHERE u.Role = 'REGIONAL_SALES_HEAD' AND u.IsActive >= 0
+ORDER BY u.UserCode, g.GroupCode
+      `),
+  };
+};
+
+export const listAreaSalesHeads = () => {
+  const request = new sql.Request();
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT u.UserId, u.UserCode, COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS FullName,
+       u.Photo, u.IsActive, g.GroupCode, g.GroupName, g.RegionCode, r.RegionName
+FROM banc.Users u
+LEFT JOIN (banc.area_sales_head_areas a
+           INNER JOIN banc.group_areas g ON g.GroupCode = a.GroupCode)
+       ON a.UserCode = u.UserCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+WHERE u.Role = 'AREA_SALES_HEAD' AND u.IsActive >= 0
+ORDER BY u.UserCode, g.GroupCode
+      `),
+  };
+};
+
 export const getAssignableBranches = (ashUserCode, groupCode) => {
   const request = new sql.Request();
   request.input("UserCode", sql.NVarChar, asText(ashUserCode));

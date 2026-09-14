@@ -5,7 +5,7 @@ import {
     replaceAccountOfficerBranches, replaceAreaSalesHeadAreas,
     replaceRegionalSalesHeadAreas,
     getOwnScope, getAssignableBranches, getAccountOfficerBranches,
-    getAreaSalesHeadAreas, getRegionalSalesHeadAreas
+    getAreaSalesHeadAreas, getRegionalSalesHeadAreas, listUsersByRole
 } from '../controllers/userController.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { photoUpload } from '../middleware/upload.js';
@@ -25,6 +25,7 @@ router.post('/upload-photo', requireAuth, photoUpload.single('photo'), verifyFil
 router.get('/approvals', requireAuth, requireRole(...approverRoles), getUsersForApproval)
 router.post('/approvals/action', requireAuth, requireRole(...approverRoles), approveRejectUser)
 
+router.get('/', requireAuth, requireRole(DEPARTMENT_HEAD, SUPERADMIN), listUsersByRole)
 router.post('/', requireAuth, requireRole(SUPERADMIN), createTopLevelUser)
 
 router.get('/scope', requireAuth, getOwnScope)
