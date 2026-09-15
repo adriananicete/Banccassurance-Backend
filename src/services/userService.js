@@ -414,9 +414,19 @@ export const getUsersForApproval = async (user, options = {}) => {
 
   const totalCount = result.recordset[0]?.TotalCount ?? 0;
   const rows = result.recordset.map(({ TotalCount, ...rest }) => rest);
+  const countsRow = result.recordsets?.[1]?.[0];
 
   return {
     data: rows,
+    counts: countsRow
+      ? {
+          Pending: countsRow.Pending ?? 0,
+          Approved: countsRow.Approved ?? 0,
+          Rejected: countsRow.Rejected ?? 0,
+          Deactivated: countsRow.Deactivated ?? 0,
+          Total: countsRow.Total ?? 0,
+        }
+      : null,
     pagination: {
       page: options.PageNumber,
       pageSize: options.PageSize,
