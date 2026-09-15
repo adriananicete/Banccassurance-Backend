@@ -78,6 +78,24 @@ export const resolvePeriod = (query = {}, now = new Date()) => {
   return { preset, from: start, toExclusive: end };
 };
 
+const readDayOnly = (value) => {
+  try {
+    return parseDayOnly(value, "date");
+  } catch {
+    return null;
+  }
+};
+
+export const manilaDayBounds = (dateFrom, dateTo) => {
+  const from = readDayOnly(dateFrom);
+  const to = readDayOnly(dateTo);
+
+  return {
+    from: from ? manilaMidnight(from.year, from.month, from.day) : null,
+    toExclusive: to ? manilaMidnight(to.year, to.month, to.day + 1) : null,
+  };
+};
+
 export const manilaMonthStart = (instant) => {
   const { year, month } = manilaCalendarDate(instant);
   return manilaMidnight(year, month, 1);

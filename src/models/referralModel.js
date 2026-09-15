@@ -87,8 +87,8 @@ export const getReferralsByRole = (user,options) => {
   request.input('Search', sql.NVarChar, options.Search)
   request.input('Status', sql.NVarChar, options.Status)
   request.input('Verified', sql.Bit, options.Verified)
-  request.input('DateFrom', sql.Date, options.DateFrom)
-  request.input('DateTo', sql.Date, options.DateTo)
+  request.input('DateFrom', sql.DateTime2, options.DateFrom)
+  request.input('DateTo', sql.DateTime2, options.DateTo)
   request.input('SortBy', sql.NVarChar, options.SortBy)
   request.input('SortDir', sql.NVarChar, options.SortDir)
   return { request, run: () => request.execute('[banc].[usp_sel_referrals_by_role_1]') }
