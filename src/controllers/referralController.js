@@ -1,6 +1,7 @@
 import * as referralService from "../services/referralService.js";
 import { isValidGuid } from "../utils/validators.js";
 import { sortDirections, sortWhitelist } from "../utils/constant.js";
+import { manilaDayBounds } from "../utils/reportPeriod.js";
 
 export const getReferrerByCode = async (req, res, next) => {
   try {
@@ -106,14 +107,16 @@ export const getReferrals = async (req, res, next) => {
 
     sortDir = sortDir?.toUpperCase();
 
+    const period = manilaDayBounds(dateFrom, dateTo);
+
     const options = {
       PageNumber: page,
       PageSize: pageSize,
       Search: search || null,
       Status: status || null,
       Verified: verified,
-      DateFrom: !isNaN(Date.parse(dateFrom)) ? dateFrom : null,
-      DateTo: !isNaN(Date.parse(dateTo)) ? dateTo : null,
+      DateFrom: period.from,
+      DateTo: period.toExclusive,
       SortBy: sortWhitelist.includes(sortBy) ? sortBy : null,
       SortDir: sortDirections.includes(sortDir) ? sortDir : "DESC"
     }
