@@ -117,6 +117,58 @@ test("an empty page reports no total rather than throwing", async () => {
   assert.equal(result.pagination.totalPages, 0);
 });
 
+const withCounts = (page, counts) => () => ({
+  run: async () => ({ recordset: page, recordsets: [page, counts === undefined ? [] : [counts]] }),
+});
+
+test("the counts come from the procedure's second result set, beside the page", async () => {
+  // A37. The page is filtered by status and search; the counts are the whole
+  // scope and ignore both, so the four cards stay put while the list narrows.
+  const page = [{ UserId: 21, UserCode: "PHL-AO-00002", Status: "DEACTIVATED", TotalCount: 1 }];
+  const { service } = await withUserService({
+    getUsersForApproval: withCounts(page, { Pending: 3, Approved: 12, Rejected: 2, Deactivated: 1, Total: 18 }),
+  });
+
+  const result = await service.getUsersForApproval(callers[5], { ...paging, StatusFilter: "DEACTIVATED" });
+
+  assert.deepEqual(result.counts, { Pending: 3, Approved: 12, Rejected: 2, Deactivated: 1, Total: 18 });
+  assert.equal(result.pagination.totalCount, 1);
+  assert.equal(result.data[0].Status, "DEACTIVATED");
+  assert.equal("TotalCount" in result.data[0], false);
+});
+
+test("a page past the end still carries the counts", async () => {
+  // TotalCount rides on the rows and vanishes with them; the counts do not.
+  const { service } = await withUserService({
+    getUsersForApproval: withCounts([], { Pending: 0, Approved: 2, Rejected: 0, Deactivated: 0, Total: 2 }),
+  });
+
+  const result = await service.getUsersForApproval(callers[5], { ...paging, PageNumber: 999 });
+
+  assert.equal(result.pagination.totalCount, 0);
+  assert.equal(result.counts.Total, 2);
+});
+
+test("no second result set is counts: null, not a row of zeros", async () => {
+  // Zeros would read as "nobody is waiting". null says the numbers are not known.
+  for (const model of [rows(), withCounts([])]) {
+    const { service } = await withUserService({ getUsersForApproval: model });
+
+    const result = await service.getUsersForApproval(callers[0], paging);
+
+    assert.equal(result.counts, null);
+  }
+});
+
+test("DEACTIVATED reaches the procedure as the status filter", async () => {
+  const { service, calls } = await withUserService({ getUsersForApproval: withCounts([], undefined) });
+
+  await service.getUsersForApproval(callers[6], { ...paging, StatusFilter: "DEACTIVATED" });
+
+  const [, options] = calls.find((call) => call.name === "getUsersForApproval").args;
+  assert.equal(options.StatusFilter, "DEACTIVATED");
+});
+
 test("a role with no approval list is refused rather than answered", async () => {
   const { service } = await withUserService(oneProcedure);
 
