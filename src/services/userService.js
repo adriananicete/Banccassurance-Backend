@@ -1167,21 +1167,42 @@ const branchHeadScope = ([row]) =>
       }
     : null;
 
+const accountOfficerScope = (branches, row) => ({
+  groupCode: row.GroupCode ?? null,
+  groupName: row.GroupName ?? null,
+  regionCode: row.RegionCode ?? null,
+  regionName: row.RegionName ?? null,
+  branches: branches.map((branch) => ({
+    branchCode: branch.BranchCode,
+    branchName: branch.BranchName ?? null,
+    clusterCode: branch.ClusterCode ?? null,
+    clusterName: branch.ClusterName ?? null,
+  })),
+});
+
 const holdsGroup = (row) => row.GroupCode != null;
 const holdsBranch = (row) => row.BranchCode != null;
 
 const listableRoles = {
   [REGIONAL_SALES_HEAD]: {
-    query: "listRegionalSalesHeads", holds: holdsGroup, scope: regionalScope, callers: [DEPARTMENT_HEAD],
+    query: "listRegionalSalesHeads", holds: holdsGroup, scope: regionalScope,
+    tenantWide: [DEPARTMENT_HEAD], scoped: [],
   },
   [AREA_SALES_HEAD]: {
-    query: "listAreaSalesHeads", holds: holdsGroup, scope: areaScope, callers: [DEPARTMENT_HEAD],
+    query: "listAreaSalesHeads", holds: holdsGroup, scope: areaScope,
+    tenantWide: [DEPARTMENT_HEAD], scoped: [REGIONAL_SALES_HEAD],
+  },
+  [ACCOUNT_OFFICER]: {
+    query: "listAccountOfficers", holds: holdsBranch, scope: accountOfficerScope,
+    tenantWide: [], scoped: [AREA_SALES_HEAD],
   },
   [GROUP_HEAD]: {
-    query: "listGroupHeads", holds: holdsGroup, scope: groupHeadScope, callers: [SECTOR_HEAD],
+    query: "listGroupHeads", holds: holdsGroup, scope: groupHeadScope,
+    tenantWide: [SECTOR_HEAD], scoped: [],
   },
   [BRANCH_HEAD]: {
-    query: "listBranchHeads", holds: holdsBranch, scope: branchHeadScope, callers: [SECTOR_HEAD],
+    query: "listBranchHeads", holds: holdsBranch, scope: branchHeadScope,
+    tenantWide: [SECTOR_HEAD], scoped: [],
   },
 };
 
@@ -1195,10 +1216,16 @@ export const listUsersByRole = async (user, role) => {
       `Invalid role. Allowed values: ${Object.keys(listableRoles).join(", ")}`,
     );
 
-  if (user.Role !== SUPERADMIN && !listing.callers.includes(user.Role))
+  const tenantWide = user.Role === SUPERADMIN || listing.tenantWide.includes(user.Role);
+
+  if (!tenantWide && !listing.scoped.includes(user.Role))
     throwHttpError(403, "Forbidden");
 
-  const result = await userModel[listing.query]().run();
+  const scopedTo = tenantWide ? null : String(user.UserCode ?? "").trim();
+
+  if (scopedTo === "") throwHttpError(403, "Forbidden");
+
+  const result = await userModel[listing.query](scopedTo).run();
 
   return {
     success: true,
@@ -1209,7 +1236,7 @@ export const listUsersByRole = async (user, role) => {
       fullName: row.FullName ?? null,
       photo: row.Photo ?? null,
       approved: isApproved(row.IsActive),
-      scope: listing.scope(groups),
+      scope: listing.scope(groups, row),
     })),
   };
 };
