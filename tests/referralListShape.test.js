@@ -14,9 +14,6 @@ const listing = (...records) =>
       [REFERRAL_MODEL]: {
         getReferralsByRole: () => ({ run: async () => ({ recordset: records }) }),
         getReferralCountsByRole: () => ({ run: async () => ({ recordset: records }) }),
-        getReferralsForSectorOrDepartmentHead: () => ({
-          run: async () => ({ recordset: records }),
-        }),
       },
     },
     REFERRAL_SERVICE,
@@ -98,11 +95,10 @@ const overseers = [
 ];
 
 test("an overseer's list is the same shape as every other role's", async () => {
-  // These two take a different query, and it used to return a bare array while
+  // These two once took a different query, and it returned a bare array while
   // every other role got { data, pagination }. The controller then spread it
   // into an object literal, so the caller received { success, 0: {…}, 1: {…} } —
-  // numeric keys, no data, no pagination. The shapes have to match or deleting
-  // this path later becomes a second breaking change for the frontend.
+  // numeric keys, no data, no pagination.
   for (const user of overseers) {
     const { service } = await listing(referralRow(), referralRow());
 
@@ -119,26 +115,32 @@ test("an overseer's list is the same shape as every other role's", async () => {
   }
 });
 
-test("an overseer is scoped to their own tenant, on the column their side uses", async () => {
-  // Landbank scopes on who created the referral, PhilLife on who handles it.
-  // The query had no WHERE clause at all, so a PhilLife Department Head listed
-  // Landbank referrals and the reverse.
-  const expected = [
-    [{ Role: "SECTOR_HEAD", UserCode: "USR-SEC-0001" }, "USR-%"],
-    [{ Role: "DEPARTMENT_HEAD", UserCode: "PHL-DH-0001" }, "PHL-%"],
-  ];
+test("an overseer's filters reach the list procedure, the same as every other role's", async () => {
+  // R11. These two had their own hand-written query, which bound only paging, so
+  // search, status, verified, the dates and the sort were parsed and dropped —
+  // a "Declined, last 3 months" preview listed the whole tenant. The procedure
+  // has scoped them correctly since A1 and A3 (2026-08-28) and applies every
+  // filter, so they go through it and the export's filters match the list's.
+  const filters = {
+    ...PAGE,
+    Search: "Juan",
+    Status: "Declined",
+    Verified: 1,
+    DateFrom: "2026-07-01",
+    DateTo: "2026-09-30",
+    SortBy: "StatusDate",
+    SortDir: "ASC",
+  };
 
-  for (const [user, prefix] of expected) {
+  for (const user of overseers) {
     const { service, calls } = await listing(referralRow());
 
-    await service.getReferralsByRole(user, PAGE);
+    await service.getReferralsByRole(user, filters);
 
-    const call = calls.find(
-      (entry) => entry.name === "getReferralsForSectorOrDepartmentHead",
-    );
-    assert.ok(call, user.Role);
-    assert.equal(call.args[0], user.Role);
-    assert.equal(call.args[1], prefix);
+    const listCalls = calls.filter((entry) => entry.name === "getReferralsByRole");
+    assert.equal(listCalls.length, 1, user.Role);
+    assert.equal(listCalls[0].args[0], user, user.Role);
+    assert.deepEqual(listCalls[0].args[1], filters, user.Role);
   }
 });
 

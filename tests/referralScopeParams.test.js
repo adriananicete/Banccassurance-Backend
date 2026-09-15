@@ -130,24 +130,44 @@ test("the Account Officer's name is joined on the resolved code, not the stored 
   assert.doesNotMatch(queries[0], /ON u\.AOCode = ao\.UserCode/i);
 });
 
-test("the overseer list carries a tenant guard on the column that side scopes by", async () => {
-  // This query had no WHERE clause at all, so a PhilLife Department Head listed
-  // Landbank referrals and the reverse. Stubbing the model cannot catch that —
-  // only reading the SQL the model actually builds can. Landbank scopes on who
-  // created the referral, PhilLife on who handles it.
-  const { model, queries } = await captureSql(REFERRAL_MODEL);
-  await model
-    .getReferralsForSectorOrDepartmentHead("SECTOR_HEAD", "USR-%", OPTIONS)
-    .run();
+test("the overseers' hand-written list query is gone", async () => {
+  // It bound only paging, so every filter was dropped for a Sector Head and a
+  // Department Head (R11). Their tenant scoping lives in usp_sel_referrals_by_role_1
+  // now, with the other six roles'. A second copy here would be a fifth copy of
+  // the scoping block that has already drifted four times.
+  const { model } = await captureSql(REFERRAL_MODEL);
   restoreSqlCapture();
 
-  const [text] = queries;
+  assert.equal("getReferralsForSectorOrDepartmentHead" in model, false);
+});
 
-  assert.match(text, /SECTOR_HEAD'\s+AND r\.ReferrerCode\s+LIKE @TenantPrefix/i);
-  assert.match(text, /DEPARTMENT_HEAD'\s+AND r\.AOCode\s+LIKE @TenantPrefix/i);
-  assert.doesNotMatch(text, /ConsentToken/);
-  assert.match(text, /COUNT\(\*\) OVER\(\) AS TotalCount/i);
-  assert.match(text, /ORDER BY r\.CreatedAt DESC, r\.ReferralNo DESC/i);
+test("an overseer's filters are bound to the list procedure", async () => {
+  const filters = {
+    ...OPTIONS,
+    Search: "Juan",
+    Status: "Declined",
+    Verified: 1,
+    DateFrom: "2026-07-01",
+    DateTo: "2026-09-30",
+    SortBy: "StatusDate",
+    SortDir: "ASC",
+  };
+
+  for (const user of [
+    { Role: "SECTOR_HEAD", UserCode: "USR-SEC-0001" },
+    { Role: "DEPARTMENT_HEAD", UserCode: "PHL-DH-0001" },
+  ]) {
+    const { model, inputs, queries } = await captureSql(REFERRAL_MODEL);
+    await model.getReferralsByRole(user, filters).run();
+    restoreSqlCapture();
+
+    const params = Object.fromEntries(inputs.map(({ name, value }) => [name, value]));
+    assert.deepEqual(queries, ["EXEC [banc].[usp_sel_referrals_by_role_1]"], user.Role);
+    assert.equal(params.Role, user.Role);
+    assert.equal(params.UserCode, user.UserCode);
+    for (const name of ["Search", "Status", "Verified", "DateFrom", "DateTo", "SortBy", "SortDir"])
+      assert.equal(params[name], filters[name], `${user.Role} ${name}`);
+  }
 });
 
 test("every scope parameter is a type the procedure can accept", async () => {
