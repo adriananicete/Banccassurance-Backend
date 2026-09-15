@@ -69,9 +69,10 @@ export const getGroups = () => {
     request,
     run: () =>
       request.query(`
-      SELECT GroupCode, GroupName
-      FROM banc.group_areas
-      ORDER BY GroupName
+      SELECT g.GroupCode, g.GroupName, g.RegionCode, r.RegionName
+      FROM banc.group_areas g
+      LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+      ORDER BY g.GroupName
     `),
   };
 };
