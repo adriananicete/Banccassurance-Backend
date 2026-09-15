@@ -25,7 +25,7 @@ router.post('/upload-photo', requireAuth, photoUpload.single('photo'), verifyFil
 router.get('/approvals', requireAuth, requireRole(...approverRoles), getUsersForApproval)
 router.post('/approvals/action', requireAuth, requireRole(...approverRoles), approveRejectUser)
 
-router.get('/', requireAuth, requireRole(DEPARTMENT_HEAD, SECTOR_HEAD, SUPERADMIN), listUsersByRole)
+router.get('/', requireAuth, requireRole(DEPARTMENT_HEAD, SECTOR_HEAD, REGIONAL_SALES_HEAD, AREA_SALES_HEAD, SUPERADMIN), listUsersByRole)
 router.post('/', requireAuth, requireRole(SUPERADMIN), createTopLevelUser)
 
 router.get('/scope', requireAuth, getOwnScope)

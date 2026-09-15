@@ -778,8 +778,9 @@ ORDER BY u.UserCode, g.GroupCode
   };
 };
 
-export const listAreaSalesHeads = () => {
+export const listAreaSalesHeads = (rshUserCode = null) => {
   const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, asText(rshUserCode));
   return {
     request,
     run: () =>
@@ -792,7 +793,40 @@ LEFT JOIN (banc.area_sales_head_areas a
        ON a.UserCode = u.UserCode
 LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
 WHERE u.Role = 'AREA_SALES_HEAD' AND u.IsActive >= 0
+  AND (@UserCode IS NULL OR EXISTS (
+      SELECT 1
+      FROM banc.regional_sales_head_areas rsa
+      WHERE rsa.UserCode = @UserCode AND rsa.RegionCode = u.RegionCode
+  ))
 ORDER BY u.UserCode, g.GroupCode
+      `),
+  };
+};
+
+export const listAccountOfficers = (ashUserCode = null) => {
+  const request = new sql.Request();
+  request.input("UserCode", sql.NVarChar, asText(ashUserCode));
+  return {
+    request,
+    run: () =>
+      request.query(`
+      SELECT u.UserId, u.UserCode, COALESCE(u.FullName, u.FirstName + ' ' + u.LastName) AS FullName,
+       u.Photo, u.IsActive, g.GroupCode, g.GroupName, g.RegionCode, r.RegionName,
+       b.BranchCode, b.BranchName, c.ClusterCode, c.ClusterName
+FROM banc.Users u
+LEFT JOIN banc.group_areas g ON g.GroupCode = u.GroupCode
+LEFT JOIN banc.regions r ON r.RegionCode = g.RegionCode
+LEFT JOIN (banc.account_officer_branches aob
+           INNER JOIN banc.branches b ON b.BranchCode = aob.BranchCode)
+       ON aob.UserCode = u.UserCode
+LEFT JOIN banc.clusters c ON c.ClusterCode = b.ClusterCode AND c.GroupCode = b.GroupCode
+WHERE u.Role = 'ACCOUNT_OFFICER' AND u.IsActive >= 0
+  AND (@UserCode IS NULL OR EXISTS (
+      SELECT 1
+      FROM banc.area_sales_head_areas a
+      WHERE a.UserCode = @UserCode AND a.GroupCode = u.GroupCode
+  ))
+ORDER BY u.UserCode, b.BranchName
       `),
   };
 };
