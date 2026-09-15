@@ -200,7 +200,22 @@ test("groups still uses its own inline query, and now names the group columns", 
   restoreSqlCapture();
 
   assert.doesNotMatch(queries[0], /^EXEC /);
-  assert.match(queries[0], /FROM banc\.group_areas/i);
-  assert.match(queries[0], /SELECT\s+GroupCode,\s*GroupName/i);
+  assert.match(queries[0], /FROM banc\.group_areas g/i);
+  assert.match(queries[0], /SELECT\s+g\.GroupCode,\s*g\.GroupName,\s*g\.RegionCode,\s*r\.RegionName\s+FROM/i);
   assert.doesNotMatch(queries[0], /AreaCode|AreaName/i);
+});
+
+test("each group carries its region, and a group is never dropped for want of one", async () => {
+  // R7. A screen listing every group under a region at 0 needs the region on
+  // the group; before this it could only place groups that had referrals or a
+  // head. LEFT JOIN, so a group whose region row is missing still comes back.
+  const { model, queries, inputs } = await captureSql(USER_MODEL);
+
+  await model.getGroups().run();
+  restoreSqlCapture();
+
+  assert.match(queries[0], /LEFT JOIN banc\.regions r ON r\.RegionCode = g\.RegionCode/i);
+  assert.doesNotMatch(queries[0], /WHERE/i);
+  assert.doesNotMatch(queries[0], /SELECT\s+\*/i);
+  assert.deepEqual(inputs, []);
 });
