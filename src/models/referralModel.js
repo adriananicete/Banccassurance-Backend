@@ -94,50 +94,6 @@ export const getReferralsByRole = (user,options) => {
   return { request, run: () => request.execute('[banc].[usp_sel_referrals_by_role_1]') }
 }
 
-export const getReferralsForSectorOrDepartmentHead = (role, tenantPrefix, options) => {
-  const request = new sql.Request()
-  request.input('Role', sql.NVarChar, role)
-  request.input('TenantPrefix', sql.NVarChar, tenantPrefix)
-  request.input('PageNumber', sql.Int, asInt(options.PageNumber) ?? 1)
-  request.input('PageSize', sql.Int, asInt(options.PageSize) ?? 20)
-  return {
-    request,
-    run: () => request.query(`
-      SELECT
-        r.Id,
-        r.ReferralNo,
-        r.FirstName,
-        r.LastName,
-        r.MiddleName,
-        r.Suffix,
-        r.Email,
-        r.MobileNumber,
-        r.Status,
-        r.StatusDate,
-        r.ReferrerCode,
-        r.ReferrerName,
-        r.BranchCode,
-        COALESCE(r.BranchName, b.BranchName) AS BranchName,
-        COALESCE(r.GroupCode, b.GroupCode) AS GroupCode,
-        COALESCE(r.GroupName, a.GroupName) AS GroupName,
-        r.AOName,
-        r.AOCode,
-        r.CreatedAt,
-        COUNT(*) OVER() AS TotalCount
-      FROM banc.Referrals r
-      LEFT JOIN banc.branches b
-        ON r.BranchCode = b.BranchCode
-      LEFT JOIN banc.group_areas a
-        ON COALESCE(r.GroupCode, b.GroupCode) = a.GroupCode
-      WHERE (@Role = 'SECTOR_HEAD'     AND r.ReferrerCode LIKE @TenantPrefix)
-         OR (@Role = 'DEPARTMENT_HEAD' AND r.AOCode       LIKE @TenantPrefix)
-      ORDER BY r.CreatedAt DESC, r.ReferralNo DESC
-      OFFSET (@PageNumber - 1) * @PageSize ROWS
-      FETCH NEXT @PageSize ROWS ONLY
-    `)
-  }
-}
-
 export const getReferralContactInfo = (id) => {
   const request = new sql.Request()
   request.input('Id', sql.UniqueIdentifier, id)
